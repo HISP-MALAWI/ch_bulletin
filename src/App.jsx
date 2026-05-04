@@ -5,6 +5,9 @@ import i18n from '@dhis2/d2-i18n'
 import classes from './App.module.css'
 import HomePage from './Pages/home'
 import BulletinForm from './Pages/newBulletin'
+import HomeIcon from '@mui/icons-material/Home';
+import DescriptionIcon from '@mui/icons-material/Description';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 const query = {
     me: { resource: 'me' },
@@ -27,6 +30,7 @@ const MyApp = () => {
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
+                        <HomeIcon style={{ marginRight: '8px' }} />
                         {i18n.t('Home')}
                     </NavLink>
 
@@ -36,6 +40,7 @@ const MyApp = () => {
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
+                        <DescriptionIcon style={{ marginRight: '8px' }} />
                         {i18n.t('Drafts')}
                     </NavLink>
 
@@ -45,6 +50,7 @@ const MyApp = () => {
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
+                        <SettingsIcon style={{ marginRight: '8px' }} />
                         {i18n.t('Settings')}
                     </NavLink>
                 </aside>
