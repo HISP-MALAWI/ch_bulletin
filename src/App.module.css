@@ -1,0 +1,244 @@
+/* Layout Container */
+.container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc; 
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: #0f172a; 
+  color: #f8fafc;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.navItem {
+  margin: 4px 16px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #94a3b8; 
+  text-decoration: none;  
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.navItem:hover {
+  background-color: #1e293b; 
+  color: #ffffff;
+}
+
+.navItemActive {
+  background-color: #3b82f6; 
+  color: #ffffff;
+}
+
+.main {
+  flex: 1;
+  padding: 32px 40px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.titleSection h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.titleSection p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.tableContainer {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  background-color: #f8fafc;
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px;
+  color: #334155;
+}
+
+.statusDraft {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background-color: #eff6ff;
+  color: #3b82f6;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusSubmitted {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.buttonPrimary {
+  background-color: #0056d2;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dashboard Grid */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns */
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.fullWidth {
+  grid-column: 1 / span 2;
+}
+
+/* Card Styling */
+.sectionCard {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  position: relative;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stepBadge {
+  background: #1d4ed8;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sectionTitle {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 16px;
+}
+
+.sectionSub {
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* Specific UI Elements */
+.pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f0fdf4;
+  color: #16a34a;
+  margin-left: 12px;
+}
+
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 0;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 24px;
+}
+
+/* Character count needs to be outside the Quill container but inside the section */
+.charCount {
+    text-align: right;
+    font-size: 12px;
+    color: #64748b; /* Slate gray */
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Quill 2.0.3 Overrides to match form_2.jpg */
+:global(.ql-toolbar.ql-snow) {
+    border: 1px solid #e2e8f0 !important;
+    background-color: #f8fafc; /* Matches the header texture */
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+:global(.ql-container.ql-snow) {
+    border: 1px solid #e2e8f0 !important;
+    border-top: none !important;
+    min-height: 150px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+}
+
+.pill {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background-color: #f0fdf4; 
+    color: #16a34a;            
+    margin-left: 12px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.sectionContent :global(.css-10fnc3c-Table) {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
