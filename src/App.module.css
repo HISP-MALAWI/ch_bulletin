@@ -15,11 +15,13 @@
 }
 
 .navItem {
+  display: flex;
+  align-items: center;
   margin: 4px 16px;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
-  color: #94a3b8; 
+  color: #c3cedd; 
   text-decoration: none;  
   font-size: 14px;
   font-weight: 500;
