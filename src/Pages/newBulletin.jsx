@@ -40,18 +40,18 @@ const BulletinForm = ({style}) => {
 
                 {/* 2. Recorded Health Cases */}
                 <section className={style.sectionCard}>
-                    <HealthCasesWidget cases={cases} style={style} step="2" title="Recorded Health Cases" />
+                    <HealthCasesWidget cases={cases} style={style} step="2" title="Recorded Health Cases" description="Summary of recorded health cases." />
                 </section>
 
                 {/* 3. Weather Forecast */}
                 <section className={style.sectionCard}>
-                    <ForecastWidget style={style} step="3" title="Weather Forecast" />
+                    <ForecastWidget style={style} step="3" title="Weather Forecast" description="Upcoming weather conditions." />
                 </section>
 
                 {/* 4. Health Advisories */}
                 <section className={`${style.sectionCard} ${style.fullWidth}`}>
                     
-                    <AdvisoriesWidget style={style} advisories={advisories} setAdvisories={setAdvisories} step="4" title="Health Advisories" />
+                    <AdvisoriesWidget style={style} advisories={advisories} setAdvisories={setAdvisories} step="4" title="Health Advisories" description="Important health advisories for the region." />
                 </section>
             </div>
 

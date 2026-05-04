@@ -11,7 +11,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 
-const AdvisoriesWidget = ({ style, step, title, advisories = [], setAdvisories }) => {
+const AdvisoriesWidget = ({ style, description, step, title, advisories = [], setAdvisories }) => {
     const [hideModal, setHideModal] = useState(true);
     const [newAdvisory, setNewAdvisory] = useState('');
 
@@ -33,7 +33,9 @@ const AdvisoriesWidget = ({ style, step, title, advisories = [], setAdvisories }
                 <div className={style.stepBadge}>{step || 4}</div>
                 <span className={style.sectionTitle}>{title || 'Health advisories'}</span>
             </div>
-
+            {description && (
+                            <p className={style.sectionSub}>{description}</p>
+                        )}
             <div className={style.advisoryList}>
                 {advisories.map((text, i) => (
                     <div key={i} className={style.advisoryItem} style={{ 

@@ -9,7 +9,7 @@ import {
     TableCell 
 } from '@dhis2/ui';
 
-const HealthCasesWidget = ({ style, step, title, cases = [] }) => {
+const HealthCasesWidget = ({ style, step, title, description, cases = [] }) => {
     return (
         <div> {/* Wrapper for texture */}
             <div className={style.sectionHeader}>
@@ -17,7 +17,9 @@ const HealthCasesWidget = ({ style, step, title, cases = [] }) => {
                 <span className={style.sectionTitle}>{title}</span> {/* Use prop */}
                 <span className={style.pill}>Auto-fetched from API</span>
             </div>
-
+            {description && (
+                            <p className={style.sectionSub}>{description}</p>
+                        )}
             <Table>
                 <TableHead>
                     <TableRowHead>
