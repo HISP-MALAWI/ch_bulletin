@@ -17,6 +17,7 @@ const BulletinForm = ({style}) => {
         { disease: 'Dengue', count: 300 },
         { disease: 'Cholera', count: 120 },
     ]);
+    const [highlights, setHighlights] = React.useState('');
     return (
         <div className={style.main}>
             {/* Header Area */}
@@ -34,12 +35,12 @@ const BulletinForm = ({style}) => {
                 
                 {/* 1. Highlights Section */}
                 <section className={`${style.sectionCard} ${style.fullWidth}`}>
-                    <HighlightsInput style={style} step="1" title="Highlights" description="Key takeaways for the bulletin."/>
+                    <HighlightsInput style={style} step="1" title="Highlights" description="Key takeaways for the bulletin." highlights={highlights} setHighlights={setHighlights} />
                 </section>
 
                 {/* 2. Recorded Health Cases */}
                 <section className={style.sectionCard}>
-                    <HealthCasesWidget style={style} step="2" title="Recorded Health Cases" />
+                    <HealthCasesWidget cases={cases} style={style} step="2" title="Recorded Health Cases" />
                 </section>
 
                 {/* 3. Weather Forecast */}
