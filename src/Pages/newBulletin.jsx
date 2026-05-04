@@ -4,12 +4,19 @@ import { Button, Switch, Table, TableHead, TableRowHead, TableCellHead, TableBod
 import SaveIcon from '@mui/icons-material/Save';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
 import HighlightsInput from '../widgets/highlightsInput';
 import HealthCasesWidget from '../widgets/surveilanceHighlights';
 import ForecastWidget from '../widgets/forecastWidget';
+import AdvisoriesWidget from '../widgets/advisoriesWidget';
 
 const BulletinForm = ({style}) => {
+
+    const [advisories, setAdvisories] = React.useState([]);
+    const [cases, setCases] = React.useState([
+        { disease: 'Malaria', count: 1500 },
+        { disease: 'Dengue', count: 300 },
+        { disease: 'Cholera', count: 120 },
+    ]);
     return (
         <div className={style.main}>
             {/* Header Area */}
@@ -42,21 +49,8 @@ const BulletinForm = ({style}) => {
 
                 {/* 4. Health Advisories */}
                 <section className={`${style.sectionCard} ${style.fullWidth}`}>
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>4</div>
-                        <span className={style.sectionTitle}>Health advisories</span>
-                    </div>
-                    <div className={style.advisoryList}>
-                        {['Stay warm', 'Drink more water'].map((text, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', border: '1px solid #e2e8f0', marginBottom: '8px', borderRadius: '6px' }}>
-                                <span>{text}</span>
-                                <DeleteIcon style={{ color: '#ef4444', cursor: 'pointer' }} fontSize="small" />
-                            </div>
-                        ))}
-                        <button className={style.addAdvisory} style={{ width: '100%', padding: '10px', border: '1px dashed #3b82f6', background: '#eff6ff', color: '#3b82f6', borderRadius: '6px', cursor: 'pointer' }}>
-                            <AddIcon fontSize="small" /> Add Advisory
-                        </button>
-                    </div>
+                    
+                    <AdvisoriesWidget style={style} advisories={advisories} setAdvisories={setAdvisories} step="4" title="Health Advisories" />
                 </section>
             </div>
 
