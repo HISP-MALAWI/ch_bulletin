@@ -6,7 +6,6 @@ const HighlightsInput = ({style, step, title, description, fullWidth = false, hi
     const [content, setContent] = useState('');
 
     const handleContentChange = (html) => {
-        console.log('Highlights content updated:', html);
         setContent(html);
         setHighlights(html);
     };
