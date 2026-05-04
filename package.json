@@ -1,0 +1,29 @@
+{
+    "name": "Climate and Health Bulletin",
+    "version": "1.0.0",
+    "description": "",
+    "license": "BSD-3-Clause",
+    "private": true,
+    "packageManager": "yarn@1.22.22",
+    "scripts": {
+        "build": "d2-app-scripts build",
+        "start": "d2-app-scripts start --proxy https://climate.ewsmw.org/dhis",
+        "test": "d2-app-scripts test",
+        "deploy": "d2-app-scripts deploy"
+    },
+    "dependencies": {
+        "@dhis2/app-runtime": "^3.17.0",
+        "@dhis2/ui": "^10.13.1",
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
+        "@mui/icons-material": "^9.0.0",
+        "@mui/material": "^9.0.0",
+        "quill": "^2.0.3",
+        "react": "18",
+        "react-dom": "18",
+        "react-router-dom": "^7.14.2"
+    },
+    "devDependencies": {
+        "@dhis2/cli-app-scripts": "^12.11.0-alpha.1"
+    }
+}
