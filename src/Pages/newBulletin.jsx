@@ -8,10 +8,13 @@ import HighlightsInput from '../widgets/highlightsInput';
 import HealthCasesWidget from '../widgets/surveilanceHighlights';
 import ForecastWidget from '../widgets/forecastWidget';
 import AdvisoriesWidget from '../widgets/advisoriesWidget';
+import DashboardHeader from '../widgets/headerWidget';
 
 const BulletinForm = ({style}) => {
 
     const [advisories, setAdvisories] = React.useState([]);
+    const [period, setPeriod] = React.useState('May 2025');
+    const [organisationUnit, setOrganisation] = React.useState('Central Region');
     const [cases, setCases] = React.useState([
         { disease: 'Malaria', count: 1500 },
         { disease: 'Dengue', count: 300 },
@@ -21,15 +24,7 @@ const BulletinForm = ({style}) => {
     return (
         <div className={style.main}>
             {/* Header Area */}
-            <div className={style.header}>
-                <div className={style.titleSection}>
-                    <h1 style={{fontSize: '28px'}}>Climate & Health Bulletin</h1>
-                    <p>Bridging Weather & Wellness For a Healthier Malawi</p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    {/* Region and Date Pickers would go here */}
-                </div>
-            </div>
+            <DashboardHeader style={style} period={period} setPeriod={setPeriod} organisationUnit={organisationUnit} setOrganisation={setOrganisation} />
 
             <div className={style.formGrid}>
                 
