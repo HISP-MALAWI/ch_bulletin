@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-05-04T09:33:06.989Z\n"
-"PO-Revision-Date: 2026-05-04T09:33:06.990Z\n"
+"POT-Creation-Date: 2026-05-05T07:11:43.759Z\n"
+"PO-Revision-Date: 2026-05-05T07:11:43.760Z\n"
 
 msgid "ERROR"
 msgstr "ERROR"
@@ -14,8 +14,23 @@ msgstr "ERROR"
 msgid "Loading..."
 msgstr "Loading..."
 
-msgid "Hello {{name}}"
-msgstr "Hello {{name}}"
+msgid "Home"
+msgstr "Home"
 
-msgid "Welcome to DHIS2!"
-msgstr "Welcome to DHIS2!"
+msgid "Drafts"
+msgstr "Drafts"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Welcome to your bulletin management dashboard."
+msgstr "Welcome to your bulletin management dashboard."
+
+msgid "New Bulletin"
+msgstr "New Bulletin"
+
+msgid "Save Draft"
+msgstr "Save Draft"
+
+msgid "Generate Bulletin (PDF)"
+msgstr "Generate Bulletin (PDF)"
