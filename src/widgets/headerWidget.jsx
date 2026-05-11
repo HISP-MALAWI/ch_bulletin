@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import OrgUnitTreeWidget from './orgunitTreeWidget';
 import { MapPin, Calendar, RefreshCw, ChevronDown } from 'lucide-react';
+import dataQuery from '../Pages/services/engines/dataQuery';
+import { OrganisationUnitQuery } from '../Pages/services/getOrganisationUnits';
 
 const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisation}) => {
   const [showModal, setShowModal] = useState(false);
+
+  const { loading, error, data } = dataQuery(OrganisationUnitQuery);
 
   const getLast12Months = () => {
   const months = [];
@@ -28,6 +33,8 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   return months;
 };
 
+
+
   return (
     <div className={style.header}>
       <div className={style.titleSection}>
@@ -36,11 +43,7 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
       </div>
 
       <div className={style.controlsGroup}>
-        <div className={style.lastUpdated}>
-          <RefreshCw size={14} />
-          <span>Last updated: 10:30 AM</span>
-        </div>
-
+        
         {/* Region Selector - Opens Modal */}
         <button className={style.selectorControl} onClick={() => setShowModal(true)}>
           <MapPin size={18} color="#64748b" />
@@ -58,14 +61,9 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
               </option>
             ))}
           </select>
-          <ChevronDown size={16} color="#94a3b8" />
         </div>
 
-        {/* Refresh Icon Button */}
-        <button className={style.selectorControl} style={{ padding: '8px' }}>
-          <RefreshCw size={18} color="#64748b" />
-        </button>
-      </div>
+        </div>
 
       {/* Region Selection Modal */}
       {showModal && (
@@ -73,7 +71,7 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
           <div className={style.modalContent} onClick={e => e.stopPropagation()}>
             <h2 className={style.sectionTitle}>Select Region</h2>
             <p className={style.sectionSub}>Choose a specific region for data filtering.</p>
-            {/* List your regions here */}
+              <OrgUnitTreeWidget loading={loading} error={error} data={data} />
             <button className={style.buttonPrimary} onClick={() => setShowModal(false)} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}}>
               Confirm Selection
             </button>
