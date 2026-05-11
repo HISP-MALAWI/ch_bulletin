@@ -8,7 +8,8 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   const [showModal, setShowModal] = useState(false);
 
   const { loading, error, data } = dataQuery(OrganisationUnitQuery);
-
+  const [selectedOrgUnit, setSelectedOrgUnit] = useState(null);
+  
   const getLast12Months = () => {
   const months = [];
   const monthNames = [
@@ -31,9 +32,13 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   }
   
   return months;
-};
+  };
 
-
+  const getOrgUnitNameById = (id) => {
+    const orgUnits = data?.results?.organisationUnits || [];
+    const orgUnit = orgUnits.find(unit => unit.id === id);
+    return orgUnit ? orgUnit.displayName : 'Select Region';
+  }
 
   return (
     <div className={style.header}>
@@ -47,7 +52,7 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
         {/* Region Selector - Opens Modal */}
         <button className={style.selectorControl} onClick={() => setShowModal(true)}>
           <MapPin size={18} color="#64748b" />
-          Central Region
+          <span className={style.selectorLabel}>{getOrgUnitNameById(organisationUnit)}</span>
           <ChevronDown size={16} color="#94a3b8" />
         </button>
 
@@ -71,8 +76,11 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
           <div className={style.modalContent} onClick={e => e.stopPropagation()}>
             <h2 className={style.sectionTitle}>Select Region</h2>
             <p className={style.sectionSub}>Choose a specific region for data filtering.</p>
-              <OrgUnitTreeWidget loading={loading} error={error} data={data} />
-            <button className={style.buttonPrimary} onClick={() => setShowModal(false)} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}}>
+              <OrgUnitTreeWidget loading={loading} error={error} data={data} setSelectedOrgUnit={setSelectedOrgUnit} />
+            <button className={style.buttonPrimary} onClick={() => setShowModal(false)} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}} onClick={() => {
+              setOrganisation(selectedOrgUnit);
+              setShowModal(false);
+            }}>
               Confirm Selection
             </button>
           </div>
