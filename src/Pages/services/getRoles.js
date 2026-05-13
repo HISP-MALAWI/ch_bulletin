@@ -6,4 +6,12 @@ export const RolesQuery = {
             fields: ['id', 'displayName'],
         },
     },
+
+    userGroups: {
+        resource: 'userGroups',
+        params: {
+            paging: false,
+            fields: ['id', 'displayName'],
+        },
+    },
 };
