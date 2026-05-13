@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { 
     Box, Field, Button, InputField, MultiSelect, 
     MultiSelectOption, ButtonStrip, Help 
 } from '@dhis2/ui';
 import { DiseaseMappingWidget } from '../widgets/diseasemappingWIdget';
 import { AccessWorkflowWidget } from '../widgets/accessWidget';
+import { DistributionWidget } from '../widgets/distributionWIdget';
+import { RolesQuery } from './services/getRoles';
+import dataQuery from '../Pages/services/engines/dataQuery';
 
 const SettingsPage = ({styles}) => {
 
@@ -16,8 +19,13 @@ const SettingsPage = ({styles}) => {
         configRoles: ['s_admin']
     });
 
-    
+    const {error,loading,data} = dataQuery(RolesQuery);
 
+    useEffect(() => {
+            console.log('Roles data:', data.userRoles.userRoles);
+        },[]);
+    
+    
     return (
         <div className={styles.main}>
             {/* Header Section */}
@@ -29,7 +37,7 @@ const SettingsPage = ({styles}) => {
             </header>
 
             {/* Main Form Grid */}
-            <div className={styles.formGrid}>
+            <div >
                 
                 {/* SECTION 1: DISEASE MAPPING */}
                 <DiseaseMappingWidget styles={styles} />
@@ -38,18 +46,7 @@ const SettingsPage = ({styles}) => {
                 <AccessWorkflowWidget styles={styles} settings={settings} setSettings={setSettings} />
 
                 {/* SECTION 3: DISTRIBUTION */}
-                <section className={styles.sectionCard}>
-                    <div className={styles.sectionHeader}>
-                        <span className={styles.stepBadge}>3</span>
-                        <h3 className={styles.sectionTitle}>Distribution Management</h3>
-                        <span className={styles.pill}>System Messages</span>
-                    </div>
-                    <p className={styles.sectionSub}>Set which groups receive the finalized PDF.</p>
-                    
-                    <Field label="Recipient User Groups">
-                        <MultiSelect placeholder="Select groups to receive the PDF..." />
-                    </Field>
-                </section>
+                <DistributionWidget styles={styles} />
 
                 {/* SECTION 4: GLOBAL SETTINGS */}
                 <section className={styles.sectionCard}>
