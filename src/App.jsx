@@ -8,16 +8,10 @@ import BulletinForm from './Pages/newBulletin'
 import HomeIcon from '@mui/icons-material/Home';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SettingsIcon from '@mui/icons-material/Settings';
+import SettingsPage from './Pages/setting'
 
-const query = {
-    me: { resource: 'me' },
-}
 
 const MyApp = () => {
-    const { error, loading } = useDataQuery(query)
-
-    if (error) return <span>{i18n.t('ERROR')}</span>
-    if (loading) return <span>{i18n.t('Loading...')}</span>
 
     return (
         <HashRouter>
@@ -58,6 +52,7 @@ const MyApp = () => {
                 <Routes>
                     <Route path="/" element={<HomePage style={classes}/>} />
                     <Route path="/new-bulletin" element={<BulletinForm style={classes}/>} />
+                    <Route path="/settings" element={<SettingsPage styles={classes} />} />
                     </Routes>
             </div>
         </HashRouter>
