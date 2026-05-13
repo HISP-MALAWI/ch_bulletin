@@ -22,8 +22,9 @@ const SettingsPage = ({styles}) => {
     const {error,loading,data} = dataQuery(RolesQuery);
 
     useEffect(() => {
-            console.log('Roles data:', data.userRoles.userRoles);
-        },[]);
+            console.log('Roles data:', data?.userRoles?.userRoles);
+            console.log('Groups data:', data?.userGroups?.userGroups);
+        },[data]);
     
     
     return (
@@ -43,7 +44,7 @@ const SettingsPage = ({styles}) => {
                 <DiseaseMappingWidget styles={styles} />
 
                 {/* SECTION 2: ACCESS & WORKFLOW */}
-                <AccessWorkflowWidget styles={styles} settings={settings} setSettings={setSettings} />
+                <AccessWorkflowWidget roles={[...data?.userRoles?.userRoles, ...data?.userGroups?.userGroups]} styles={styles} settings={settings} setSettings={setSettings} />
 
                 {/* SECTION 3: DISTRIBUTION */}
                 <DistributionWidget styles={styles} />
