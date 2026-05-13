@@ -1,5 +1,5 @@
 export const RolesQuery = {
-    useRoles: {
+    userRoles: {
         resource: 'userRoles',
         params: {
             paging: false,
