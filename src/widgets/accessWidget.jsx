@@ -7,8 +7,15 @@ import { SettingsSection } from './settingsSectionWidget';
 export const AccessWorkflowWidget = ({
     styles,
     settings,
-    setSettings
+    setSettings,
+    roles
 }) => {
+    const handleRoleChange = (key, selected) => {
+        setSettings(prev => ({
+            ...prev,
+            [key]: selected
+        }));
+    };
     return (
         <SettingsSection
             step="2"
@@ -21,20 +28,16 @@ export const AccessWorkflowWidget = ({
                     <MultiSelect
                         selected={settings.generationRoles}
                         onChange={({ selected }) =>
-                            setSettings({
-                                ...settings,
-                                generationRoles: selected
-                            })
+                            handleRoleChange('generationRoles', selected)
                         }
                     >
-                        <MultiSelectOption
-                            label="Data Analysts"
-                            value="analysts"
-                        />
-                        <MultiSelectOption
-                            label="Reviewers"
-                            value="reviewers"
-                        />
+                        {roles.map((role) => (
+                            <MultiSelectOption
+                                key={role.id}
+                                label={role.displayName}
+                                value={role.id}
+                            />
+                        ))}
                     </MultiSelect>
                 </Field>
             </Box>
@@ -44,20 +47,16 @@ export const AccessWorkflowWidget = ({
                     <MultiSelect
                         selected={settings.reviewRoles}
                         onChange={({ selected }) =>
-                            setSettings({
-                                ...settings,
-                                reviewRoles: selected
-                            })
+                            handleRoleChange('reviewRoles', selected)
                         }
                     >
-                        <MultiSelectOption
-                            label="Admin"
-                            value="admin"
-                        />
-                        <MultiSelectOption
-                            label="Health Officers"
-                            value="officers"
-                        />
+                        {roles.map((role) => (
+                            <MultiSelectOption
+                                key={role.id}
+                                label={role.displayName}
+                                value={role.id}
+                            />
+                        ))}
                     </MultiSelect>
                 </Field>
             </Box>
@@ -66,16 +65,16 @@ export const AccessWorkflowWidget = ({
                 <MultiSelect
                     selected={settings.configRoles}
                     onChange={({ selected }) =>
-                        setSettings({
-                            ...settings,
-                            configRoles: selected
-                        })
+                        handleRoleChange('configRoles', selected)
                     }
                 >
-                    <MultiSelectOption
-                        label="Settings Admin"
-                        value="s_admin"
-                    />
+                    {roles.map((role) => (
+                        <MultiSelectOption
+                            key={role.id}
+                            label={role.displayName}
+                            value={role.id}
+                        />
+                    ))}
                 </MultiSelect>
             </Field>
         </SettingsSection>
