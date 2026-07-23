@@ -1,13 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import {IconEdit24,IconDelete24} from '@dhis2/ui';
+import React from 'react';
+import { IconEdit24, IconDelete24, Button } from '@dhis2/ui';
 
-export default function DataElementTable({ initialData,dataElements }) {
-  const [rows] = useState(Array.isArray(initialData) ? initialData : []);
-
-  useEffect(() => {
-    console.log('Initial Data:', initialData);
-    console.log('Rows State:', rows);
-  }, [initialData, rows]);
+export default function DataElementTable({ initialData, setDiseaseElements,setMappingEditRow, dataElements, setIsModalOpen }) {
+  const rows = Array.isArray(initialData) ? initialData : [];
 
   const getName = (id) => {
     const element = dataElements?.find(de => de.id === id);
@@ -15,7 +10,7 @@ export default function DataElementTable({ initialData,dataElements }) {
   }
 
   function ActionButton({ children, color, hoverColor, onClick, style: btnStyle }) {
-    const [hover, setHover] = useState(false);
+    const [hover, setHover] = React.useState(false);
     return (
       <button
         onMouseEnter={() => setHover(true)}
@@ -45,23 +40,38 @@ export default function DataElementTable({ initialData,dataElements }) {
       background: '#F7F8F9',
       minHeight: '100%'
     }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <h2 style={{
-          fontSize: '15px',
-          fontWeight: 600,
-          color: '#1F2937',
-          marginBottom: '2px',
-          letterSpacing: '-0.01em'
-        }}>
-          Surveillance Data Elements
-        </h2>
-        <p style={{
-          fontSize: '12.5px',
-          color: '#6B7280',
+      <div style={{ margin: '0 auto' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
           marginBottom: '16px'
         }}>
-          Configured indicators and their linked alarm thresholds
-        </p>
+          <div>
+            <h2 style={{
+              fontSize: '15px',
+              fontWeight: 600,
+              color: '#1F2937',
+              marginBottom: '2px',
+              letterSpacing: '-0.01em'
+            }}>
+              Surveillance Data Elements
+            </h2>
+            <p style={{
+              fontSize: '12.5px',
+              color: '#6B7280',
+              margin: 0
+            }}>
+              Configured indicators and their linked alarm thresholds
+            </p>
+          </div>
+          <Button
+            primary
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Add Disease Element
+          </Button>
+        </div>
 
         <div style={{
           background: '#FFFFFF',
@@ -95,12 +105,32 @@ export default function DataElementTable({ initialData,dataElements }) {
                     <code style={codeStyle}>{getName(row.dataElement)}</code>
                   </td>
                   <td style={tdStyle}>
-                    <code style={codeStyle}>{getName(row.alarmElement)  }</code>
+                    <code style={codeStyle}>{getName(row.alarmElement)}</code>
                   </td>
-                    <td style={tdStyle}>
-                        <ActionButton color="#3B82F6" hoverColor="#1E40AF" onClick={() => console.log('Edit action for:', row)} style={{ marginLeft: '8px' }}><IconEdit24 /></ActionButton>
-                        <ActionButton color="#EF4444" hoverColor="#B91C1C" onClick={() => console.log('Delete action for:', row)} style={{ marginLeft: '8px' }}><IconDelete24 /></ActionButton>
-                        </td>
+                  <td style={tdStyle}>
+                    <ActionButton
+                      color="#3B82F6"
+                      hoverColor="#1E40AF"
+                      onClick={() => {
+                        setMappingEditRow(row)
+                        setIsModalOpen(true)
+                      }}
+                      style={{ marginLeft: '8px' }}
+                    >
+                      <IconEdit24 />
+                    </ActionButton>
+                    <ActionButton
+                      color="#EF4444"
+                      hoverColor="#B91C1C"
+                      onClick={() => {
+                        setDiseaseElements(prev => prev.filter(item => item.dataElement !== row.dataElement));
+                        console.log('Delete action for:', row);
+                      }}
+                      style={{ marginLeft: '8px' }}
+                    >
+                      <IconDelete24 />
+                    </ActionButton>
+                  </td>
                 </tr>
               ))}
             </tbody>
