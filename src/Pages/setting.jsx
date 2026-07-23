@@ -11,20 +11,20 @@ import dataQuery from '../Pages/services/engines/dataQuery';
 
 const SettingsPage = ({styles}) => {
 
+    const [diseaseElementsMapping, setdiseaseElementsMapping] = useState([]);
     // State management for form values
     const [settings, setSettings] = useState({
         titlePrefix: 'Climate & Health Bulletin',
-        generationRoles: ['analysts'],
-        reviewRoles: ['admin'],
-        configRoles: ['s_admin']
+        generationRoles: [],
+        reviewRoles: [],
+        distributionRoles: []
     });
 
     const {error,loading,data} = dataQuery(RolesQuery);
 
     useEffect(() => {
-            console.log('Roles data:', data?.userRoles?.userRoles);
-            console.log('Groups data:', data?.userGroups?.userGroups);
-        },[data]);
+        console.log('Current Settings State:', settings);
+        },[settings]);
     
     
     return (
@@ -41,13 +41,16 @@ const SettingsPage = ({styles}) => {
             <div >
                 
                 {/* SECTION 1: DISEASE MAPPING */}
-                <DiseaseMappingWidget styles={styles} />
+                <DiseaseMappingWidget styles={styles} diseaseElements={diseaseElementsMapping} setDiseaseElements={setdiseaseElementsMapping} />
 
                 {/* SECTION 2: ACCESS & WORKFLOW */}
-                <AccessWorkflowWidget roles={[...data?.userRoles?.userRoles, ...data?.userGroups?.userGroups]} styles={styles} settings={settings} setSettings={setSettings} />
+                <AccessWorkflowWidget roles={[
+                        ...(data?.userRoles?.userRoles || []), 
+                        ...(data?.userGroups?.userGroups || [])
+                    ]} styles={styles} settings={settings} setSettings={setSettings} />
 
                 {/* SECTION 3: DISTRIBUTION */}
-                <DistributionWidget styles={styles} />
+                <DistributionWidget group={data?.userGroups?.userGroups} setSettings={setSettings} settings={settings} styles={styles} />
 
                 {/* SECTION 4: GLOBAL SETTINGS */}
                 <section className={styles.sectionCard}>
