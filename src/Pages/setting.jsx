@@ -16,6 +16,7 @@ const SettingsPage = ({styles}) => {
     const [settings, setSettings] = useState({
         titlePrefix: 'Climate & Health Bulletin',
         generationRoles: [],
+        mapping : diseaseElementsMapping,
         reviewRoles: [],
         distributionRoles: []
     });
@@ -23,8 +24,11 @@ const SettingsPage = ({styles}) => {
     const {error,loading,data} = dataQuery(RolesQuery);
 
     useEffect(() => {
-        console.log('Current Settings State:', settings);
-        },[settings]);
+        setSettings(prevSettings => ({
+            ...prevSettings,
+            mapping: diseaseElementsMapping
+        }));
+        },[diseaseElementsMapping]);
     
     
     return (
