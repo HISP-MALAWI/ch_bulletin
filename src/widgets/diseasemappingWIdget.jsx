@@ -8,10 +8,12 @@ import { dataElementsQuery } from '../Pages/services/getDataelemente';
 import { DiseaseMappingModal } from './demappingWidget';
 import DataElementTable from './dataTableWidget';
 
-export const DiseaseMappingWidget = ({ styles, diseaseElements, setDiseaseElements }) => {
+export const DiseaseMappingWidget = ({ styles, diseaseElements, setDiseaseElements, }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
         const {data,error,loading} = dataQuery(dataElementsQuery);
         const [diseaseElementsData, setDiseaseElementsData] = useState([]);
+
+        const [mappingEditRow, setMappingEditRow] = useState(null);
 
     useEffect(() => { 
         setDiseaseElementsData(data?.dataElements?.dataElements || []);
@@ -43,14 +45,21 @@ export const DiseaseMappingWidget = ({ styles, diseaseElements, setDiseaseElemen
             </div> 
             : 
             <div>
-                <DataElementTable initialData={diseaseElements} key={diseaseElements.length} dataElements={diseaseElementsData} />
+                <DataElementTable initialData={diseaseElements} setMappingEditRow={setMappingEditRow} setDiseaseElements={setDiseaseElements} key={diseaseElements.length} dataElements={diseaseElementsData} setIsModalOpen={setIsModalOpen} />
                 </div>}
             {/* Modal for adding/editing disease mappings */}
             {isModalOpen && (
                 <DiseaseMappingModal
                     onClose={() => setIsModalOpen(false)}
-                    onSave={(formData) => {
-                        setDiseaseElements(prev => [...prev, formData]);
+                    mappingEditRow={mappingEditRow}
+                    setMappingEditRow={setMappingEditRow}
+                    onSave={(formData, isEditMode) => {
+                        if (isEditMode) {
+                            setDiseaseElements(prev => prev.map(item => item.id === formData.id ? formData : item));
+                        } else {
+                            setDiseaseElements(prev => [...prev, formData]);
+                        }
+                        setMappingEditRow(null);
                         setIsModalOpen(false);
                     }}
                     dataElements={diseaseElementsData || []}
