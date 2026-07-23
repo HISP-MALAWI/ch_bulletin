@@ -1,13 +1,20 @@
 import React, { useState,useEffect } from 'react';
 import { 
     Box, Field, Button, InputField, MultiSelect, 
-    MultiSelectOption, ButtonStrip, Help 
+    MultiSelectOption, ButtonStrip, Help, 
+    Layer,
+    CircularLoader
 } from '@dhis2/ui';
 import { DiseaseMappingWidget } from '../widgets/diseasemappingWIdget';
 import { AccessWorkflowWidget } from '../widgets/accessWidget';
 import { DistributionWidget } from '../widgets/distributionWIdget';
 import { RolesQuery } from './services/getRoles';
+import { dataSettingsStoreQuery } from './services/getSettingsStore';
+import { dataStoreQuery } from './services/getDataSoreItem';
 import dataQuery from '../Pages/services/engines/dataQuery';
+import saveSettings from '../utils/saveSettings';
+import { useDataEngine } from '@dhis2/app-runtime';
+
 
 const SettingsPage = ({styles}) => {
 
@@ -22,15 +29,43 @@ const SettingsPage = ({styles}) => {
     });
 
     const {error,loading,data} = dataQuery(RolesQuery);
-
+    const {loading: dataStoreLoading, data: dataStore, error: dataStoreError} = dataQuery(dataStoreQuery);
+    const {loading: settingsLoading, data: settingsData, error: settingsError} = dataQuery(dataSettingsStoreQuery);
+    const engine = useDataEngine();
+    
     useEffect(() => {
         setSettings(prevSettings => ({
             ...prevSettings,
             mapping: diseaseElementsMapping
         }));
-        },[diseaseElementsMapping]);
-    
-    
+    }, [diseaseElementsMapping]);
+
+    useEffect(() => {
+        if(settingsData){
+            setSettings(settingsData?.dataStore);
+            setdiseaseElementsMapping(settingsData?.dataStore?.mapping || []);
+        }
+    }, [settingsData]);
+
+    if (loading || dataStoreLoading || settingsLoading) return (
+    <Layer
+        dataTest="dhis2-uicore-layer"
+        level="auto"
+        position="fixed"
+        translucent
+    >
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            width: '100%'
+        }}>
+            <CircularLoader />
+        </div>
+    </Layer>
+);
+
     return (
         <div className={styles.main}>
             {/* Header Section */}
@@ -77,8 +112,9 @@ const SettingsPage = ({styles}) => {
 
             {/* Footer Actions */}
             <div className={styles.footerActions}>
-                <Button secondary>Cancel Changes</Button>
-                <Button primary onClick={() => console.log('Saving:', settings)}>
+                <Button primary onClick={() => {
+                    saveSettings(settings, dataStoreError, engine);
+                }}>
                     Save Configurations
                 </Button>
             </div>
