@@ -37,8 +37,7 @@ const getDataValues = async (data, period, organisationUnit, engine) => {
 
     try {
         const response = await engine.query(dataValuesQuery);
-        console.log('Fetched data values:', response);
-        return response.rows;
+        return response.analytics.rows;
     } catch (error) {
         console.error('Failed to fetch data values:', error);
         return [];
