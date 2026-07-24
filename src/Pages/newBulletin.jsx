@@ -1,6 +1,6 @@
 import React,{useMemo} from "react";
 import i18n from "@dhis2/d2-i18n";
-import { Button, IconError24 } from "@dhis2/ui";
+import { Button, Center, CircularLoader, IconError24, Layer } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import HighlightsInput from "../widgets/highlightsInput";
@@ -18,9 +18,6 @@ const BulletinForm = ({ style }) => {
   const [period, setPeriod] = React.useState();
   const [organisationUnit, setOrganisation] = React.useState();
   const [cases, setCases] = React.useState([
-    { disease: "Malaria", count: 1500 },
-    { disease: "Dengue", count: 300 },
-    { disease: "Cholera", count: 120 },
   ]);
   const [recordedCases, setRecordedCases] = React.useState([]);
   const [highlights, setHighlights] = React.useState("");
@@ -28,24 +25,35 @@ const BulletinForm = ({ style }) => {
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const engine = useDataEngine();
 
-  React.useEffect(() => {
+const [datavalues, setDatavalues] = React.useState([]);
+
+React.useEffect(() => {
     if (!data?.dataStore?.mapping || !period || !organisationUnit) {
-      setRecordedCases([]);
-      return;
+        setDatavalues([]);
+        return;
     }
 
     const fetchDataValues = async () => {
-      const values = await getDataValues(
-        data.dataStore.mapping,
-        period,
-        organisationUnit,
-        engine,
-      );
-      setRecordedCases(values);
+        try {
+            const values = await getDataValues(
+                data.dataStore.mapping,
+                period,
+                organisationUnit,
+                engine
+            );
+            
+            setDatavalues(values);
+            
+        } catch (error) {
+            console.error("Error setting data values:", error);
+            setDatavalues([]); // Fallback to empty array on error
+        }
     };
 
+    // 4. Execute the fetch
     fetchDataValues();
-  }, [data, period, organisationUnit, engine]);
+
+}, [data, period, organisationUnit, engine]);
 
 
   return (
@@ -77,7 +85,8 @@ const BulletinForm = ({ style }) => {
             {/* 2. Recorded Health Cases */}
             <section className={style.sectionCard}>
               <HealthCasesWidget
-                cases={cases}
+                dataValues={datavalues}
+                mapping={data?.dataStore?.mapping}
                 style={style}
                 step="2"
                 title="Recorded Health Cases"
@@ -121,7 +130,11 @@ const BulletinForm = ({ style }) => {
       ) : (
         <div className={style.loadingMessage} style={{ height: "100%" }}>
           {loading ? (
-            i18n.t("Loading settings...")
+            <Layer translucent dataTest="dhis2-uicore-layer" level="auto" position="fixed">
+                <Center>
+                    <CircularLoader />
+                </Center>
+            </Layer>
           ) : error ? (
             <div
               style={{
