@@ -19,13 +19,20 @@ const BulletinForm = ({ style }) => {
   const [organisationUnit, setOrganisation] = React.useState();
   const [cases, setCases] = React.useState([
   ]);
+  const [orgUnits,setOrgUnits] = React.useState([]);
   const [recordedCases, setRecordedCases] = React.useState([]);
   const [highlights, setHighlights] = React.useState("");
 
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const engine = useDataEngine();
 
-const [datavalues, setDatavalues] = React.useState([]);
+  const [forecast, setForecast] = React.useState([]);
+  const [datavalues, setDatavalues] = React.useState([]);
+
+  const forecastData = useMemo(() => {
+    const orgUnitForecast = orgUnits?.find(unit => unit.id === organisationUnit);
+    console.log("Forecast Data for selected org unit:", orgUnitForecast);
+  }, [organisationUnit, period,orgUnits]);
 
 React.useEffect(() => {
     if (!data?.dataStore?.mapping || !period || !organisationUnit) {
@@ -62,6 +69,7 @@ React.useEffect(() => {
       <DashboardHeader
         style={style}
         period={period}
+        setOrgUnits={setOrgUnits}
         setPeriod={setPeriod}
         organisationUnit={organisationUnit}
         setOrganisation={setOrganisation}
@@ -85,6 +93,7 @@ React.useEffect(() => {
             {/* 2. Recorded Health Cases */}
             <section className={style.sectionCard}>
               <HealthCasesWidget
+                key={datavalues}
                 dataValues={datavalues}
                 mapping={data?.dataStore?.mapping}
                 style={style}
@@ -99,6 +108,10 @@ React.useEffect(() => {
               <ForecastWidget
                 style={style}
                 step="3"
+                organisationUnit={organisationUnit}
+                period={period}
+                forecast={forecast}
+                setForecast={setForecast}
                 title="Weather Forecast"
                 description="Upcoming weather conditions."
               />
