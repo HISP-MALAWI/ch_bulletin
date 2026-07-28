@@ -1,4 +1,7 @@
-const ForecastWidget = ({ style, description, step, title }) => {
+import { useEffect } from 'react';
+
+const ForecastWidget = ({ style, description, step, title, forecast, setForecast, organisationUnit }) => {
+
     return (
         <div> {/* Wrapper for texture */}
             <div className={style.sectionHeader}>
