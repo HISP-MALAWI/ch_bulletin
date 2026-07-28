@@ -3,7 +3,7 @@ export const OrganisationUnitQuery = {
             resource: 'organisationUnits',
             params: {
                 paging: false,
-                fields: ['id',"displayName",'name','level','children[id,name,level]'],
+                fields: ['id,displayName,level,geometry,children[id,displayName,level],parent[id,displayName,level]'],
         }    
 }
 };
