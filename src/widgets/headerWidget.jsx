@@ -4,7 +4,7 @@ import { MapPin, Calendar, RefreshCw, ChevronDown } from 'lucide-react';
 import dataQuery from '../Pages/services/engines/dataQuery';
 import { OrganisationUnitQuery } from '../Pages/services/getOrganisationUnits';
 
-const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisation}) => {
+const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisation,setOrgUnits}) => {
   const [showModal, setShowModal] = useState(false);
 
   const { loading, error, data } = dataQuery(OrganisationUnitQuery);
@@ -34,6 +34,12 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   return months;
   };
 
+  React.useEffect(() => {
+    console.log(data?.results?.organisationUnits);
+    if (data?.results?.organisationUnits) {
+      setOrgUnits(data?.results?.organisationUnits);
+    }
+  }, [data, loading, error]);
   const getOrgUnitNameById = (id) => {
     const orgUnits = data?.results?.organisationUnits || [];
     const orgUnit = orgUnits.find(unit => unit.id === id);
