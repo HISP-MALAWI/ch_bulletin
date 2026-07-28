@@ -1,25 +1,27 @@
 import React from 'react';
 import { 
-    Table, 
-    TableHead, 
-    TableRowHead, 
-    TableCellHead, 
-    TableBody, 
-    TableRow, 
-    TableCell 
+    Table, TableHead, TableRowHead, TableCellHead, 
+    TableBody, TableRow, TableCell 
 } from '@dhis2/ui';
 
-const HealthCasesWidget = ({ style, step, title, description, cases = [] }) => {
+const HealthCasesWidget = ({ style, step, title, description, dataValues = [], mapping }) => {
+    
+    
+    const getValue = (dataElement) => {
+        const arr = dataValues?.findLast(row => row[0] === dataElement);
+        return arr?.at(-1) ?? 0; 
+    }
+
     return (
-        <div> {/* Wrapper for texture */}
+        <div>
             <div className={style.sectionHeader}>
-                <div className={style.stepBadge}>{step}</div> {/* Use prop */}
-                <span className={style.sectionTitle}>{title}</span> {/* Use prop */}
+                <div className={style.stepBadge}>{step}</div>
+                <span className={style.sectionTitle}>{title}</span>
                 <span className={style.pill}>Auto-fetched from API</span>
             </div>
-            {description && (
-                            <p className={style.sectionSub}>{description}</p>
-                        )}
+            
+            {description && <p className={style.sectionSub}>{description}</p>}
+            
             <Table>
                 <TableHead>
                     <TableRowHead>
@@ -28,13 +30,14 @@ const HealthCasesWidget = ({ style, step, title, description, cases = [] }) => {
                     </TableRowHead>
                 </TableHead>
                 <TableBody>
-                    {Array.isArray(cases) && cases.map((item, index) => (
-                        <TableRow key={index}>
-                            <TableCell>{item.disease}</TableCell>
-                            <TableCell>{item.count.toLocaleString()}</TableCell>
-                        </TableRow>
+                    {Array.isArray(mapping) && mapping.map((item) => (
+                         <TableRow key={item.dataElement}>
+                                <TableCell>{item.displayName}</TableCell>
+                                <TableCell>{getValue(item.dataElement)}</TableCell>
+                            </TableRow>
+                        
                     ))}
-                </TableBody>
+                    </TableBody>
             </Table>
         </div>
     );
