@@ -10,7 +10,8 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
         id: generateDhis2Uid(),
         displayName: '',
         dataElement: '',
-        alarmElement: ''
+        alarmElement: '',
+        iconURL : ''
     });
 
     const isEditMode = mappingEditRow !== null;
@@ -32,6 +33,15 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
                             value={formData.displayName}
                             onChange={({ value }) => setFormData({ ...formData, displayName: value })}
                             placeholder="e.g. Malaria Cases"
+                        />
+                    </Field>
+
+                    {/* Display Name */}
+                    <Field label="Display icon url" helpText="URL for the Display icon inside the bulletin">
+                        <InputField
+                            value={formData.iconURL}
+                            onChange={({ value }) => setFormData({ ...formData, iconURL: value })}
+                            placeholder="e.g. https://pikbest.com/png-images/mosquito-vector-graphic-%7C-white-background_10728265.html"
                         />
                     </Field>
 
