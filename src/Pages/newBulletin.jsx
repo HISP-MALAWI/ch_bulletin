@@ -12,6 +12,8 @@ import dataQuery from "./services/engines/dataQuery";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import  getDataValues from "../utils/getDataValues";
+import getPolygonCentroid from "../utils/getCentroid";
+import getOrgUnitCentroid from "../utils/getCentroid";
 
 const BulletinForm = ({ style }) => {
   const [advisories, setAdvisories] = React.useState([]);
@@ -29,10 +31,37 @@ const BulletinForm = ({ style }) => {
   const [forecast, setForecast] = React.useState([]);
   const [datavalues, setDatavalues] = React.useState([]);
 
-  const forecastData = useMemo(() => {
-    const orgUnitForecast = orgUnits?.find(unit => unit.id === organisationUnit);
-    console.log("Forecast Data for selected org unit:", orgUnitForecast);
-  }, [organisationUnit, period,orgUnits]);
+  const [forecastData, setForecastData] = React.useState();
+
+React.useEffect(() => {
+  const orgUnitForecast = orgUnits?.find(unit => unit.id === organisationUnit);
+  if (!orgUnitForecast?.geometry) return;
+
+  const { lat, lon } = getOrgUnitCentroid(orgUnitForecast.geometry);
+  let cancelled = false;
+
+  const fetchForecast = async () => {
+    try {
+      const res = await fetch(
+        `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`,
+        { headers: { 'User-Agent': 'ch_bulletin/1.0 contact@yourdomain' } }
+      );
+      console.log(res)
+      if (!res.ok) throw new Error(`MET API error: ${res.status}`);
+      const json = await res.json();
+      setForecast(json)
+      if (!cancelled) setForecastData(json);
+    } catch (err) {
+      if (!cancelled) {
+        console.error('Failed to fetch forecast:', err);
+        setForecastData([]);
+      }
+    }
+  };
+
+  fetchForecast();
+  return () => { cancelled = true; };
+}, [organisationUnit, period, orgUnits]);
 
 React.useEffect(() => {
     if (!data?.dataStore?.mapping || !period || !organisationUnit) {
@@ -111,7 +140,6 @@ React.useEffect(() => {
                 organisationUnit={organisationUnit}
                 period={period}
                 forecast={forecast}
-                setForecast={setForecast}
                 title="Weather Forecast"
                 description="Upcoming weather conditions."
               />
