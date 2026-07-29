@@ -35,11 +35,15 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   };
 
   React.useEffect(() => {
-    console.log(data?.results?.organisationUnits);
     if (data?.results?.organisationUnits) {
       setOrgUnits(data?.results?.organisationUnits);
     }
   }, [data, loading, error]);
+
+  React.useEffect(()=>{
+    setPeriod(getLast12Months()[0].value)
+  },[])
+
   const getOrgUnitNameById = (id) => {
     const orgUnits = data?.results?.organisationUnits || [];
     const orgUnit = orgUnits.find(unit => unit.id === id);
