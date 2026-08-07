@@ -1,8 +1,7 @@
-import React,{useMemo} from "react";
+import React from "react";
 import i18n from "@dhis2/d2-i18n";
-import { Button, Center, CircularLoader, IconError24, Layer } from "@dhis2/ui";
+import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import HighlightsInput from "../widgets/highlightsInput";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import ForecastWidget from "../widgets/forecastWidget";
@@ -11,90 +10,139 @@ import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
-import  getDataValues from "../utils/getDataValues";
-import getPolygonCentroid from "../utils/getCentroid";
+import getDataValues from "../utils/getDataValues";
 import getOrgUnitCentroid from "../utils/getCentroid";
+import savebulletinToDataStore from "../utils/saveBulletin";
+import { generateDhis2Uid } from "../utils/idGenerator";
+
+const ALERT_AUTO_HIDE_MS = 5000;
 
 const BulletinForm = ({ style }) => {
   const [advisories, setAdvisories] = React.useState([]);
   const [period, setPeriod] = React.useState();
   const [organisationUnit, setOrganisation] = React.useState();
-  const [cases, setCases] = React.useState([
-  ]);
-  const [orgUnits,setOrgUnits] = React.useState([]);
-  const [recordedCases, setRecordedCases] = React.useState([]);
+  const [orgUnits, setOrgUnits] = React.useState([]);
   const [highlights, setHighlights] = React.useState("");
+  const [forecast, setForecast] = React.useState([]);
+  const [datavalues, setDatavalues] = React.useState([]);
+
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveMessage, setSaveMessage] = React.useState("");
+  const [saveStatus, setSaveStatus] = React.useState(null); // 'success' | 'error' | null
 
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const engine = useDataEngine();
 
-  const [forecast, setForecast] = React.useState([]);
-  const [datavalues, setDatavalues] = React.useState([]);
+  const showTransientMessage = (status, message) => {
+    setSaveStatus(status);
+    setSaveMessage(message);
+    setTimeout(() => {
+      setSaveStatus(null);
+      setSaveMessage("");
+    }, ALERT_AUTO_HIDE_MS);
+  };
 
-  const [forecastData, setForecastData] = React.useState();
+  // Fetch weather forecast for the selected org unit
+  React.useEffect(() => {
+    const orgUnitForecast = orgUnits?.find((unit) => unit.id === organisationUnit);
+    if (!orgUnitForecast?.geometry) return;
 
-React.useEffect(() => {
-  const orgUnitForecast = orgUnits?.find(unit => unit.id === organisationUnit);
-  if (!orgUnitForecast?.geometry) return;
+    const { lat, lon } = getOrgUnitCentroid(orgUnitForecast.geometry);
+    let cancelled = false;
 
-  const { lat, lon } = getOrgUnitCentroid(orgUnitForecast.geometry);
-  let cancelled = false;
-
-  const fetchForecast = async () => {
-    try {
-      const res = await fetch(
-        `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`,
-        { headers: { 'User-Agent': 'ch_bulletin/1.0 contact@yourdomain' } }
-      );
-      console.log(res)
-      if (!res.ok) throw new Error(`MET API error: ${res.status}`);
-      const json = await res.json();
-      setForecast(json)
-      if (!cancelled) setForecastData(json);
-    } catch (err) {
-      if (!cancelled) {
-        console.error('Failed to fetch forecast:', err);
-        setForecastData([]);
+    const fetchForecast = async () => {
+      try {
+        const res = await fetch(
+          `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`,
+          { headers: { "User-Agent": "ch_bulletin/1.0 contact@yourdomain" } }
+        );
+        if (!res.ok) throw new Error(`MET API error: ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setForecast(json);
+      } catch (err) {
+        console.error("Error fetching forecast:", err);
+        if (!cancelled) setForecast([]);
       }
+    };
+
+    fetchForecast();
+    return () => {
+      cancelled = true;
+    };
+  }, [organisationUnit, orgUnits]);
+
+  // Fetch recorded case data values for the selected period/org unit
+  React.useEffect(() => {
+    if (!data?.dataStore?.mapping || !period || !organisationUnit) {
+      setDatavalues([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchDataValues = async () => {
+      try {
+        const values = await getDataValues(
+          data.dataStore.mapping,
+          period,
+          organisationUnit,
+          engine
+        );
+        if (!cancelled) setDatavalues(values);
+      } catch (err) {
+        console.error("Error fetching data values:", err);
+        if (!cancelled) setDatavalues([]);
+      }
+    };
+
+    fetchDataValues();
+    return () => {
+      cancelled = true;
+    };
+  }, [data, period, organisationUnit, engine]);
+
+  const handleSave = async () => {
+    if (!highlights || highlights.trim() === "") {
+      showTransientMessage("error", i18n.t("Please add highlights before saving"));
+      return;
+    }
+
+    if (!advisories || advisories.length === 0) {
+      showTransientMessage("error", i18n.t("Please add at least one advisory before saving"));
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus(null);
+    setSaveMessage("");
+
+    try {
+      await savebulletinToDataStore(
+        {
+          id: generateDhis2Uid(),
+          highlights,
+          cases: [datavalues],
+          forecast,
+          advisories,
+          status: "draft",
+          period,
+        },
+        engine
+      );
+      showTransientMessage("success", i18n.t("Bulletin saved to draft successfully!"));
+    } catch (err) {
+      console.error("Save bulletin error:", err);
+      showTransientMessage(
+        "error",
+        err?.message || i18n.t("Error saving bulletin. Please try again.")
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  fetchForecast();
-  return () => { cancelled = true; };
-}, [organisationUnit, period, orgUnits]);
-
-React.useEffect(() => {
-    if (!data?.dataStore?.mapping || !period || !organisationUnit) {
-        setDatavalues([]);
-        return;
-    }
-    console.log(data?.dataStore)
-
-    const fetchDataValues = async () => {
-        try {
-            const values = await getDataValues(
-                data.dataStore.mapping,
-                period,
-                organisationUnit,
-                engine
-            );
-            setDatavalues(values);
-            
-        } catch (error) {
-            console.error("Error setting data values:", error);
-            setDatavalues([]); // Fallback to empty array on error
-        }
-    };
-
-    // 4. Execute the fetch
-    fetchDataValues();
-
-}, [data, period, organisationUnit, engine]);
-
-
   return (
     <div className={style.main}>
-      {/* Header Area */}
       <DashboardHeader
         style={style}
         period={period}
@@ -107,7 +155,6 @@ React.useEffect(() => {
       {period && organisationUnit ? (
         <>
           <div className={style.formGrid}>
-            {/* 1. Highlights Section */}
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <HighlightsInput
                 style={style}
@@ -119,10 +166,8 @@ React.useEffect(() => {
               />
             </section>
 
-            {/* 2. Recorded Health Cases */}
             <section className={style.sectionCard}>
               <HealthCasesWidget
-                key={datavalues}
                 dataValues={datavalues}
                 mapping={data?.dataStore?.mapping}
                 style={style}
@@ -132,7 +177,6 @@ React.useEffect(() => {
               />
             </section>
 
-            {/* 3. Weather Forecast */}
             <section className={style.sectionCard}>
               <ForecastWidget
                 style={style}
@@ -145,7 +189,6 @@ React.useEffect(() => {
               />
             </section>
 
-            {/* 4. Health Advisories */}
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <AdvisoriesWidget
                 style={style}
@@ -158,9 +201,28 @@ React.useEffect(() => {
             </section>
           </div>
 
-          {/* Form Footer Actions */}
+          {isSaving && (
+            <Layer dataTest="dhis2-uicore-layer" level="auto" position="fixed" translucent>
+              <Center>
+                <CircularLoader />
+              </Center>
+            </Layer>
+          )}
+
+          {saveStatus === "success" && (
+            <AlertBar success permanent={false} onHidden={() => setSaveStatus(null)}>
+              {saveMessage}
+            </AlertBar>
+          )}
+
+          {saveStatus === "error" && (
+            <AlertBar critical permanent={false} onHidden={() => setSaveStatus(null)}>
+              {saveMessage}
+            </AlertBar>
+          )}
+
           <footer className={style.footerActions}>
-            <Button icon={<SaveIcon />} primary>
+            <Button icon={<SaveIcon />} disabled={isSaving} onClick={handleSave} primary>
               {i18n.t("Save to Draft")}
             </Button>
           </footer>
@@ -169,9 +231,9 @@ React.useEffect(() => {
         <div className={style.loadingMessage} style={{ height: "100%" }}>
           {loading ? (
             <Layer translucent dataTest="dhis2-uicore-layer" level="auto" position="fixed">
-                <Center>
-                    <CircularLoader />
-                </Center>
+              <Center>
+                <CircularLoader />
+              </Center>
             </Layer>
           ) : error ? (
             <div
@@ -209,35 +271,17 @@ React.useEffect(() => {
                 {i18n.t("Could not load settings")}
               </h2>
 
-              <p
-                style={{
-                  margin: "0 0 12px 0",
-                  color: "#4A5768",
-                  fontSize: "15px",
-                }}
-              >
+              <p style={{ margin: "0 0 12px 0", color: "#4A5768", fontSize: "15px" }}>
                 {i18n.t("The app is not able to connect to the DataStore.")}
               </p>
 
-              <p
-                style={{
-                  margin: "0 0 24px 0",
-                  color: "#4A5768",
-                  fontSize: "15px",
-                }}
-              >
-                {i18n.t(
-                  "Please check your network connection and make sure the settings exist.",
-                )}
+              <p style={{ margin: "0 0 24px 0", color: "#4A5768", fontSize: "15px" }}>
+                {i18n.t("Please check your network connection and make sure the settings exist.")}
               </p>
 
               <a
                 href="#"
-                style={{
-                  color: "#105C9E",
-                  textDecoration: "underline",
-                  fontSize: "15px",
-                }}
+                style={{ color: "#105C9E", textDecoration: "underline", fontSize: "15px" }}
               >
                 {i18n.t("Learn more about Bulletin settings")}
               </a>
@@ -255,7 +299,7 @@ React.useEffect(() => {
               <span
                 style={{
                   display: "inline-block",
-                  transform: "scale(2)" /* Scales the 24px icon up to 48px */,
+                  transform: "scale(2)",
                   color: "#9CA3AF",
                   marginBottom: "16px",
                 }}
@@ -263,9 +307,7 @@ React.useEffect(() => {
                 <IconError24 />
               </span>
               <p style={{ fontSize: "15px", color: "#4B5563" }}>
-                {i18n.t(
-                  "Please select a period and organisation unit to start creating the bulletin.",
-                )}
+                {i18n.t("Please select a period and organisation unit to start creating the bulletin.")}
               </p>
             </div>
           )}
