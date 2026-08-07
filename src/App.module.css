@@ -320,3 +320,9 @@
   max-width: 400px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
+.outbreak-row {
+    background-color: #fef2f2;
+}
+.outbreak-row td {
+    border-color: #fecaca;
+}
