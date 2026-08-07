@@ -68,6 +68,7 @@ React.useEffect(() => {
         setDatavalues([]);
         return;
     }
+    console.log(data?.dataStore)
 
     const fetchDataValues = async () => {
         try {
@@ -77,7 +78,6 @@ React.useEffect(() => {
                 organisationUnit,
                 engine
             );
-            
             setDatavalues(values);
             
         } catch (error) {
