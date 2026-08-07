@@ -115,7 +115,7 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
     const [detailsOpen, setDetailsOpen] = useState(false);
 
     useEffect(() => {
-        console.log(forecast);
+        // console.log(forecast);
     }, [forecast]);
 
     const daily = useMemo(() => aggregateByDay(normaliseForecast(forecast)), [forecast]);
