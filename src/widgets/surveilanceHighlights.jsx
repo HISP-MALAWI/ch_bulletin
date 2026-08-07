@@ -1,8 +1,21 @@
 import React from 'react';
 import { 
     Table, TableHead, TableRowHead, TableCellHead, 
-    TableBody, TableRow, TableCell 
+    TableBody, TableRow, TableCell,Tag, IconWarningFilled16 
 } from '@dhis2/ui';
+
+
+const PredictionCell = ({ value }) => {
+    const isOutbreak = Number(value) === 1
+
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Tag positive={!isOutbreak} negative={isOutbreak}>
+                {isOutbreak ? 'Outbreak expected' : 'No outbreak'}
+            </Tag>
+        </div>
+    )
+}
 
 const HealthCasesWidget = ({ style, step, title, description, dataValues = [], mapping }) => {
     
@@ -27,6 +40,7 @@ const HealthCasesWidget = ({ style, step, title, description, dataValues = [], m
                         <TableCellHead></TableCellHead>
                         <TableCellHead>Disease</TableCellHead>
                         <TableCellHead>Number of Cases</TableCellHead>
+                        <TableCellHead>Outbreak Predictions</TableCellHead>
                     </TableRowHead>
                 </TableHead>
                 <TableBody>
@@ -35,6 +49,9 @@ const HealthCasesWidget = ({ style, step, title, description, dataValues = [], m
                                 <TableCell><img src={item.iconURL} height={40} /></TableCell>
                                 <TableCell>{item.displayName}</TableCell>
                                 <TableCell>{getValue(item.dataElement)}</TableCell>
+                                <TableCell>
+                                    <PredictionCell value={getValue(item.alarmElement)} />
+                                </TableCell>
                             </TableRow>
                         
                     ))}
