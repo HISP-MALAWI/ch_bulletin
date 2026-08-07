@@ -4,16 +4,21 @@ import AddIcon from "@mui/icons-material/Add"
 import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
 import { homeDataQuery } from './services/getHomeData'
+import { useLocation } from 'react-router-dom'
 
 const HomePage = ({ style }) => {
     const { loading, error, data } = dataQuery(homeDataQuery)
+
+    const location = useLocation()
 
     const [organisationUnit, setOrganisationUnit] = React.useState(null)
     const [bulletins, setBulletins] = React.useState([])
     const [user, setUser] = React.useState(null)
 
     React.useEffect(() => {
+        console.log(location.pathname)
         if (data) {
+            const status = location.pathname === '/archived-bulletins' ? 'published' : 'draft'
             const userOrgUnitIds = new Set(
                 data?.me?.organisationUnits?.flatMap(orgUnit => [
                     orgUnit.id,
@@ -22,7 +27,7 @@ const HomePage = ({ style }) => {
             )
 
             const filteredBulletins = data?.dataStore?.filter(
-                bulletin => bulletin.status === 'draft' && userOrgUnitIds.has(bulletin.organisationUnit)
+                bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
             )
 
             setBulletins(data?.dataStore || [])
@@ -68,7 +73,7 @@ const HomePage = ({ style }) => {
         <main className={style.main}>
             <header className={style.header}>
                 <div className={style.titleSection}>
-                    <h1>{i18n.t('Home')}</h1>
+                    <h1>{location.pathname === '/archived-bulletins' ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
                     <p>{i18n.t('Welcome to your bulletin management dashboard.')}</p>
                 </div>
                 <button 
