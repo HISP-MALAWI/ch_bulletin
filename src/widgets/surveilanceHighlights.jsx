@@ -17,7 +17,6 @@ const HealthCasesWidget = ({ style, step, title, description, dataValues = [], m
             <div className={style.sectionHeader}>
                 <div className={style.stepBadge}>{step}</div>
                 <span className={style.sectionTitle}>{title}</span>
-                <span className={style.pill}>Auto-fetched from API</span>
             </div>
             
             {description && <p className={style.sectionSub}>{description}</p>}
