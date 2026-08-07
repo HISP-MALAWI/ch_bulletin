@@ -29,13 +29,13 @@ const MyApp = () => {
                     </NavLink>
 
                     <NavLink 
-                        to="/drafts" 
+                        to="/archived-bulletins" 
                         className={({ isActive }) => 
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
                         <DescriptionIcon style={{ marginRight: '8px' }} />
-                        {i18n.t('Drafts')}
+                        {i18n.t('Archived Bulletins')}
                     </NavLink>
 
                     <NavLink 
