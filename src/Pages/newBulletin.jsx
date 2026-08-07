@@ -121,6 +121,7 @@ const BulletinForm = ({ style }) => {
         {
           id: generateDhis2Uid(),
           highlights,
+          organisationUnit,
           cases: [datavalues],
           forecast,
           advisories,
