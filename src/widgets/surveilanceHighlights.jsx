@@ -25,6 +25,7 @@ const HealthCasesWidget = ({ style, step, title, description, dataValues = [], m
             <Table>
                 <TableHead>
                     <TableRowHead>
+                        <TableCellHead></TableCellHead>
                         <TableCellHead>Disease</TableCellHead>
                         <TableCellHead>Number of Cases</TableCellHead>
                     </TableRowHead>
@@ -32,6 +33,7 @@ const HealthCasesWidget = ({ style, step, title, description, dataValues = [], m
                 <TableBody>
                     {Array.isArray(mapping) && mapping.map((item) => (
                          <TableRow key={item.dataElement}>
+                                <TableCell><img src={item.iconURL} height={40} /></TableCell>
                                 <TableCell>{item.displayName}</TableCell>
                                 <TableCell>{getValue(item.dataElement)}</TableCell>
                             </TableRow>
