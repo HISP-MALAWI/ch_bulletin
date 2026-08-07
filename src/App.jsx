@@ -9,6 +9,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SettingsPage from './Pages/setting'
+import { Inventory } from '@mui/icons-material'
 
 
 const MyApp = () => {
@@ -34,7 +35,7 @@ const MyApp = () => {
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
-                        <DescriptionIcon style={{ marginRight: '8px' }} />
+                        <Inventory style={{ marginRight: '8px' }} />
                         {i18n.t('Archived Bulletins')}
                     </NavLink>
 

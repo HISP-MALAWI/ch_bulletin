@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-05-13T09:01:01.354Z\n"
-"PO-Revision-Date: 2026-05-13T09:01:01.356Z\n"
+"POT-Creation-Date: 2026-08-03T18:12:38.126Z\n"
+"PO-Revision-Date: 2026-08-03T18:12:38.126Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -23,8 +23,20 @@ msgstr "Welcome to your bulletin management dashboard."
 msgid "New Bulletin"
 msgstr "New Bulletin"
 
-msgid "Save Draft"
-msgstr "Save Draft"
+msgid "Save to Draft"
+msgstr "Save to Draft"
 
-msgid "Generate Bulletin (PDF)"
-msgstr "Generate Bulletin (PDF)"
+msgid "Could not load settings"
+msgstr "Could not load settings"
+
+msgid "The app is not able to connect to the DataStore."
+msgstr "The app is not able to connect to the DataStore."
+
+msgid "Please check your network connection and make sure the settings exist."
+msgstr "Please check your network connection and make sure the settings exist."
+
+msgid "Learn more about Bulletin settings"
+msgstr "Learn more about Bulletin settings"
+
+msgid "Please select a period and organisation unit to start creating the bulletin."
+msgstr "Please select a period and organisation unit to start creating the bulletin."
