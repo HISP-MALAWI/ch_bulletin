@@ -52,6 +52,7 @@ const MyApp = () => {
 
                 <Routes>
                     <Route path="/" element={<HomePage style={classes}/>} />
+                    <Route path="/archived-bulletins" element={<HomePage style={classes}/>} />
                     <Route path="/new-bulletin" element={<BulletinForm style={classes}/>} />
                     <Route path="/settings" element={<SettingsPage styles={classes} />} />
                     </Routes>
