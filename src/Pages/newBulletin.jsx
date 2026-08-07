@@ -160,11 +160,8 @@ React.useEffect(() => {
 
           {/* Form Footer Actions */}
           <footer className={style.footerActions}>
-            <Button icon={<SaveIcon />} secondary>
-              {i18n.t("Save Draft")}
-            </Button>
-            <Button icon={<PictureAsPdfIcon />} primary>
-              {i18n.t("Generate Bulletin (PDF)")}
+            <Button icon={<SaveIcon />} primary>
+              {i18n.t("Save to Draft")}
             </Button>
           </footer>
         </>
