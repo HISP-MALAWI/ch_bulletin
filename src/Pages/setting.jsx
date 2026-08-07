@@ -3,7 +3,8 @@ import {
     Box, Field, Button, InputField, MultiSelect, 
     MultiSelectOption, ButtonStrip, Help, 
     Layer,
-    CircularLoader
+    CircularLoader,
+    AlertBar
 } from '@dhis2/ui';
 import { DiseaseMappingWidget } from '../widgets/diseasemappingWIdget';
 import { AccessWorkflowWidget } from '../widgets/accessWidget';
@@ -27,6 +28,11 @@ const SettingsPage = ({styles}) => {
         reviewRoles: [],
         distributionRoles: []
     });
+
+    // State management for save operations
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState('');
+    const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
 
     const {error,loading,data} = dataQuery(RolesQuery);
     const {loading: dataStoreLoading, data: dataStore, error: dataStoreError} = dataQuery(dataStoreQuery);
@@ -112,12 +118,61 @@ const SettingsPage = ({styles}) => {
 
             {/* Footer Actions */}
             <div className={styles.footerActions}>
-                <Button primary onClick={() => {
-                    saveSettings(settings, dataStoreError, engine);
+                {isSaving && (
+                    <Layer
+                        dataTest="dhis2-uicore-layer"
+                        level="auto"
+                        position="fixed"
+                        translucent
+                    >
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            width: '100%'
+                        }}>
+                            <CircularLoader />
+                        </div>
+                    </Layer>
+                )}
+                
+                {saveStatus === 'success' && (
+                    <AlertBar success permanent={false}>
+                        {saveMessage || 'Settings saved successfully!'}
+                    </AlertBar>
+                )}
+                
+                
+                
+                <Button primary disabled={isSaving} onClick={async () => {
+                    setIsSaving(true);
+                    setSaveStatus(null);
+                    setSaveMessage('');
+                    
+                    try {
+                        await saveSettings(settings, dataStoreError, engine);
+                        setSaveStatus('success');
+                        setSaveMessage('Settings saved successfully!');
+                        // Auto-hide success alert after 5 seconds
+                        setTimeout(() => setSaveStatus(null), 5000);
+                    } catch (error) {
+                        setSaveStatus('error');
+                        setSaveMessage(error?.message || 'Error saving settings. Please try again.');
+                        console.error('Save settings error:', error);
+                    } finally {
+                        setIsSaving(false);
+                    }
                 }}>
                     Save Configurations
                 </Button>
             </div>
+            {saveStatus === 'error' && (
+                    
+                    <AlertBar critical permanent={false}>
+                        {saveMessage || 'Error saving settings. Please try again.'}
+                    </AlertBar>
+                )}
         </div>
     );
 };
