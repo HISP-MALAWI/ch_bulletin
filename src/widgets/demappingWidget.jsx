@@ -41,7 +41,7 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
                         <InputField
                             value={formData.iconURL}
                             onChange={({ value }) => setFormData({ ...formData, iconURL: value })}
-                            placeholder="e.g. https://pikbest.com/png-images/mosquito-vector-graphic-%7C-white-background_10728265.html"
+                            placeholder="e.g. https://img.pikbest.com/png-images/20240815/mosquito-vector-graphic--7c-white-background_10728265.png!f305cw"
                         />
                     </Field>
 
