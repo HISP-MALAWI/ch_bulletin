@@ -2,12 +2,14 @@ import React from "react";
 import i18n from "@dhis2/d2-i18n";
 import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
+import { useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
 import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
+import { homeDataQuery } from "./services/getHomeData";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues from "../utils/getDataValues";
@@ -29,8 +31,11 @@ const BulletinForm = ({ style }) => {
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
   const [saveStatus, setSaveStatus] = React.useState(null); // 'success' | 'error' | null
+  const [existingBulletin, setExistingBulletin] = React.useState(null);
 
+  const { id } = useParams();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
+  const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
 
   const showTransientMessage = (status, message) => {
@@ -70,6 +75,29 @@ const BulletinForm = ({ style }) => {
       cancelled = true;
     };
   }, [organisationUnit, orgUnits]);
+
+  React.useEffect(() => {
+    if (!id) {
+      setExistingBulletin(null);
+      return;
+    }
+
+    const bulletinList = Array.isArray(homeData?.dataStore) ? homeData.dataStore : [];
+    const foundBulletin = bulletinList.find((item) => item.id === id);
+
+    if (!foundBulletin) {
+      setExistingBulletin(null);
+      return;
+    }
+
+    setExistingBulletin(foundBulletin);
+    setAdvisories(Array.isArray(foundBulletin.advisories) ? foundBulletin.advisories : []);
+    setHighlights(foundBulletin.highlights || "");
+    setPeriod(foundBulletin.period || undefined);
+    setOrganisation(foundBulletin.organisationUnit || undefined);
+    setForecast(foundBulletin.forecast || []);
+    setDatavalues(Array.isArray(foundBulletin.cases?.[0]) ? foundBulletin.cases[0] : []);
+  }, [id, homeData]);
 
   // Fetch recorded case data values for the selected period/org unit
   React.useEffect(() => {
@@ -119,18 +147,18 @@ const BulletinForm = ({ style }) => {
     try {
       await savebulletinToDataStore(
         {
-          id: generateDhis2Uid(),
+          id: existingBulletin?.id || generateDhis2Uid(),
           highlights,
           organisationUnit,
           cases: [datavalues],
           forecast,
           advisories,
-          status: "draft",
+          status: existingBulletin?.status || "draft",
           period,
         },
         engine
       );
-      showTransientMessage("success", i18n.t("Bulletin saved to draft successfully!"));
+      showTransientMessage("success", existingBulletin ? i18n.t("Bulletin updated successfully!") : i18n.t("Bulletin saved to draft successfully!"));
     } catch (err) {
       console.error("Save bulletin error:", err);
       showTransientMessage(
@@ -224,13 +252,13 @@ const BulletinForm = ({ style }) => {
 
           <footer className={style.footerActions}>
             <Button icon={<SaveIcon />} disabled={isSaving} onClick={handleSave} primary>
-              {i18n.t("Save to Draft")}
+              {existingBulletin ? i18n.t("Save Changes") : i18n.t("Save to Draft")}
             </Button>
           </footer>
         </>
       ) : (
         <div className={style.loadingMessage} style={{ height: "100%" }}>
-          {loading ? (
+          {loading || homeLoading ? (
             <Layer translucent dataTest="dhis2-uicore-layer" level="auto" position="fixed">
               <Center>
                 <CircularLoader />
