@@ -5,6 +5,7 @@ import i18n from '@dhis2/d2-i18n'
 import classes from './App.module.css'
 import HomePage from './Pages/home'
 import BulletinForm from './Pages/newBulletin'
+import BulletinPreview from './Pages/bulletinPreview'
 import HomeIcon from '@mui/icons-material/Home';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -50,12 +51,16 @@ const MyApp = () => {
                     </NavLink>
                 </aside>
 
-                <Routes>
-                    <Route path="/" element={<HomePage style={classes}/>} />
-                    <Route path="/archived-bulletins" element={<HomePage style={classes}/>} />
-                    <Route path="/new-bulletin" element={<BulletinForm style={classes}/>} />
-                    <Route path="/settings" element={<SettingsPage styles={classes} />} />
+                <div className={classes.main}>
+                    <Routes>
+                        <Route path="/" element={<HomePage style={classes}/>} />
+                        <Route path="/archived-bulletins" element={<HomePage style={classes}/>} />
+                        <Route path="/new-bulletin" element={<BulletinForm style={classes}/>} />
+                        <Route path="/edit-bulletin/:id" element={<BulletinForm style={classes}/>} />
+                        <Route path="/bulletin/:id" element={<BulletinPreview style={classes}/>} />
+                        <Route path="/settings" element={<SettingsPage styles={classes} />} />
                     </Routes>
+                </div>
             </div>
         </HashRouter>
     )
