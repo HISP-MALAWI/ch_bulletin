@@ -13,8 +13,11 @@ const saveBulletinToDataStore = async (bulletin, engine) => {
 
         const existing = dataStoreResponse?.dataStore;
         const existingList = Array.isArray(existing) ? existing : [];
-        const updatedList = [...existingList, bulletin];
-        console.log('Existing list:', existingList);
+        const existingIndex = existingList.findIndex((item) => item.id === bulletin.id);
+        const updatedList = existingIndex >= 0
+            ? existingList.map((item, index) => (index === existingIndex ? bulletin : item))
+            : [...existingList, bulletin];
+
         return await crudMutation(engine, updatedList, 'update', resource);
 
     } catch (error) {
