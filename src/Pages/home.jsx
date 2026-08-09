@@ -4,20 +4,21 @@ import AddIcon from "@mui/icons-material/Add"
 import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
 import { homeDataQuery } from './services/getHomeData'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const HomePage = ({ style }) => {
     const { loading, error, data } = dataQuery(homeDataQuery)
 
     const location = useLocation()
+    const navigate = useNavigate()
 
     const [organisationUnit, setOrganisationUnit] = React.useState(null)
     const [bulletins, setBulletins] = React.useState([])
     const [user, setUser] = React.useState(null)
 
     React.useEffect(() => {
-        console.log(location.pathname)
         if (data) {
+            console.log('Fetched Data:', data)
             const status = location.pathname === '/archived-bulletins' ? 'published' : 'draft'
             const userOrgUnitIds = new Set(
                 data?.me?.organisationUnits?.flatMap(orgUnit => [
@@ -30,7 +31,7 @@ const HomePage = ({ style }) => {
                 bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
             )
 
-            setBulletins(data?.dataStore || [])
+            setBulletins(data?.dataStore)
             setOrganisationUnit(data?.organisationUnits)
             setUser(data?.me)
         }
@@ -116,6 +117,9 @@ const HomePage = ({ style }) => {
                                 <th className={style.th}>{i18n.t('Organisation Unit')}</th>
                                 <th className={style.th}>{i18n.t('Period')}</th>
                                 <th className={style.th}>{i18n.t('Status')}</th>
+                                {location.pathname !== '/archived-bulletins' && (
+                                    <th className={style.th}>{i18n.t('Actions')}</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -128,7 +132,13 @@ const HomePage = ({ style }) => {
                                     const status = bulletin.status || 'draft'
 
                                     return (
-                                        <tr key={bulletin.id || bulletin.organisationUnit}>
+                                        <tr 
+                                            key={bulletin.id || bulletin.organisationUnit}
+                                            onClick={() => navigate(`/bulletin/${bulletin.id}`)}
+                                            style={{ cursor: 'pointer' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ''}
+                                        >
                                             <td className={style.td}>{orgUnitName}</td>
                                             <td className={style.td}>{periodDisplay}</td>
                                             <td className={style.td}>
@@ -136,12 +146,28 @@ const HomePage = ({ style }) => {
                                                     {status.charAt(0).toUpperCase() + status.slice(1)}
                                                 </span>
                                             </td>
+                                            {location.pathname !== '/archived-bulletins' && (
+                                                <td className={style.td}>
+                                                    {status === 'draft' && (
+                                                        <button
+                                                            className={style.buttonSecondary}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation()
+                                                                navigate(`/edit-bulletin/${bulletin.id}`)
+                                                            }}
+                                                            style={{ padding: '6px 10px', borderRadius: '6px' }}
+                                                        >
+                                                            {i18n.t('Edit')}
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            )}
                                         </tr>
                                     )
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan="3" className={style.td} style={{ textAlign: 'center', color: '#6B7280' }}>
+                                    <td colSpan="4" className={style.td} style={{ textAlign: 'center', color: '#6B7280' }}>
                                         {i18n.t('No bulletins available.')}
                                     </td>
                                 </tr>
