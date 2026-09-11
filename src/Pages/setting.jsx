@@ -112,6 +112,12 @@ const SettingsPage = ({styles}) => {
                                 onChange={({ value }) => setSettings({...settings, titlePrefix: value})}
                             />
                         </Field>
+                        <Field label="Bulletin display icon">
+                            <InputField 
+                                value={settings.displayIcon}
+                                onChange={({ value }) => setSettings({...settings, displayIcon: value})}
+                            />
+                        </Field>
                     </Box>
                 </section>
             </div>
