@@ -5,23 +5,158 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-08-03T18:12:38.126Z\n"
-"PO-Revision-Date: 2026-08-03T18:12:38.126Z\n"
+"POT-Creation-Date: 2026-09-14T04:47:46.114Z\n"
+"PO-Revision-Date: 2026-09-14T04:47:46.114Z\n"
 
 msgid "Home"
 msgstr "Home"
 
-msgid "Drafts"
-msgstr "Drafts"
+msgid "Archived Bulletins"
+msgstr "Archived Bulletins"
 
 msgid "Settings"
 msgstr "Settings"
+
+msgid "Bulletin not found"
+msgstr "Bulletin not found"
+
+msgid "Failed to load bulletin"
+msgstr "Failed to load bulletin"
+
+msgid "You do not have permission to publish bulletins"
+msgstr "You do not have permission to publish bulletins"
+
+msgid "Bulletin published successfully"
+msgstr "Bulletin published successfully"
+
+msgid "Failed to publish bulletin"
+msgstr "Failed to publish bulletin"
+
+msgid "Unknown Unit"
+msgstr "Unknown Unit"
+
+msgid "January"
+msgstr "January"
+
+msgid "February"
+msgstr "February"
+
+msgid "March"
+msgstr "March"
+
+msgid "April"
+msgstr "April"
+
+msgid "May"
+msgstr "May"
+
+msgid "June"
+msgstr "June"
+
+msgid "July"
+msgstr "July"
+
+msgid "August"
+msgstr "August"
+
+msgid "September"
+msgstr "September"
+
+msgid "October"
+msgstr "October"
+
+msgid "November"
+msgstr "November"
+
+msgid "December"
+msgstr "December"
+
+msgid "Back to Home"
+msgstr "Back to Home"
+
+msgid "No bulletin data available"
+msgstr "No bulletin data available"
+
+msgid "Download PDF"
+msgstr "Download PDF"
+
+msgid "Publish"
+msgstr "Publish"
+
+msgid "Climate & Health Bulletin"
+msgstr "Climate & Health Bulletin"
+
+msgid "Bridging Weather & Wellness For a Healthier Malawi"
+msgstr "Bridging Weather & Wellness For a Healthier Malawi"
+
+msgid "Organisation Unit"
+msgstr "Organisation Unit"
+
+msgid "Period"
+msgstr "Period"
+
+msgid "1. Highlights"
+msgstr "1. Highlights"
+
+msgid "Recorded Health Cases"
+msgstr "Recorded Health Cases"
+
+msgid "Summary of recorded health cases."
+msgstr "Summary of recorded health cases."
+
+msgid "Weather Forecast"
+msgstr "Weather Forecast"
+
+msgid "Upcoming weather conditions."
+msgstr "Upcoming weather conditions."
+
+msgid "Health Advisories"
+msgstr "Health Advisories"
+
+msgid "N/A"
+msgstr "N/A"
 
 msgid "Welcome to your bulletin management dashboard."
 msgstr "Welcome to your bulletin management dashboard."
 
 msgid "New Bulletin"
 msgstr "New Bulletin"
+
+msgid "No bulletins found. Please check your data store or create a new bulletin."
+msgstr "No bulletins found. Please check your data store or create a new bulletin."
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "No bulletins available."
+msgstr "No bulletins available."
+
+msgid "You do not have permission to draft bulletins"
+msgstr "You do not have permission to draft bulletins"
+
+msgid "Please add highlights before saving"
+msgstr "Please add highlights before saving"
+
+msgid "Please add at least one advisory before saving"
+msgstr "Please add at least one advisory before saving"
+
+msgid "Bulletin updated successfully!"
+msgstr "Bulletin updated successfully!"
+
+msgid "Bulletin saved to draft successfully!"
+msgstr "Bulletin saved to draft successfully!"
+
+msgid "Error saving bulletin. Please try again."
+msgstr "Error saving bulletin. Please try again."
+
+msgid "Save Changes"
+msgstr "Save Changes"
 
 msgid "Save to Draft"
 msgstr "Save to Draft"
@@ -40,3 +175,11 @@ msgstr "Learn more about Bulletin settings"
 
 msgid "Please select a period and organisation unit to start creating the bulletin."
 msgstr "Please select a period and organisation unit to start creating the bulletin."
+
+msgctxt "Application title"
+msgid "__MANIFEST_APP_TITLE"
+msgstr "Climate and Health Bulletin"
+
+msgctxt "Application description"
+msgid "__MANIFEST_APP_DESCRIPTION"
+msgstr ""

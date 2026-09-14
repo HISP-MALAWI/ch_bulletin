@@ -16,6 +16,7 @@ import getDataValues from "../utils/getDataValues";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
+import { useAccess } from "../context/AccessContext";
 
 const ALERT_AUTO_HIDE_MS = 5000;
 
@@ -37,6 +38,7 @@ const BulletinForm = ({ style }) => {
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
+  const { canDraft } = useAccess();
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -130,6 +132,11 @@ const BulletinForm = ({ style }) => {
   }, [data, period, organisationUnit, engine]);
 
   const handleSave = async () => {
+    if (!canDraft) {
+      showTransientMessage("error", i18n.t("You do not have permission to draft bulletins"));
+      return;
+    }
+
     if (!highlights || highlights.trim() === "") {
       showTransientMessage("error", i18n.t("Please add highlights before saving"));
       return;

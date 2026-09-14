@@ -15,12 +15,14 @@ import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { useAccess } from '../context/AccessContext'
 
 
 const BulletinPreview = ({ style }) => {
     const { id } = useParams()
     const navigate = useNavigate()
     const engine = useDataEngine()
+    const { canPublish } = useAccess()
     const contentRef = React.useRef(null)
     const [bulletin, setBulletin] = React.useState(null)
     const [loading, setLoading] = React.useState(true)
@@ -66,6 +68,17 @@ const BulletinPreview = ({ style }) => {
     }, [id, data, dataLoading])
 
     const handlePublish = async () => {
+        if (!canPublish) {
+            setPublishStatus('error')
+            setPublishMessage(i18n.t('You do not have permission to publish bulletins'))
+
+            setTimeout(() => {
+                setPublishStatus(null)
+                setPublishMessage('')
+            }, 3000)
+            return
+        }
+
         try {
             setIsPublishing(true)
             
@@ -262,8 +275,8 @@ const BulletinPreview = ({ style }) => {
                     >
                         {i18n.t('Download PDF')}
                     </Button>
-                    {bulletin?.status === 'draft' && (
-                        <Button 
+                    {bulletin?.status === 'draft' && canPublish && (
+                        <Button
                             onClick={handlePublish}
                             loading={isPublishing}
                             icon={<NearMe />}
@@ -317,7 +330,7 @@ const BulletinPreview = ({ style }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                 <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
                     <HealthCasesWidget
-                        dataValues={bulletin.cases || []}
+                        dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
                         mapping={settingsData?.dataStore?.mapping}
                         style={style}
                         step="2"

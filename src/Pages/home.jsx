@@ -5,9 +5,11 @@ import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
 import { homeDataQuery } from './services/getHomeData'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAccess } from '../context/AccessContext'
 
 const HomePage = ({ style }) => {
     const { loading, error, data } = dataQuery(homeDataQuery)
+    const { canDraft } = useAccess()
 
     const location = useLocation()
     const navigate = useNavigate()
@@ -77,12 +79,14 @@ const HomePage = ({ style }) => {
                     <h1>{location.pathname === '/archived-bulletins' ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
                     <p>{i18n.t('Welcome to your bulletin management dashboard.')}</p>
                 </div>
-                <button 
-                    className={style.buttonPrimary}
-                    onClick={() => window.location.hash = '/new-bulletin'}
-                >
-                    <AddIcon fontSize="small" /> {i18n.t('New Bulletin')}
-                </button>
+                {canDraft && (
+                    <button
+                        className={style.buttonPrimary}
+                        onClick={() => window.location.hash = '/new-bulletin'}
+                    >
+                        <AddIcon fontSize="small" /> {i18n.t('New Bulletin')}
+                    </button>
+                )}
             </header>
 
             {error ? (
@@ -148,7 +152,7 @@ const HomePage = ({ style }) => {
                                             </td>
                                             {location.pathname !== '/archived-bulletins' && (
                                                 <td className={style.td}>
-                                                    {status === 'draft' && (
+                                                    {status === 'draft' && canDraft && (
                                                         <button
                                                             className={style.buttonSecondary}
                                                             onClick={(event) => {
