@@ -13,8 +13,7 @@ import { homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import { exportBulletinPdf, sanitiseFileName } from '../utils/bulletinPdf'
 import { useAccess } from '../context/AccessContext'
 
 
@@ -33,6 +32,8 @@ const BulletinPreview = ({ style }) => {
     const [isDownloading, setIsDownloading] = React.useState(false)
     const [publishMessage, setPublishMessage] = React.useState('')
     const [publishStatus, setPublishStatus] = React.useState(null)
+    const [downloadMessage, setDownloadMessage] = React.useState('')
+    const [downloadStatus, setDownloadStatus] = React.useState(null)
 
     const { loading: dataLoading, error: dataError, data } = dataQuery(homeDataQuery)
     // Mapping config lives in a separate datastore key from the bulletins list,
@@ -159,60 +160,49 @@ const BulletinPreview = ({ style }) => {
         return status === 'published' ? '#d1fae5' : '#fef3c7'
     }
 
+    const showDownloadMessage = (status, message) => {
+        setDownloadStatus(status)
+        setDownloadMessage(message)
+
+        setTimeout(() => {
+            setDownloadStatus(null)
+            setDownloadMessage('')
+        }, 5000)
+    }
+
     const handleDownloadPDF = async () => {
+        setIsDownloading(true)
+        setDownloadMessage('')
+        setDownloadStatus(null)
+
         try {
-            setIsDownloading(true)
-            const element = contentRef.current
-            
-            if (!element) {
-                console.error('Content ref not found')
-                return
-            }
+            const fileName = `${sanitiseFileName([
+                'Bulletin',
+                formatPeriod(bulletin.period),
+                getOrgUnitName(bulletin.organisationUnit),
+            ])}.pdf`
 
-            // Wait a bit for images to load
-            await new Promise(resolve => setTimeout(resolve, 500))
-
-            // Create canvas from the HTML element
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                imageTimeout: 5000
+            const { droppedImages } = await exportBulletinPdf(contentRef.current, {
+                fileName,
+                title: `${i18n.t('Climate & Health Bulletin')} - ${formatPeriod(bulletin.period)}`,
             })
 
-            // Create PDF
-            const imgData = canvas.toDataURL('image/png')
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            })
-
-            const imgWidth = 210 // A4 width in mm
-            const pageHeight = 297 // A4 height in mm
-            let imgHeight = (canvas.height * imgWidth) / canvas.width
-            let heightLeft = imgHeight
-            let position = 0
-
-            // Add image to PDF, handling multiple pages if needed
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-            heightLeft -= pageHeight
-
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight
-                pdf.addPage()
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-                heightLeft -= pageHeight
+            if (droppedImages > 0) {
+                showDownloadMessage(
+                    'warning',
+                    i18n.t(
+                        'PDF downloaded, but {{count}} image(s) could not be included. Check the icon URLs in Settings.',
+                        { count: droppedImages }
+                    )
+                )
             }
-
-            // Generate filename with bulletin info
-            const fileName = `Bulletin_${formatPeriod(bulletin.period)}_${getOrgUnitName(bulletin.organisationUnit)}.pdf`.replace(/\s+/g, '_')
-            pdf.save(fileName)
-            setIsDownloading(false)
         } catch (err) {
             console.error('Error generating PDF:', err)
+            showDownloadMessage(
+                'error',
+                err.message || i18n.t('Failed to generate the PDF')
+            )
+        } finally {
             setIsDownloading(false)
         }
     }
@@ -265,7 +255,18 @@ const BulletinPreview = ({ style }) => {
                     {publishMessage}
                 </AlertBar>
             )}
-            
+
+            {downloadMessage && (
+                <AlertBar
+                    style={{ marginBottom: '16px' }}
+                    permanent
+                    warning={downloadStatus === 'warning'}
+                    critical={downloadStatus === 'error'}
+                >
+                    {downloadMessage}
+                </AlertBar>
+            )}
+
             <ButtonStrip style={{ marginBottom: '24px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} end>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <Button 
@@ -290,7 +291,7 @@ const BulletinPreview = ({ style }) => {
 
             <div ref={contentRef}>
             {/* Preview Header */}
-            <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                     <div>
                         <h1 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 'bold' }}>
@@ -319,7 +320,7 @@ const BulletinPreview = ({ style }) => {
 
             {/* 1. Highlights — now shown first, matching the numbered document order */}
             {bulletin.highlights && (
-                <div style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+                <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
                         {i18n.t('1. Highlights')}
                     </div>
@@ -327,7 +328,7 @@ const BulletinPreview = ({ style }) => {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                 <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
                     <HealthCasesWidget
                         dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
@@ -352,7 +353,7 @@ const BulletinPreview = ({ style }) => {
             </div>
 
             {bulletin.advisories && bulletin.advisories.length > 0 && (
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
+                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                         <div style={{
                             display: 'flex',

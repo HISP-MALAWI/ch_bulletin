@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-09-14T04:47:46.114Z\n"
-"PO-Revision-Date: 2026-09-14T04:47:46.114Z\n"
+"POT-Creation-Date: 2026-09-22T05:12:59.017Z\n"
+"PO-Revision-Date: 2026-09-22T05:12:59.018Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -71,6 +71,12 @@ msgstr "November"
 msgid "December"
 msgstr "December"
 
+msgid "Climate & Health Bulletin"
+msgstr "Climate & Health Bulletin"
+
+msgid "Failed to generate the PDF"
+msgstr "Failed to generate the PDF"
+
 msgid "Back to Home"
 msgstr "Back to Home"
 
@@ -82,9 +88,6 @@ msgstr "Download PDF"
 
 msgid "Publish"
 msgstr "Publish"
-
-msgid "Climate & Health Bulletin"
-msgstr "Climate & Health Bulletin"
 
 msgid "Bridging Weather & Wellness For a Healthier Malawi"
 msgstr "Bridging Weather & Wellness For a Healthier Malawi"
@@ -176,10 +179,12 @@ msgstr "Learn more about Bulletin settings"
 msgid "Please select a period and organisation unit to start creating the bulletin."
 msgstr "Please select a period and organisation unit to start creating the bulletin."
 
-msgctxt "Application title"
-msgid "__MANIFEST_APP_TITLE"
-msgstr "Climate and Health Bulletin"
+msgid "Nothing to export — the bulletin preview could not be found"
+msgstr "Nothing to export — the bulletin preview could not be found"
 
-msgctxt "Application description"
-msgid "__MANIFEST_APP_DESCRIPTION"
+msgid ""
+"An image in this bulletin blocked the export. Check the disease icon URLs "
+"in Settings."
 msgstr ""
+"An image in this bulletin blocked the export. Check the disease icon URLs "
+"in Settings."
