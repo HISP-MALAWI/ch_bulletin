@@ -240,12 +240,68 @@
     font-family: 'Inter', sans-serif;
 }
 
-.ql-font-serif {
-  font-family: serif;
+/* Quill's rules for these are scoped under `.ql-editor`, which a saved
+   highlights fragment does not carry — it is the editor's contents, not the
+   editor — so the preview needs its own copy, with Quill's exact stacks so it
+   matches what the author saw while writing. `:global()` because a CSS-module
+   hash on the class name would leave the rule matching nothing. */
+.highlightsBody :global(.ql-font-serif) {
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
-.ql-font-monospace {
-  font-family: monospace;
+.highlightsBody :global(.ql-font-monospace) {
+  font-family: Monaco, 'Courier New', monospace;
+}
+
+/* Typography for the normalised highlights markup. Figures are Quill's so that
+   the preview, and the PDF that rasterises it, match the editor.
+   `white-space` is deliberately left at its default rather than Quill's
+   `pre-wrap`: soft line breaks already arrive as real <br> elements, so
+   preserving whitespace as well would only turn stray whitespace into visible
+   blank lines on the page. */
+.highlightsBody {
+  font-size: 14px;
+  line-height: 1.42;
+  color: #16233a;
+}
+
+.highlightsBody p,
+.highlightsBody h1,
+.highlightsBody h2,
+.highlightsBody h3,
+.highlightsBody ul,
+.highlightsBody ol {
+  margin: 0;
+}
+
+.highlightsBody h1 {
+  font-size: 2em;
+}
+
+.highlightsBody h2 {
+  font-size: 1.5em;
+}
+
+.highlightsBody h3 {
+  font-size: 1.17em;
+}
+
+.highlightsBody ul,
+.highlightsBody ol {
+  padding-left: 1.5em;
+}
+
+.highlightsBody ul {
+  list-style-type: disc;
+}
+
+.highlightsBody ol {
+  list-style-type: decimal;
+}
+
+.highlightsBody a {
+  color: #0056d2;
+  text-decoration: underline;
 }
 
 :global(.ql-toolbar.ql-snow) {

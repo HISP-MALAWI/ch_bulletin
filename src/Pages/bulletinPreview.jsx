@@ -14,6 +14,7 @@ import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
 import { exportBulletinPdf, sanitiseFileName } from '../utils/bulletinPdf'
+import { normaliseHighlightsHtml, hasHighlightsContent } from '../utils/highlightsHtml'
 import { useAccess } from '../context/AccessContext'
 
 const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
@@ -50,6 +51,15 @@ const BulletinPreview = ({ style }) => {
     const bulletinTitle =
         settingsData?.dataStore?.titlePrefix?.trim() || i18n.t('Climate & Health Bulletin')
     const displayIcon = settingsData?.dataStore?.displayIcon?.trim()
+
+    // Bulletins saved before this ran hold Quill's own markup, in which a
+    // bullet list is an <ol> with no bullet in it and a font is a class only
+    // Quill's stylesheet understands, so the rewrite happens here as well as on
+    // save. Display only: the datastore keeps whatever was stored.
+    const highlightsHtml = React.useMemo(
+        () => normaliseHighlightsHtml(bulletin?.highlights),
+        [bulletin?.highlights]
+    )
 
     // Fetch bulletin data from dataStore
     React.useEffect(() => {
@@ -251,6 +261,7 @@ const BulletinPreview = ({ style }) => {
 
     const isDraft = (bulletin.status || 'draft') === 'draft'
     const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
+    const hasHighlights = hasHighlightsContent(highlightsHtml)
 
     return (
         <main className={style.main}>
@@ -353,12 +364,15 @@ const BulletinPreview = ({ style }) => {
             </div>
 
             {/* 1. Highlights — now shown first, matching the numbered document order */}
-            {bulletin.highlights && (
+            {hasHighlights && (
                 <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
                     <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
                         {i18n.t('1. Highlights')}
                     </div>
-                    <div dangerouslySetInnerHTML={{ __html: bulletin.highlights }} />
+                    <div
+                        className={style.highlightsBody}
+                        dangerouslySetInnerHTML={{ __html: highlightsHtml }}
+                    />
                 </div>
             )}
 

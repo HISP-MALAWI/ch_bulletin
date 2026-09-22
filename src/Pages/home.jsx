@@ -33,11 +33,14 @@ const HomePage = ({ style }) => {
                 bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
             )
 
-            setBulletins(data?.dataStore)
+            setBulletins(filteredBulletins)
             setOrganisationUnit(data?.organisationUnits)
             setUser(data?.me)
         }
-    }, [data])
+        // `location.pathname` decides which of the two lists this is, and the two
+        // routes render this same component, so navigating between them reuses
+        // this instance rather than remounting it and the effect has to re-run.
+    }, [data, location.pathname])
 
     // Helper to find Organisation Unit name by ID
     const getOrgUnitName = (ouId) => {
