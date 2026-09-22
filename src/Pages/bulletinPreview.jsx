@@ -366,8 +366,11 @@ const BulletinPreview = ({ style }) => {
             {/* 1. Highlights — now shown first, matching the numbered document order */}
             {hasHighlights && (
                 <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
-                        {i18n.t('1. Highlights')}
+                    {/* Numbered like sections 2 and 3: the numeral sits in the
+                        badge and only the label is translated. */}
+                    <div className={style.sectionHeader}>
+                        <div className={style.stepBadge}>1</div>
+                        <span className={style.sectionTitle}>{i18n.t('Highlights')}</span>
                     </div>
                     <div
                         className={style.highlightsBody}
@@ -402,24 +405,9 @@ const BulletinPreview = ({ style }) => {
 
             {bulletin.advisories && bulletin.advisories.length > 0 && (
                 <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px',
-                            backgroundColor: '#1e3a8a',
-                            color: '#fff',
-                            borderRadius: '50%',
-                            fontWeight: 'bold',
-                            fontSize: '16px'
-                        }}>
-                            4
-                        </div>
-                        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {i18n.t('Health Advisories')}
-                        </h2>
+                    <div className={style.sectionHeader}>
+                        <div className={style.stepBadge}>4</div>
+                        <span className={style.sectionTitle}>{i18n.t('Health Advisories')}</span>
                     </div>
                     <div>
                         {bulletin.advisories.map((advisory, index) => (
