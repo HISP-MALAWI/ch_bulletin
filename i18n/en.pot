@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-09-22T05:26:19.748Z\n"
-"PO-Revision-Date: 2026-09-22T05:26:19.749Z\n"
+"POT-Creation-Date: 2026-09-22T09:32:07.700Z\n"
+"PO-Revision-Date: 2026-09-22T09:32:07.701Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -16,6 +16,9 @@ msgstr "Archived Bulletins"
 
 msgid "Settings"
 msgstr "Settings"
+
+msgid "Climate & Health Bulletin"
+msgstr "Climate & Health Bulletin"
 
 msgid "Bulletin not found"
 msgstr "Bulletin not found"
@@ -71,8 +74,12 @@ msgstr "November"
 msgid "December"
 msgstr "December"
 
-msgid "Climate & Health Bulletin"
-msgstr "Climate & Health Bulletin"
+msgid ""
+"PDF downloaded, but {{total}} image(s) could not be included. Check the "
+"image URLs in Settings."
+msgstr ""
+"PDF downloaded, but {{total}} image(s) could not be included. Check the "
+"image URLs in Settings."
 
 msgid "Failed to generate the PDF"
 msgstr "Failed to generate the PDF"
@@ -82,6 +89,12 @@ msgstr "Back to Home"
 
 msgid "No bulletin data available"
 msgstr "No bulletin data available"
+
+msgid "Draft"
+msgstr "Draft"
+
+msgid "Published"
+msgstr "Published"
 
 msgid "Download PDF"
 msgstr "Download PDF"
@@ -97,6 +110,9 @@ msgstr "Organisation Unit"
 
 msgid "Period"
 msgstr "Period"
+
+msgid "Generated on {{date}}"
+msgstr "Generated on {{date}}"
 
 msgid "1. Highlights"
 msgstr "1. Highlights"

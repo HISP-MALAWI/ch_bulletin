@@ -24,6 +24,7 @@ const SettingsPage = ({styles}) => {
     // State management for form values
     const [settings, setSettings] = useState({
         titlePrefix: 'Climate & Health Bulletin',
+        displayIcon: '',
         generationRoles: [],
         mapping : diseaseElementsMapping,
         reviewRoles: [],

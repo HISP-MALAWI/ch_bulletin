@@ -16,6 +16,11 @@ import { NearMe } from '@mui/icons-material'
 import { exportBulletinPdf, sanitiseFileName } from '../utils/bulletinPdf'
 import { useAccess } from '../context/AccessContext'
 
+const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+})
 
 const BulletinPreview = ({ style }) => {
     const { id } = useParams()
@@ -39,6 +44,12 @@ const BulletinPreview = ({ style }) => {
     // Mapping config lives in a separate datastore key from the bulletins list,
     // same query BulletinForm uses to build HealthCasesWidget's mapping.
     const { loading: settingsLoading, error: settingsError, data: settingsData } = dataQuery(dataSettingsStoreQuery)
+
+    // Both come from Global Settings, so they are available before the bulletin
+    // loads and can be used by the download handler as well as the heading.
+    const bulletinTitle =
+        settingsData?.dataStore?.titlePrefix?.trim() || i18n.t('Climate & Health Bulletin')
+    const displayIcon = settingsData?.dataStore?.displayIcon?.trim()
 
     // Fetch bulletin data from dataStore
     React.useEffect(() => {
@@ -151,15 +162,6 @@ const BulletinPreview = ({ style }) => {
         return `${monthNames[parseInt(month) - 1]} ${year}`
     }
 
-    // Helper to get status badge color
-    const getStatusColor = (status) => {
-        return status === 'published' ? '#10b981' : '#f59e0b'
-    }
-
-    const getStatusBgColor = (status) => {
-        return status === 'published' ? '#d1fae5' : '#fef3c7'
-    }
-
     const showDownloadMessage = (status, message) => {
         setDownloadStatus(status)
         setDownloadMessage(message)
@@ -184,16 +186,15 @@ const BulletinPreview = ({ style }) => {
 
             const { droppedImages } = await exportBulletinPdf(contentRef.current, {
                 fileName,
-                title: `${i18n.t('Climate & Health Bulletin')} - ${formatPeriod(bulletin.period)}`,
+                title: `${bulletinTitle} - ${formatPeriod(bulletin.period)}`,
             })
 
             if (droppedImages > 0) {
                 showDownloadMessage(
                     'warning',
-                    i18n.t(
-                        'PDF downloaded, but {{count}} image(s) could not be included. Check the icon URLs in Settings.',
-                        { count: droppedImages }
-                    )
+                    i18n.t('PDF downloaded, but {{total}} image(s) could not be included. Check the image URLs in Settings.', {
+                        total: droppedImages,
+                    })
                 )
             }
         } catch (err) {
@@ -248,6 +249,9 @@ const BulletinPreview = ({ style }) => {
         )
     }
 
+    const isDraft = (bulletin.status || 'draft') === 'draft'
+    const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
+
     return (
         <main className={style.main}>
             {publishMessage && (
@@ -290,33 +294,60 @@ const BulletinPreview = ({ style }) => {
                 </ButtonStrip>
 
             <div ref={contentRef}>
-            {/* Preview Header */}
-            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    {/* Centres the title and tagline; the Organisation Unit /
-                        Period row below is a flex container, so it keeps its
-                        left alignment. */}
-                    <div style={{ width: '100%', textAlign: 'center' }}>
-                        <h1 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 'bold' }}>
-                            {i18n.t('Climate & Health Bulletin')}
-                        </h1>
-                        <p style={{ margin: '0 0 16px 0', color: '#6B7280', fontSize: '14px' }}>
-                            {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
-                        </p>
-                        <div style={{ display: 'flex', gap: '24px', textAlign: 'left' }}>
-                            <div>
-                                <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
-                                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
-                                    {getOrgUnitName(bulletin.organisationUnit)}
-                                </p>
-                            </div>
-                            <div>
-                                <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Period')}</span>
-                                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
-                                    {formatPeriod(bulletin.period)}
-                                </p>
-                            </div>
+            {/* Preview Header. No box-shadow: html2canvas renders it, so on
+                paper it is a grey smudge around the heading. */}
+            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                    {displayIcon && (
+                        <img
+                            src={displayIcon}
+                            alt=""
+                            style={{ height: '56px', maxWidth: '100%', marginBottom: '12px' }}
+                        />
+                    )}
+                    <h1 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold' }}>
+                        {bulletinTitle}
+                    </h1>
+                    <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
+                        {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
+                    </p>
+                </div>
+
+                {/* Letterhead strip: the facts at one end, the status and the
+                    generation date at the other. */}
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-end',
+                    gap: '24px',
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '1px solid #e2e8f0',
+                }}>
+                    <div style={{ display: 'flex', gap: '32px' }}>
+                        <div>
+                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
+                                {getOrgUnitName(bulletin.organisationUnit)}
+                            </p>
                         </div>
+                        <div>
+                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Period')}</span>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
+                                {formatPeriod(bulletin.period)}
+                            </p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        <span className={isDraft ? style.statusDraft : style.statusSubmitted}>
+                            {statusLabel}
+                        </span>
+                        <span style={{ color: '#6B7280', fontSize: '11px' }}>
+                            {i18n.t('Generated on {{date}}', {
+                                date: GENERATED_ON_FORMAT.format(new Date()),
+                            })}
+                        </span>
                     </div>
                 </div>
             </div>

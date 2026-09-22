@@ -146,7 +146,7 @@ const HomePage = ({ style }) => {
                                             <td className={style.td}>{orgUnitName}</td>
                                             <td className={style.td}>{periodDisplay}</td>
                                             <td className={style.td}>
-                                                <span className={status === 'draft' ? style.statusDraft : style.statusPublished}>
+                                                <span className={status === 'draft' ? style.statusDraft : style.statusSubmitted}>
                                                     {status.charAt(0).toUpperCase() + status.slice(1)}
                                                 </span>
                                             </td>
