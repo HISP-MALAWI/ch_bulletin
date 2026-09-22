@@ -75,68 +75,134 @@ export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [
 }
 
 /**
- * Resolves true only if the image can be drawn into a canvas without tainting
- * it, i.e. if it loads under a CORS request.
+ * Loads an image over a CORS request and re-encodes it as a data URL.
+ *
+ * Deliberately an `<img>` and not `fetch`. The on-screen `<img>` that displays
+ * the icon loads it without `crossorigin`, so the browser caches a response
+ * carrying no `Access-Control-Allow-Origin`. A later `fetch` is served that
+ * cached copy and fails the CORS check, even though the server does send the
+ * header. An `<img crossorigin>` load forces a genuine CORS request instead,
+ * and because it only resolves on success the drawn canvas is never tainted,
+ * so `toDataURL` is safe.
  */
-const probeImage = (src) =>
-    new Promise((resolve) => {
-        if (!src || typeof src !== 'string') {
-            resolve(false)
-            return
+const loadAsDataUrl = (src, timeoutMs = IMAGE_TIMEOUT_MS) =>
+    new Promise((resolve, reject) => {
+        const image = new Image()
+        let settled = false
+        let timer = null
+
+        const fail = (error) => {
+            if (settled) {
+                return
+            }
+            settled = true
+            clearTimeout(timer)
+            reject(error)
         }
 
-        let settled = false
-        const settle = (ok) => {
-            if (!settled) {
-                settled = true
-                resolve(ok)
+        const succeed = (value) => {
+            if (settled) {
+                return
+            }
+            settled = true
+            clearTimeout(timer)
+            resolve(value)
+        }
+
+        timer = setTimeout(() => fail(new Error('Timed out loading image')), timeoutMs)
+
+        image.crossOrigin = 'anonymous'
+        image.onerror = () => fail(new Error('Image could not be loaded with CORS'))
+        image.onload = () => {
+            if (settled) {
+                return
+            }
+
+            try {
+                const canvas = document.createElement('canvas')
+                canvas.width = image.naturalWidth || 1
+                canvas.height = image.naturalHeight || 1
+                canvas.getContext('2d').drawImage(image, 0, 0)
+                succeed(canvas.toDataURL('image/png'))
+            } catch (error) {
+                fail(error)
             }
         }
-
-        const probe = new Image()
-        probe.crossOrigin = 'anonymous'
-        probe.onload = () => settle(true)
-        probe.onerror = () => settle(false)
-        setTimeout(() => settle(false), IMAGE_TIMEOUT_MS)
-        probe.src = src
+        image.src = src
     })
 
+const withCacheBuster = (src) =>
+    `${src}${src.includes('?') ? '&' : '?'}_bulletin_pdf=${Date.now()}`
+
+const toDataUrl = async (src) => {
+    try {
+        return await loadAsDataUrl(src)
+    } catch (error) {
+        // A cache entry stored without CORS headers is the likeliest cause, so
+        // retry at a URL the cache has never seen before giving up.
+        return await loadAsDataUrl(withCacheBuster(src))
+    }
+}
+
 /**
- * Replaces every image that would taint the canvas with a transparent pixel,
- * returning a restore function and the number of images dropped.
+ * Rewrites every `<img>` to point at an inlined data URL, returning a restore
+ * function and the number of images left out.
  *
- * This is what stops `canvas.toDataURL()` throwing a SecurityError: a bulletin
- * whose disease icon points at a third-party host renders without the icon
- * instead of failing to export at all.
+ * Inlining is what makes the capture reliable. A data URL is same-origin as far
+ * as the canvas is concerned, so it can never taint it and `toDataURL()` can
+ * never throw a SecurityError. It also takes html2canvas out of the image
+ * loading business entirely, so a slow or CORS-refusing host can no longer
+ * leave a blank icon with no explanation.
+ *
+ * An image that cannot be fetched keeps its box but draws nothing, so the
+ * table layout survives a broken icon URL.
  */
-const neutraliseImages = async (element) => {
+const inlineImages = async (element) => {
     const images = Array.from(element.querySelectorAll('img'))
 
     if (images.length === 0) {
         return { restore: () => {}, dropped: 0 }
     }
 
-    const drawable = await Promise.all(
-        images.map((img) => probeImage(img.currentSrc || img.getAttribute('src')))
+    const replacements = await Promise.all(
+        images.map(async (img) => {
+            const src = img.currentSrc || img.getAttribute('src')
+
+            if (!src || src.startsWith('data:')) {
+                return src
+            }
+
+            try {
+                return await toDataUrl(src)
+            } catch (err) {
+                console.warn('Bulletin PDF: could not include image', src, err)
+                return null
+            }
+        })
     )
 
     const swapped = []
+    let dropped = 0
+
     images.forEach((img, index) => {
-        if (drawable[index]) {
-            return
-        }
+        const replacement = replacements[index]
+        const usable = typeof replacement === 'string' && replacement.startsWith('data:')
 
         swapped.push({
             img,
             src: img.getAttribute('src'),
             srcset: img.getAttribute('srcset'),
         })
-        img.setAttribute('src', TRANSPARENT_PIXEL)
+        img.setAttribute('src', usable ? replacement : TRANSPARENT_PIXEL)
         img.removeAttribute('srcset')
+
+        if (!usable) {
+            dropped += 1
+        }
     })
 
     return {
-        dropped: swapped.length,
+        dropped,
         restore: () =>
             swapped.forEach(({ img, src, srcset }) => {
                 if (src === null) {
@@ -257,7 +323,7 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     const contentWidthMm = A4_WIDTH_MM - marginMm * 2
     const contentHeightMm = A4_HEIGHT_MM - marginMm * 2
 
-    const { dropped, restore } = await neutraliseImages(element)
+    const { dropped, restore } = await inlineImages(element)
 
     try {
         await waitForFonts()

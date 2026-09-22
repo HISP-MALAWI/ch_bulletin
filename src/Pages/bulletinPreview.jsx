@@ -293,14 +293,17 @@ const BulletinPreview = ({ style }) => {
             {/* Preview Header */}
             <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div>
+                    {/* Centres the title and tagline; the Organisation Unit /
+                        Period row below is a flex container, so it keeps its
+                        left alignment. */}
+                    <div style={{ width: '100%', textAlign: 'center' }}>
                         <h1 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 'bold' }}>
                             {i18n.t('Climate & Health Bulletin')}
                         </h1>
                         <p style={{ margin: '0 0 16px 0', color: '#6B7280', fontSize: '14px' }}>
                             {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
                         </p>
-                        <div style={{ display: 'flex', gap: '24px' }}>
+                        <div style={{ display: 'flex', gap: '24px', textAlign: 'left' }}>
                             <div>
                                 <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
                                 <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
