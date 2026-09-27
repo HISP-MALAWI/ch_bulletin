@@ -337,13 +337,16 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                         </ResponsiveContainer>
                     </div>
 
+                    {/* The toggle is a control, so it has no place on the page. The
+                        table below it is content and does print, whenever it is
+                        expanded — the export mirrors what the preview shows. */}
                     <button data-pdf-exclude className="fw-details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
                         View Forecast Details
                         <ChevronDown size={14} className={detailsOpen ? 'fw-open' : ''} />
                     </button>
 
                     {detailsOpen && (
-                        <table data-pdf-exclude className="fw-details-table">
+                        <table className="fw-details-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
