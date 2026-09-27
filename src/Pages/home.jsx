@@ -82,7 +82,7 @@ const HomePage = ({ style }) => {
                     <h1>{location.pathname === '/archived-bulletins' ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
                     <p>{i18n.t('Welcome to your bulletin management dashboard.')}</p>
                 </div>
-                {canDraft && (
+                {canDraft && location.pathname !== '/archived-bulletins' && (
                     <button
                         className={style.buttonPrimary}
                         onClick={() => window.location.hash = '/new-bulletin'}
