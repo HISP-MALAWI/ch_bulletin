@@ -4,6 +4,7 @@ import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@d
 import SaveIcon from "@mui/icons-material/Save";
 import { useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
+import ForecastSummaryWidget from "../widgets/forecastSummaryWidget";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
@@ -12,7 +13,7 @@ import dataQuery from "./services/engines/dataQuery";
 import { homeDataQuery } from "./services/getHomeData";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
-import getDataValues from "../utils/getDataValues";
+import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
@@ -113,12 +114,16 @@ const BulletinForm = ({ style }) => {
 
     const fetchDataValues = async () => {
       try {
+        const periods = getMonthlyPeriods(period);
+
         const values = await getDataValues(
           data.dataStore.mapping,
-          period,
+          periods,
           organisationUnit,
           engine
         );
+        console.log(data.dataStore.mapping);
+        console.log(values)
         if (!cancelled) setDatavalues(values);
       } catch (err) {
         console.error("Error fetching data values:", err);
@@ -130,7 +135,7 @@ const BulletinForm = ({ style }) => {
     return () => {
       cancelled = true;
     };
-  }, [data, period, organisationUnit, engine]);
+  }, [data, period, organisationUnit, orgUnits, engine]);
 
   const handleSave = async () => {
     if (!canDraft) {
@@ -198,6 +203,14 @@ const BulletinForm = ({ style }) => {
         <>
           <div className={style.formGrid}>
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
+              <ForecastSummaryWidget
+                style={style}
+                dataValues={datavalues}
+                mapping={data?.dataStore?.mapping}
+                period={period}
+                organisationUnit={organisationUnit}
+                orgUnits={orgUnits}
+              />
               <HighlightsInput
                 style={style}
                 step="1"
@@ -212,6 +225,9 @@ const BulletinForm = ({ style }) => {
               <HealthCasesWidget
                 dataValues={datavalues}
                 mapping={data?.dataStore?.mapping}
+                orgUnits={orgUnits}
+                selectedOrgUnit={organisationUnit}
+                period={period}
                 style={style}
                 step="2"
                 title="Recorded Health Cases"
