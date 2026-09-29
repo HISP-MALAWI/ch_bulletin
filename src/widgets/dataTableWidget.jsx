@@ -88,8 +88,12 @@ export default function DataElementTable({ initialData, setDiseaseElements,setMa
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
                 <th style={thStyle}>Display Name</th>
-                <th style={thStyle}>Data Element ID</th>
-                <th style={thStyle}>Alarm Element ID</th>
+                <th style={thStyle}>Data Element </th>
+                <th style={thStyle}>Alarm Element</th>
+                <th style={thStyle}>Threshold</th>
+                <th style={thStyle}>Prediction Lower bound</th>
+                <th style={thStyle}>Prediction Median</th>
+                <th style={thStyle}>Prediction Upper bound</th>
                 <th style={thStyle}>Actions</th>
               </tr>
             </thead>
@@ -106,6 +110,18 @@ export default function DataElementTable({ initialData, setDiseaseElements,setMa
                   </td>
                   <td style={tdStyle}>
                     <code style={codeStyle}>{getName(row.alarmElement)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.threshold)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.predictionLowerBound)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.predictionMedian)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.predictionUpperBound)}</code>
                   </td>
                   <td style={tdStyle}>
                     <ActionButton
