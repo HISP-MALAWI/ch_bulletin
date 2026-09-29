@@ -6,6 +6,11 @@
     const RichTextEditor = ({ value, onChange, placeholder }) => {
         const containerRef = useRef(null);
         const quillRef = useRef(null);
+        // Quill's output comes back in through `value` on the next render.
+        // Remembering the last thing the editor emitted is what stops the load
+        // effect from reading its own text as content to load, which would put
+        // the cursor back at the start on every keystroke.
+        const lastEmitted = useRef(null);
 
         useEffect(() => {
             if (containerRef.current && !quillRef.current) {
@@ -27,20 +32,28 @@
 
                 quill.on('text-change', () => {
                     const html = quill.root.innerHTML;
+                    lastEmitted.current = html;
                     if (onChange) {
                         onChange(html);
                     }
                 });
             }
-        }, []); 
+        }, []);
 
         useEffect(() => {
-            if (quillRef.current) {
-                const currentContents = quillRef.current.root.innerHTML;
-                if (value !== undefined && value !== currentContents) {
-                    quillRef.current.root.innerHTML = value;
-                }
+            const quill = quillRef.current;
+            if (!quill || typeof value !== 'string' || value === '') {
+                return;
             }
+            if (value === lastEmitted.current) {
+                return;
+            }
+            // Loaded through Quill rather than by assigning `root.innerHTML`:
+            // assigning the DOM leaves Quill's own model empty, so the next
+            // keystroke re-renders from nothing and wipes what was just loaded.
+            const delta = quill.clipboard.convert({ html: value, text: '' });
+            quill.setContents(delta, Quill.sources.SILENT);
+            lastEmitted.current = value;
         }, [value]);
 
         return (

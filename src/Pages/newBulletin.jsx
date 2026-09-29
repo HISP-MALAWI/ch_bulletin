@@ -16,6 +16,8 @@ import getDataValues from "../utils/getDataValues";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
+import { normaliseHighlightsHtml, hasHighlightsContent } from "../utils/highlightsHtml";
+import { useAccess } from "../context/AccessContext";
 
 const ALERT_AUTO_HIDE_MS = 5000;
 
@@ -37,6 +39,7 @@ const BulletinForm = ({ style }) => {
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
+  const { canDraft } = useAccess();
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -130,7 +133,14 @@ const BulletinForm = ({ style }) => {
   }, [data, period, organisationUnit, engine]);
 
   const handleSave = async () => {
-    if (!highlights || highlights.trim() === "") {
+    if (!canDraft) {
+      showTransientMessage("error", i18n.t("You do not have permission to draft bulletins"));
+      return;
+    }
+
+    // An untouched editor holds `<p><br></p>`, which is a non-empty string, so
+    // the check is on whether it would put anything on the page.
+    if (!hasHighlightsContent(highlights)) {
       showTransientMessage("error", i18n.t("Please add highlights before saving"));
       return;
     }
@@ -148,7 +158,10 @@ const BulletinForm = ({ style }) => {
       await savebulletinToDataStore(
         {
           id: existingBulletin?.id || generateDhis2Uid(),
-          highlights,
+          // Stored cleaned, so the preview can be styled by the app rather than
+          // by Quill, and so the string handed to dangerouslySetInnerHTML has
+          // been through an allowlist. The editor still holds raw Quill markup.
+          highlights: normaliseHighlightsHtml(highlights),
           organisationUnit,
           cases: [datavalues],
           forecast,

@@ -11,18 +11,29 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SettingsPage from './Pages/setting'
 import { Inventory } from '@mui/icons-material'
+import { AccessProvider, useAccess } from './context/AccessContext'
 
 
 const MyApp = () => {
+    const { loading, canDraft, canConfigure } = useAccess()
+
+    // Hold gated routes until access resolves, otherwise a permitted user
+    // reloading the URL would be bounced to Home mid-query.
+    const gate = (allowed, element) => {
+        if (loading) {
+            return null
+        }
+        return allowed ? element : <Navigate to="/" replace />
+    }
 
     return (
         <HashRouter>
             <div className={classes.container}>
                 {/* Sidebar Navigation */}
                 <aside className={classes.sidebar}>
-                    <NavLink 
-                        to="/" 
-                        className={({ isActive }) => 
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
@@ -30,9 +41,9 @@ const MyApp = () => {
                         {i18n.t('Home')}
                     </NavLink>
 
-                    <NavLink 
-                        to="/archived-bulletins" 
-                        className={({ isActive }) => 
+                    <NavLink
+                        to="/archived-bulletins"
+                        className={({ isActive }) =>
                             isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
                         }
                     >
@@ -40,25 +51,27 @@ const MyApp = () => {
                         {i18n.t('Archived Bulletins')}
                     </NavLink>
 
-                    <NavLink 
-                        to="/settings" 
-                        className={({ isActive }) => 
-                            isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
-                        }
-                    >
-                        <SettingsIcon style={{ marginRight: '8px' }} />
-                        {i18n.t('Settings')}
-                    </NavLink>
+                    {canConfigure && (
+                        <NavLink
+                            to="/settings"
+                            className={({ isActive }) =>
+                                isActive ? `${classes.navItem} ${classes.navItemActive}` : classes.navItem
+                            }
+                        >
+                            <SettingsIcon style={{ marginRight: '8px' }} />
+                            {i18n.t('Settings')}
+                        </NavLink>
+                    )}
                 </aside>
 
                 <div className={classes.main}>
                     <Routes>
                         <Route path="/" element={<HomePage style={classes}/>} />
                         <Route path="/archived-bulletins" element={<HomePage style={classes}/>} />
-                        <Route path="/new-bulletin" element={<BulletinForm style={classes}/>} />
-                        <Route path="/edit-bulletin/:id" element={<BulletinForm style={classes}/>} />
+                        <Route path="/new-bulletin" element={gate(canDraft, <BulletinForm style={classes}/>)} />
+                        <Route path="/edit-bulletin/:id" element={gate(canDraft, <BulletinForm style={classes}/>)} />
                         <Route path="/bulletin/:id" element={<BulletinPreview style={classes}/>} />
-                        <Route path="/settings" element={<SettingsPage styles={classes} />} />
+                        <Route path="/settings" element={gate(canConfigure, <SettingsPage styles={classes} />)} />
                     </Routes>
                 </div>
             </div>
@@ -66,4 +79,10 @@ const MyApp = () => {
     )
 }
 
-export default MyApp
+const App = () => (
+    <AccessProvider>
+        <MyApp />
+    </AccessProvider>
+)
+
+export default App

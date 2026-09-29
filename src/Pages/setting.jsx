@@ -15,6 +15,7 @@ import { dataStoreQuery } from './services/getDataSoreItem';
 import dataQuery from '../Pages/services/engines/dataQuery';
 import saveSettings from '../utils/saveSettings';
 import { useDataEngine } from '@dhis2/app-runtime';
+import { useAccess } from '../context/AccessContext';
 
 
 const SettingsPage = ({styles}) => {
@@ -23,9 +24,11 @@ const SettingsPage = ({styles}) => {
     // State management for form values
     const [settings, setSettings] = useState({
         titlePrefix: 'Climate & Health Bulletin',
+        displayIcon: '',
         generationRoles: [],
         mapping : diseaseElementsMapping,
         reviewRoles: [],
+        configRoles: [],
         distributionRoles: []
     });
 
@@ -38,6 +41,7 @@ const SettingsPage = ({styles}) => {
     const {loading: dataStoreLoading, data: dataStore, error: dataStoreError} = dataQuery(dataStoreQuery);
     const {loading: settingsLoading, data: settingsData, error: settingsError} = dataQuery(dataSettingsStoreQuery);
     const engine = useDataEngine();
+    const { canConfigure } = useAccess();
     
     useEffect(() => {
         setSettings(prevSettings => ({
@@ -48,7 +52,10 @@ const SettingsPage = ({styles}) => {
 
     useEffect(() => {
         if(settingsData){
-            setSettings(settingsData?.dataStore);
+            setSettings(prevSettings => ({
+                ...prevSettings,
+                ...settingsData?.dataStore
+            }));
             setdiseaseElementsMapping(settingsData?.dataStore?.mapping || []);
         }
     }, [settingsData]);
@@ -151,7 +158,13 @@ const SettingsPage = ({styles}) => {
                 
                 
                 
-                <Button primary disabled={isSaving} onClick={async () => {
+                <Button primary disabled={isSaving || !canConfigure} onClick={async () => {
+                    if (!canConfigure) {
+                        setSaveStatus('error');
+                        setSaveMessage('You do not have permission to change configurations.');
+                        return;
+                    }
+
                     setIsSaving(true);
                     setSaveStatus(null);
                     setSaveMessage('');
