@@ -384,6 +384,9 @@ const BulletinPreview = ({ style }) => {
                     <HealthCasesWidget
                         dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
                         mapping={settingsData?.dataStore?.mapping}
+                        orgUnits={orgUnits}
+                        selectedOrgUnit={bulletin.organisationUnit}
+                        period={bulletin.period}
                         style={style}
                         step="2"
                         title={i18n.t('Recorded Health Cases')}
