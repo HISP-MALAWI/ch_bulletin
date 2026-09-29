@@ -330,14 +330,17 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                                 <YAxis yAxisId="temp" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={34} />
                                 <YAxis yAxisId="rain" orientation="right" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={30} />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Bar yAxisId="rain" dataKey="precip" fill="#B9CBE3" radius={[3, 3, 0, 0]} barSize={14} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#E08A2C" strokeWidth={2} dot={{ r: 3, fill: '#E08A2C', strokeWidth: 0 }} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#2E7DD1" strokeWidth={2} dot={{ r: 3, fill: '#2E7DD1', strokeWidth: 0 }} />
+                                <Bar yAxisId="rain" dataKey="precip" fill="#B9CBE3" radius={[3, 3, 0, 0]} barSize={14} isAnimationActive={false} />
+                                <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#E08A2C" strokeWidth={2} dot={{ r: 3, fill: '#E08A2C', strokeWidth: 0 }} isAnimationActive={false} />
+                                <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#2E7DD1" strokeWidth={2} dot={{ r: 3, fill: '#2E7DD1', strokeWidth: 0 }} isAnimationActive={false} />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
 
-                    <button className="fw-details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
+                    {/* The toggle is a control, so it has no place on the page. The
+                        table below it is content and does print, whenever it is
+                        expanded — the export mirrors what the preview shows. */}
+                    <button data-pdf-exclude className="fw-details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
                         View Forecast Details
                         <ChevronDown size={14} className={detailsOpen ? 'fw-open' : ''} />
                     </button>

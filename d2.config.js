@@ -2,6 +2,8 @@
 const config = {
     type: 'app',
 
+    title: 'Climate and Health Bulletin',
+
     entryPoints: {
         app: './src/App.jsx',
     },

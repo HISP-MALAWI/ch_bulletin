@@ -1,5 +1,5 @@
 {
-    "name": "Climate and Health Bulletin",
+    "name": "ch-bulletin",
     "version": "1.0.0",
     "description": "",
     "license": "BSD-3-Clause",
@@ -12,6 +12,7 @@
         "deploy": "d2-app-scripts deploy"
     },
     "dependencies": {
+        "@dhis2/data-engine": "3.17.0",
         "@dhis2/app-runtime": "^3.17.0",
         "@dhis2/ui": "^10.13.1",
         "@dhis2/ui-icons": "^10.17.0",

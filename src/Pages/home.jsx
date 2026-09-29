@@ -5,9 +5,11 @@ import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
 import { homeDataQuery } from './services/getHomeData'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAccess } from '../context/AccessContext'
 
 const HomePage = ({ style }) => {
     const { loading, error, data } = dataQuery(homeDataQuery)
+    const { canDraft } = useAccess()
 
     const location = useLocation()
     const navigate = useNavigate()
@@ -31,11 +33,14 @@ const HomePage = ({ style }) => {
                 bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
             )
 
-            setBulletins(data?.dataStore)
+            setBulletins(filteredBulletins)
             setOrganisationUnit(data?.organisationUnits)
             setUser(data?.me)
         }
-    }, [data])
+        // `location.pathname` decides which of the two lists this is, and the two
+        // routes render this same component, so navigating between them reuses
+        // this instance rather than remounting it and the effect has to re-run.
+    }, [data, location.pathname])
 
     // Helper to find Organisation Unit name by ID
     const getOrgUnitName = (ouId) => {
@@ -77,12 +82,14 @@ const HomePage = ({ style }) => {
                     <h1>{location.pathname === '/archived-bulletins' ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
                     <p>{i18n.t('Welcome to your bulletin management dashboard.')}</p>
                 </div>
-                <button 
-                    className={style.buttonPrimary}
-                    onClick={() => window.location.hash = '/new-bulletin'}
-                >
-                    <AddIcon fontSize="small" /> {i18n.t('New Bulletin')}
-                </button>
+                {canDraft && location.pathname !== '/archived-bulletins' && (
+                    <button
+                        className={style.buttonPrimary}
+                        onClick={() => window.location.hash = '/new-bulletin'}
+                    >
+                        <AddIcon fontSize="small" /> {i18n.t('New Bulletin')}
+                    </button>
+                )}
             </header>
 
             {error ? (
@@ -142,13 +149,13 @@ const HomePage = ({ style }) => {
                                             <td className={style.td}>{orgUnitName}</td>
                                             <td className={style.td}>{periodDisplay}</td>
                                             <td className={style.td}>
-                                                <span className={status === 'draft' ? style.statusDraft : style.statusPublished}>
+                                                <span className={status === 'draft' ? style.statusDraft : style.statusSubmitted}>
                                                     {status.charAt(0).toUpperCase() + status.slice(1)}
                                                 </span>
                                             </td>
                                             {location.pathname !== '/archived-bulletins' && (
                                                 <td className={style.td}>
-                                                    {status === 'draft' && (
+                                                    {status === 'draft' && canDraft && (
                                                         <button
                                                             className={style.buttonSecondary}
                                                             onClick={(event) => {
