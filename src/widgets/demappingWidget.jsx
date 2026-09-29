@@ -11,7 +11,11 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
         displayName: '',
         dataElement: '',
         alarmElement: '',
-        iconURL : ''
+        iconURL : '',
+        threshold: '',
+        predictionMedian: '',
+        predictionUpperBound: '',
+        predictionLowerBound: ''
     });
 
     const isEditMode = mappingEditRow !== null;
@@ -63,6 +67,57 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
                         <SingleSelectField
                             selected={formData.alarmElement}
                             onChange={({ selected }) => setFormData({ ...formData, alarmElement: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+
+                    {/* Threshold Indicator */}
+                    <Field label="Threshold indicator data element" helpText="threshold value for the alarm indication">
+                        <SingleSelectField
+                            selected={formData.threshold}
+                            onChange={({ selected }) => setFormData({ ...formData, threshold: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+                    
+                    {/* Prediction Median */}
+                    <Field label="Prediction median" helpText="Prediction median">
+                        <SingleSelectField
+                            selected={formData.predictionMedian}
+                            onChange={({ selected }) => setFormData({ ...formData, predictionMedian: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+                    
+                    {/* Upper bound Indicator */}
+                    <Field label="Prediction upper bound" helpText="prediction upper bound">
+                        <SingleSelectField
+                            selected={formData.predictionUpperBound}
+                            onChange={({ selected }) => setFormData({ ...formData, predictionUpperBound: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+                    {/* lower bound Indicator */}
+                    <Field label="Prediction lower bound" helpText="prediction lower bound">
+                        <SingleSelectField
+                            selected={formData.predictionLowerBound}
+                            onChange={({ selected }) => setFormData({ ...formData, predictionLowerBound: selected })}
                             filterable
                         >
                             {dataElements?.map(de => (
