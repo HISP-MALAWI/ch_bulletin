@@ -204,3 +204,4 @@ msgid ""
 msgstr ""
 "An image in this bulletin blocked the export. Check the disease icon URLs "
 "in Settings."
+
