@@ -7,7 +7,7 @@
     "packageManager": "yarn@1.22.22",
     "scripts": {
         "build": "d2-app-scripts build",
-        "start": "d2-app-scripts start --proxy https://climate.ewsmw.org/dhis",
+        "start": "d2-app-scripts start --proxy https://project.ccdev.org/climate/",
         "test": "d2-app-scripts test",
         "deploy": "d2-app-scripts deploy"
     },
