@@ -5,13 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2026-08-11T07:27:29.899Z\n"
-"PO-Revision-Date: 2026-08-11T07:27:29.899Z\n"
-=======
-"POT-Creation-Date: 2026-09-27T13:56:39.698Z\n"
-"PO-Revision-Date: 2026-09-27T13:56:39.699Z\n"
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
+"POT-Creation-Date: 2026-09-29T12:48:23.766Z\n"
+"PO-Revision-Date: 2026-09-29T12:48:23.767Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -22,24 +17,18 @@ msgstr "Archived Bulletins"
 msgid "Settings"
 msgstr "Settings"
 
-<<<<<<< HEAD
-=======
 msgid "Climate & Health Bulletin"
 msgstr "Climate & Health Bulletin"
 
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Bulletin not found"
 msgstr "Bulletin not found"
 
 msgid "Failed to load bulletin"
 msgstr "Failed to load bulletin"
 
-<<<<<<< HEAD
-=======
 msgid "You do not have permission to publish bulletins"
 msgstr "You do not have permission to publish bulletins"
 
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Bulletin published successfully"
 msgstr "Bulletin published successfully"
 
@@ -85,8 +74,6 @@ msgstr "November"
 msgid "December"
 msgstr "December"
 
-<<<<<<< HEAD
-=======
 msgid ""
 "PDF downloaded, but {{total}} image(s) could not be included. Check the "
 "image URLs in Settings."
@@ -97,34 +84,24 @@ msgstr ""
 msgid "Failed to generate the PDF"
 msgstr "Failed to generate the PDF"
 
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Back to Home"
 msgstr "Back to Home"
 
 msgid "No bulletin data available"
 msgstr "No bulletin data available"
 
-<<<<<<< HEAD
-=======
 msgid "Draft"
 msgstr "Draft"
 
 msgid "Published"
 msgstr "Published"
 
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Download PDF"
 msgstr "Download PDF"
 
 msgid "Publish"
 msgstr "Publish"
 
-<<<<<<< HEAD
-msgid "Climate & Health Bulletin"
-msgstr "Climate & Health Bulletin"
-
-=======
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Bridging Weather & Wellness For a Healthier Malawi"
 msgstr "Bridging Weather & Wellness For a Healthier Malawi"
 
@@ -134,16 +111,11 @@ msgstr "Organisation Unit"
 msgid "Period"
 msgstr "Period"
 
-<<<<<<< HEAD
-msgid "1. Highlights"
-msgstr "1. Highlights"
-=======
 msgid "Generated on {{date}}"
 msgstr "Generated on {{date}}"
 
 msgid "Highlights"
 msgstr "Highlights"
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 
 msgid "Recorded Health Cases"
 msgstr "Recorded Health Cases"
@@ -184,12 +156,9 @@ msgstr "Edit"
 msgid "No bulletins available."
 msgstr "No bulletins available."
 
-<<<<<<< HEAD
-=======
 msgid "You do not have permission to draft bulletins"
 msgstr "You do not have permission to draft bulletins"
 
->>>>>>> cae0eb5d8a2db258b3d52d9616a9db4b6cc8d506
 msgid "Please add highlights before saving"
 msgstr "Please add highlights before saving"
 
@@ -235,11 +204,3 @@ msgid ""
 msgstr ""
 "An image in this bulletin blocked the export. Check the disease icon URLs "
 "in Settings."
-
-msgctxt "Application title"
-msgid "__MANIFEST_APP_TITLE"
-msgstr "Climate and Health Bulletin"
-
-msgctxt "Application description"
-msgid "__MANIFEST_APP_DESCRIPTION"
-msgstr ""

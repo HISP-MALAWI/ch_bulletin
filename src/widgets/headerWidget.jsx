@@ -87,7 +87,7 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
             <h2 className={style.sectionTitle}>Select Region</h2>
             <p className={style.sectionSub}>Choose a specific region for data filtering.</p>
               <OrgUnitTreeWidget loading={loading} error={error} data={data} setSelectedOrgUnit={setSelectedOrgUnit} />
-            <button className={style.buttonPrimary} onClick={() => setShowModal(false)} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}} onClick={() => {
+            <button className={style.buttonPrimary} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}} onClick={() => {
               setOrganisation(selectedOrgUnit);
               setShowModal(false);
             }}>
