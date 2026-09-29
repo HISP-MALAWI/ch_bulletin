@@ -13,14 +13,21 @@ import { homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import { exportBulletinPdf, sanitiseFileName } from '../utils/bulletinPdf'
+import { normaliseHighlightsHtml, hasHighlightsContent } from '../utils/highlightsHtml'
+import { useAccess } from '../context/AccessContext'
 
+const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+})
 
 const BulletinPreview = ({ style }) => {
     const { id } = useParams()
     const navigate = useNavigate()
     const engine = useDataEngine()
+    const { canPublish } = useAccess()
     const contentRef = React.useRef(null)
     const [bulletin, setBulletin] = React.useState(null)
     const [loading, setLoading] = React.useState(true)
@@ -31,11 +38,28 @@ const BulletinPreview = ({ style }) => {
     const [isDownloading, setIsDownloading] = React.useState(false)
     const [publishMessage, setPublishMessage] = React.useState('')
     const [publishStatus, setPublishStatus] = React.useState(null)
+    const [downloadMessage, setDownloadMessage] = React.useState('')
+    const [downloadStatus, setDownloadStatus] = React.useState(null)
 
     const { loading: dataLoading, error: dataError, data } = dataQuery(homeDataQuery)
     // Mapping config lives in a separate datastore key from the bulletins list,
     // same query BulletinForm uses to build HealthCasesWidget's mapping.
     const { loading: settingsLoading, error: settingsError, data: settingsData } = dataQuery(dataSettingsStoreQuery)
+
+    // Both come from Global Settings, so they are available before the bulletin
+    // loads and can be used by the download handler as well as the heading.
+    const bulletinTitle =
+        settingsData?.dataStore?.titlePrefix?.trim() || i18n.t('Climate & Health Bulletin')
+    const displayIcon = settingsData?.dataStore?.displayIcon?.trim()
+
+    // Bulletins saved before this ran hold Quill's own markup, in which a
+    // bullet list is an <ol> with no bullet in it and a font is a class only
+    // Quill's stylesheet understands, so the rewrite happens here as well as on
+    // save. Display only: the datastore keeps whatever was stored.
+    const highlightsHtml = React.useMemo(
+        () => normaliseHighlightsHtml(bulletin?.highlights),
+        [bulletin?.highlights]
+    )
 
     // Fetch bulletin data from dataStore
     React.useEffect(() => {
@@ -66,6 +90,17 @@ const BulletinPreview = ({ style }) => {
     }, [id, data, dataLoading])
 
     const handlePublish = async () => {
+        if (!canPublish) {
+            setPublishStatus('error')
+            setPublishMessage(i18n.t('You do not have permission to publish bulletins'))
+
+            setTimeout(() => {
+                setPublishStatus(null)
+                setPublishMessage('')
+            }, 3000)
+            return
+        }
+
         try {
             setIsPublishing(true)
             
@@ -137,69 +172,48 @@ const BulletinPreview = ({ style }) => {
         return `${monthNames[parseInt(month) - 1]} ${year}`
     }
 
-    // Helper to get status badge color
-    const getStatusColor = (status) => {
-        return status === 'published' ? '#10b981' : '#f59e0b'
-    }
+    const showDownloadMessage = (status, message) => {
+        setDownloadStatus(status)
+        setDownloadMessage(message)
 
-    const getStatusBgColor = (status) => {
-        return status === 'published' ? '#d1fae5' : '#fef3c7'
+        setTimeout(() => {
+            setDownloadStatus(null)
+            setDownloadMessage('')
+        }, 5000)
     }
 
     const handleDownloadPDF = async () => {
+        setIsDownloading(true)
+        setDownloadMessage('')
+        setDownloadStatus(null)
+
         try {
-            setIsDownloading(true)
-            const element = contentRef.current
-            
-            if (!element) {
-                console.error('Content ref not found')
-                return
-            }
+            const fileName = `${sanitiseFileName([
+                'Bulletin',
+                formatPeriod(bulletin.period),
+                getOrgUnitName(bulletin.organisationUnit),
+            ])}.pdf`
 
-            // Wait a bit for images to load
-            await new Promise(resolve => setTimeout(resolve, 500))
-
-            // Create canvas from the HTML element
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                imageTimeout: 5000
+            const { droppedImages } = await exportBulletinPdf(contentRef.current, {
+                fileName,
+                title: `${bulletinTitle} - ${formatPeriod(bulletin.period)}`,
             })
 
-            // Create PDF
-            const imgData = canvas.toDataURL('image/png')
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            })
-
-            const imgWidth = 210 // A4 width in mm
-            const pageHeight = 297 // A4 height in mm
-            let imgHeight = (canvas.height * imgWidth) / canvas.width
-            let heightLeft = imgHeight
-            let position = 0
-
-            // Add image to PDF, handling multiple pages if needed
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-            heightLeft -= pageHeight
-
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight
-                pdf.addPage()
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-                heightLeft -= pageHeight
+            if (droppedImages > 0) {
+                showDownloadMessage(
+                    'warning',
+                    i18n.t('PDF downloaded, but {{total}} image(s) could not be included. Check the image URLs in Settings.', {
+                        total: droppedImages,
+                    })
+                )
             }
-
-            // Generate filename with bulletin info
-            const fileName = `Bulletin_${formatPeriod(bulletin.period)}_${getOrgUnitName(bulletin.organisationUnit)}.pdf`.replace(/\s+/g, '_')
-            pdf.save(fileName)
-            setIsDownloading(false)
         } catch (err) {
             console.error('Error generating PDF:', err)
+            showDownloadMessage(
+                'error',
+                err.message || i18n.t('Failed to generate the PDF')
+            )
+        } finally {
             setIsDownloading(false)
         }
     }
@@ -245,6 +259,10 @@ const BulletinPreview = ({ style }) => {
         )
     }
 
+    const isDraft = (bulletin.status || 'draft') === 'draft'
+    const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
+    const hasHighlights = hasHighlightsContent(highlightsHtml)
+
     return (
         <main className={style.main}>
             {publishMessage && (
@@ -252,7 +270,18 @@ const BulletinPreview = ({ style }) => {
                     {publishMessage}
                 </AlertBar>
             )}
-            
+
+            {downloadMessage && (
+                <AlertBar
+                    style={{ marginBottom: '16px' }}
+                    permanent
+                    warning={downloadStatus === 'warning'}
+                    critical={downloadStatus === 'error'}
+                >
+                    {downloadMessage}
+                </AlertBar>
+            )}
+
             <ButtonStrip style={{ marginBottom: '24px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} end>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <Button 
@@ -262,8 +291,8 @@ const BulletinPreview = ({ style }) => {
                     >
                         {i18n.t('Download PDF')}
                     </Button>
-                    {bulletin?.status === 'draft' && (
-                        <Button 
+                    {bulletin?.status === 'draft' && canPublish && (
+                        <Button
                             onClick={handlePublish}
                             loading={isPublishing}
                             icon={<NearMe />}
@@ -276,48 +305,84 @@ const BulletinPreview = ({ style }) => {
                 </ButtonStrip>
 
             <div ref={contentRef}>
-            {/* Preview Header */}
-            <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div>
-                        <h1 style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 'bold' }}>
-                            {i18n.t('Climate & Health Bulletin')}
-                        </h1>
-                        <p style={{ margin: '0 0 16px 0', color: '#6B7280', fontSize: '14px' }}>
-                            {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
-                        </p>
-                        <div style={{ display: 'flex', gap: '24px' }}>
-                            <div>
-                                <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
-                                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
-                                    {getOrgUnitName(bulletin.organisationUnit)}
-                                </p>
-                            </div>
-                            <div>
-                                <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Period')}</span>
-                                <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
-                                    {formatPeriod(bulletin.period)}
-                                </p>
-                            </div>
+            {/* Preview Header. No box-shadow: html2canvas renders it, so on
+                paper it is a grey smudge around the heading. */}
+            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px' }}>
+                <div style={{ textAlign: 'center' }}>
+                    {displayIcon && (
+                        <img
+                            src={displayIcon}
+                            alt=""
+                            style={{ height: '56px', maxWidth: '100%', marginBottom: '12px' }}
+                        />
+                    )}
+                    <h1 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold' }}>
+                        {bulletinTitle}
+                    </h1>
+                    <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
+                        {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
+                    </p>
+                </div>
+
+                {/* Letterhead strip: the facts at one end, the status and the
+                    generation date at the other. */}
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-end',
+                    gap: '24px',
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '1px solid #e2e8f0',
+                }}>
+                    <div style={{ display: 'flex', gap: '32px' }}>
+                        <div>
+                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
+                                {getOrgUnitName(bulletin.organisationUnit)}
+                            </p>
                         </div>
+                        <div>
+                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Period')}</span>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
+                                {formatPeriod(bulletin.period)}
+                            </p>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        <span className={isDraft ? style.statusDraft : style.statusSubmitted}>
+                            {statusLabel}
+                        </span>
+                        <span style={{ color: '#6B7280', fontSize: '11px' }}>
+                            {i18n.t('Generated on {{date}}', {
+                                date: GENERATED_ON_FORMAT.format(new Date()),
+                            })}
+                        </span>
                     </div>
                 </div>
             </div>
 
             {/* 1. Highlights — now shown first, matching the numbered document order */}
-            {bulletin.highlights && (
-                <div style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>
-                        {i18n.t('1. Highlights')}
+            {hasHighlights && (
+                <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+                    {/* Numbered like sections 2 and 3: the numeral sits in the
+                        badge and only the label is translated. */}
+                    <div className={style.sectionHeader}>
+                        <div className={style.stepBadge}>1</div>
+                        <span className={style.sectionTitle}>{i18n.t('Highlights')}</span>
                     </div>
-                    <div dangerouslySetInnerHTML={{ __html: bulletin.highlights }} />
+                    <div
+                        className={style.highlightsBody}
+                        dangerouslySetInnerHTML={{ __html: highlightsHtml }}
+                    />
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                 <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
                     <HealthCasesWidget
-                        dataValues={bulletin.cases || []}
+                        dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
                         mapping={settingsData?.dataStore?.mapping}
                         style={style}
                         step="2"
@@ -339,25 +404,10 @@ const BulletinPreview = ({ style }) => {
             </div>
 
             {bulletin.advisories && bulletin.advisories.length > 0 && (
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px',
-                            backgroundColor: '#1e3a8a',
-                            color: '#fff',
-                            borderRadius: '50%',
-                            fontWeight: 'bold',
-                            fontSize: '16px'
-                        }}>
-                            4
-                        </div>
-                        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {i18n.t('Health Advisories')}
-                        </h2>
+                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
+                    <div className={style.sectionHeader}>
+                        <div className={style.stepBadge}>4</div>
+                        <span className={style.sectionTitle}>{i18n.t('Health Advisories')}</span>
                     </div>
                     <div>
                         {bulletin.advisories.map((advisory, index) => (
