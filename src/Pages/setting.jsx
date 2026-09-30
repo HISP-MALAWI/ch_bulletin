@@ -8,6 +8,7 @@ import {
 } from '@dhis2/ui';
 import { DiseaseMappingWidget } from '../widgets/diseasemappingWIdget';
 import { AccessWorkflowWidget } from '../widgets/accessWidget';
+import { SeasonalForecastWidget } from '../widgets/seasonalForecastWidget';
 import { DistributionWidget } from '../widgets/distributionWIdget';
 import { RolesQuery } from './services/getRoles';
 import { dataSettingsStoreQuery } from './services/getSettingsStore';
@@ -29,8 +30,10 @@ const SettingsPage = ({styles}) => {
         mapping : diseaseElementsMapping,
         reviewRoles: [],
         configRoles: [],
-        distributionRoles: []
-    });
+        distributionRoles: [],
+        rainfallDataElement: '',
+        temperatureDataElement: ''
+        });
 
     // State management for save operations
     const [isSaving, setIsSaving] = useState(false);
@@ -95,19 +98,24 @@ const SettingsPage = ({styles}) => {
                 {/* SECTION 1: DISEASE MAPPING */}
                 <DiseaseMappingWidget styles={styles} diseaseElements={diseaseElementsMapping} setDiseaseElements={setdiseaseElementsMapping} />
 
+                {/* SECTION 3: SEASONAL FORECAST */}
+                <SeasonalForecastWidget styles={styles} settings={settings} setSettings={setSettings} />
+                
                 {/* SECTION 2: ACCESS & WORKFLOW */}
                 <AccessWorkflowWidget roles={[
                         ...(data?.userRoles?.userRoles || []), 
                         ...(data?.userGroups?.userGroups || [])
                     ]} styles={styles} settings={settings} setSettings={setSettings} />
 
-                {/* SECTION 3: DISTRIBUTION */}
+                
+
+                {/* SECTION 4: DISTRIBUTION */}
                 <DistributionWidget group={data?.userGroups?.userGroups} setSettings={setSettings} settings={settings} styles={styles} />
 
-                {/* SECTION 4: GLOBAL SETTINGS */}
+                {/* SECTION 5: GLOBAL SETTINGS */}
                 <section className={styles.sectionCard}>
                     <div className={styles.sectionHeader}>
-                        <span className={styles.stepBadge}>4</span>
+                        <span className={styles.stepBadge}>5</span>
                         <h3 className={styles.sectionTitle}>Global Settings</h3>
                     </div>
                     <p className={styles.sectionSub}>General app-wide defaults.</p>
