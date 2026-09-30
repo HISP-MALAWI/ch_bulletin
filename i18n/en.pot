@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-09-30T14:54:45.602Z\n"
-"PO-Revision-Date: 2026-09-30T14:54:45.603Z\n"
+"POT-Creation-Date: 2026-09-30T16:48:58.291Z\n"
+"PO-Revision-Date: 2026-09-30T16:48:58.292Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -131,6 +131,9 @@ msgstr "Upcoming weather conditions."
 
 msgid "Health Advisories"
 msgstr "Health Advisories"
+
+msgid "Recommendations"
+msgstr "Recommendations"
 
 msgid "N/A"
 msgstr "N/A"
