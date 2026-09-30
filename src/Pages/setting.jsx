@@ -98,10 +98,10 @@ const SettingsPage = ({styles}) => {
                 {/* SECTION 1: DISEASE MAPPING */}
                 <DiseaseMappingWidget styles={styles} diseaseElements={diseaseElementsMapping} setDiseaseElements={setdiseaseElementsMapping} />
 
-                {/* SECTION 3: SEASONAL FORECAST */}
+                {/* SECTION 2: SEASONAL FORECAST */}
                 <SeasonalForecastWidget styles={styles} settings={settings} setSettings={setSettings} />
                 
-                {/* SECTION 2: ACCESS & WORKFLOW */}
+                {/* SECTION 3: ACCESS & WORKFLOW */}
                 <AccessWorkflowWidget roles={[
                         ...(data?.userRoles?.userRoles || []), 
                         ...(data?.userGroups?.userGroups || [])
