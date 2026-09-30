@@ -6,6 +6,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import PublishIcon from '@mui/icons-material/Publish'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import dataQuery from './services/engines/dataQuery'
+import ForecastSummaryWidget from '../widgets/forecastSummaryWidget'
+import SeasonalClimateChart from '../widgets/seasonalClimateChart'
 import HealthCasesWidget from '../widgets/surveilanceHighlights'
 import ForecastWidget from '../widgets/forecastWidget'
 import { CheckCircle } from 'lucide-react'
@@ -78,7 +80,11 @@ const BulletinPreview = ({ style }) => {
             }
 
             setBulletin(foundBulletin)
-            setOrgUnits(data?.organisationUnits || [])
+            const organisationUnitResponse = data?.organisationUnits
+            const organisationUnitList = Array.isArray(organisationUnitResponse)
+                ? organisationUnitResponse
+                : organisationUnitResponse?.organisationUnits
+            setOrgUnits(Array.isArray(organisationUnitList) ? organisationUnitList : [])
             setUser(data?.me)
             setError(null)
             setLoading(false)
@@ -363,6 +369,17 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
+            <div data-pdf-block style={{ marginBottom: '24px' }}>
+                <ForecastSummaryWidget
+                    style={style}
+                    dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    organisationUnit={bulletin.organisationUnit}
+                    orgUnits={orgUnits}
+                />
+            </div>
+            
             {/* 1. Highlights — now shown first, matching the numbered document order */}
             {hasHighlights && (
                 <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
@@ -406,6 +423,20 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
+            <div data-pdf-block style={{ marginBottom: '24px' }}>
+                <SeasonalClimateChart
+                    style={style}
+                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
+                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    period={bulletin.period}
+                    initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
+                        ? bulletin.seasonalClimate
+                        : undefined}
+                    orgUnits={orgUnits}
+                />
+            </div>
+
             {bulletin.advisories && bulletin.advisories.length > 0 && (
                 <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
                     <div className={style.sectionHeader}>
@@ -418,6 +449,25 @@ const BulletinPreview = ({ style }) => {
                                 <CheckCircle size={20} color="#10b981" style={{ marginTop: '2px', flexShrink: 0 }} />
                                 <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
                                     {advisory}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {bulletin.recommendations && bulletin.recommendations.length > 0 && (
+                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
+                    <div className={style.sectionHeader}>
+                        <div className={style.stepBadge}>5</div>
+                        <span className={style.sectionTitle}>{i18n.t('Recommendations')}</span>
+                    </div>
+                    <div>
+                        {bulletin.recommendations.map((recommendation, index) => (
+                            <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
+                                <CheckCircle size={20} color="#328c94" style={{ marginTop: '2px', flexShrink: 0 }} />
+                                <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
+                                    {recommendation}
                                 </span>
                             </div>
                         ))}
