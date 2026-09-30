@@ -5,6 +5,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import { useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
 import ForecastSummaryWidget from "../widgets/forecastSummaryWidget";
+import SeasonalClimateChart from "../widgets/seasonalClimateChart";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
@@ -14,6 +15,8 @@ import { homeDataQuery } from "./services/getHomeData";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
+import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from "../utils/seasonalClimateData";
+import { buildHealthGuidance } from "../utils/healthGuidance";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
@@ -30,6 +33,8 @@ const BulletinForm = ({ style }) => {
   const [highlights, setHighlights] = React.useState("");
   const [forecast, setForecast] = React.useState([]);
   const [datavalues, setDatavalues] = React.useState([]);
+  const [seasonalClimate, setSeasonalClimate] = React.useState([]);
+  const [recommendations, setRecommendations] = React.useState([]);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
@@ -41,6 +46,21 @@ const BulletinForm = ({ style }) => {
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
   const { canDraft } = useAccess();
+  const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
+    dataValues: seasonalClimate,
+    periods: getSeasonalForecastPeriods(period),
+    rainfallDataElement: data?.dataStore?.rainfallDataElement,
+    temperatureDataElement: data?.dataStore?.temperatureDataElement,
+    selectedOrgUnit: organisationUnit,
+  }), [data, organisationUnit, period, seasonalClimate]);
+  const guidanceSuggestions = React.useMemo(() => buildHealthGuidance({
+    seasonalClimateRows,
+    forecast,
+    dataValues: datavalues,
+    mapping: data?.dataStore?.mapping || [],
+    period,
+    selectedOrgUnit: organisationUnit,
+  }), [data, datavalues, forecast, organisationUnit, period, seasonalClimateRows]);
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -101,6 +121,8 @@ const BulletinForm = ({ style }) => {
     setOrganisation(foundBulletin.organisationUnit || undefined);
     setForecast(foundBulletin.forecast || []);
     setDatavalues(Array.isArray(foundBulletin.cases?.[0]) ? foundBulletin.cases[0] : []);
+    setSeasonalClimate(Array.isArray(foundBulletin.seasonalClimate) ? foundBulletin.seasonalClimate : []);
+    setRecommendations(Array.isArray(foundBulletin.recommendations) ? foundBulletin.recommendations : []);
   }, [id, homeData]);
 
   // Fetch recorded case data values for the selected period/org unit
@@ -115,7 +137,7 @@ const BulletinForm = ({ style }) => {
     const fetchDataValues = async () => {
       try {
         const periods = getMonthlyPeriods(period);
-
+        console.log(data.dataStore)
         const values = await getDataValues(
           data.dataStore.mapping,
           periods,
@@ -136,7 +158,6 @@ const BulletinForm = ({ style }) => {
       cancelled = true;
     };
   }, [data, period, organisationUnit, orgUnits, engine]);
-
   const handleSave = async () => {
     if (!canDraft) {
       showTransientMessage("error", i18n.t("You do not have permission to draft bulletins"));
@@ -170,7 +191,9 @@ const BulletinForm = ({ style }) => {
           organisationUnit,
           cases: [datavalues],
           forecast,
+          seasonalClimate,
           advisories,
+          recommendations,
           status: existingBulletin?.status || "draft",
           period,
         },
@@ -221,7 +244,7 @@ const BulletinForm = ({ style }) => {
               />
             </section>
 
-            <section className={style.sectionCard}>
+             <section className={style.sectionCard}>
               <HealthCasesWidget
                 dataValues={datavalues}
                 mapping={data?.dataStore?.mapping}
@@ -247,11 +270,27 @@ const BulletinForm = ({ style }) => {
               />
             </section>
 
+            <div className={style.fullWidth}>
+              <SeasonalClimateChart
+                style={style}
+                rainfallDataElement={data?.dataStore?.rainfallDataElement}
+                temperatureDataElement={data?.dataStore?.temperatureDataElement}
+                selectedOrgUnit={organisationUnit}
+                period={period}
+                onDataValuesChange={setSeasonalClimate}
+                orgUnits={orgUnits}
+              />
+            </div>
+
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <AdvisoriesWidget
                 style={style}
                 advisories={advisories}
                 setAdvisories={setAdvisories}
+                recommendations={recommendations}
+                setRecommendations={setRecommendations}
+                advisorySuggestions={guidanceSuggestions.advisories}
+                recommendationSuggestions={guidanceSuggestions.recommendations}
                 step="4"
                 title="Health Advisories"
                 description="Important health advisories for the region."
