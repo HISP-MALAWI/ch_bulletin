@@ -18,7 +18,7 @@ export const AccessWorkflowWidget = ({
     };
     return (
         <SettingsSection
-            step="2"
+            step="3"
             title="Access and Workflow Roles"
             subtitle="Assign user groups to specific bulletin actions."
             styles={styles}
