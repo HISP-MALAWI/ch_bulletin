@@ -38,6 +38,7 @@ const TotalLabel = ({ x, y, width, payload }) => {
 };
 
 const HealthCasesWidget = ({ style, step, dataValues = [], mapping = [], orgUnits = [], selectedOrgUnit, period }) => {
+    const organisationUnitList = Array.isArray(orgUnits) ? orgUnits : [];
     const periods = React.useMemo(
         () => (period ? getMonthlyPeriods(period) : []),
         [period]
@@ -53,7 +54,7 @@ const HealthCasesWidget = ({ style, step, dataValues = [], mapping = [], orgUnit
         row.predictionRange !== undefined
     ));
     const diseaseName = malariaMapping?.displayName?.replace(/\s+cases?$/i, '').toLowerCase() || 'malaria';
-    const selectedOrgUnitName = orgUnits.find((unit) => unit.id === selectedOrgUnit)?.displayName || '';
+    const selectedOrgUnitName = organisationUnitList.find((unit) => unit.id === selectedOrgUnit)?.displayName || '';
     const dateRange = periods.length
         ? `${shortMonth(periods[0]).replace(/ (\d{2})$/, ' 20$1')} – ${shortMonth(periods.at(-1)).replace(/ (\d{2})$/, ' 20$1')}`
         : '';
