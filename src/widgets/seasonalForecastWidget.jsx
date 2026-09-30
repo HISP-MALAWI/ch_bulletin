@@ -17,7 +17,7 @@ export const SeasonalForecastWidget = ({ styles, settings, setSettings }) => {
 
     return (
         <SettingsSection
-            step="3"
+            step="2"
             title="Seasonal forecast"
             subtitle="Select the data elements used for the seasonal forecast."
             styles={styles}
