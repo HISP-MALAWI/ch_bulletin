@@ -8,7 +8,7 @@ import { SettingsSection } from './settingsSectionWidget';
 export const DistributionWidget = ({ styles, group,setSettings,settings }) => {
     return (
         <SettingsSection
-            step="3"
+            step="4"
             title="Distribution Management"
             subtitle="Set which groups receive the finalized PDF."
             pill="Mailing groups"
