@@ -33,7 +33,7 @@ const HomePage = ({ style }) => {
                 bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
             )
 
-            setBulletins(filteredBulletins)
+            setBulletins(data?.dataStore)
             setOrganisationUnit(data?.organisationUnits)
             setUser(data?.me)
         }
