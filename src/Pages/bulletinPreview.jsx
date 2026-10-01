@@ -10,7 +10,6 @@ import ForecastSummaryWidget from '../widgets/forecastSummaryWidget'
 import SeasonalClimateChart from '../widgets/seasonalClimateChart'
 import HealthCasesWidget from '../widgets/surveilanceHighlights'
 import ForecastWidget from '../widgets/forecastWidget'
-import { CheckCircle } from 'lucide-react'
 import { homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
@@ -18,6 +17,8 @@ import { NearMe } from '@mui/icons-material'
 import { exportBulletinPdf, sanitiseFileName } from '../utils/bulletinPdf'
 import { normaliseHighlightsHtml, hasHighlightsContent } from '../utils/highlightsHtml'
 import { useAccess } from '../context/AccessContext'
+import { BulletinSection } from '../widgets/bulletinSection'
+import { describeForecastWindow } from '../utils/periodLabel'
 
 const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -61,6 +62,14 @@ const BulletinPreview = ({ style }) => {
     const highlightsHtml = React.useMemo(
         () => normaliseHighlightsHtml(bulletin?.highlights),
         [bulletin?.highlights]
+    )
+
+    // A bulletin is written for one month but forecasts over four. The scenario
+    // cards report that window, so the letterhead says the same thing rather
+    // than naming only the first month of it.
+    const forecastWindow = React.useMemo(
+        () => describeForecastWindow(bulletin?.period),
+        [bulletin?.period]
     )
 
     // Fetch bulletin data from dataStore
@@ -310,11 +319,17 @@ const BulletinPreview = ({ style }) => {
                 </div>
                 </ButtonStrip>
 
-            <div ref={contentRef}>
-            {/* Preview Header. No box-shadow: html2canvas renders it, so on
-                paper it is a grey smudge around the heading. */}
-            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px' }}>
-                <div style={{ textAlign: 'center' }}>
+            {/* Everything inside this wrapper is the document: the design
+                system is scoped to `.bulletinDocument` so the editor form,
+                which renders the same widgets, keeps the app's own look.
+                No box-shadow on the cards: html2canvas renders it, so on paper
+                it is a grey smudge around the heading. */}
+            <div ref={contentRef} className={style.bulletinDocument}>
+            <div data-pdf-block className={style.bulletinMasthead}>
+                {/* Logo, title and tagline only: this is the part the export
+                    repeats at the top of every page after the first. The
+                    letterhead facts below it stay on page one. */}
+                <div data-pdf-masthead className={style.bulletinMastheadHead}>
                     {displayIcon && (
                         <img
                             src={displayIcon}
@@ -322,45 +337,38 @@ const BulletinPreview = ({ style }) => {
                             style={{ height: '56px', maxWidth: '100%', marginBottom: '12px' }}
                         />
                     )}
-                    <h1 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: 'bold' }}>
+                    <h1 className={style.bulletinMastheadTitle}>
                         {bulletinTitle}
                     </h1>
-                    <p style={{ margin: 0, color: '#6B7280', fontSize: '14px' }}>
+                    <p className={style.bulletinMastheadTagline}>
                         {i18n.t('Bridging Weather & Wellness For a Healthier Malawi')}
                     </p>
                 </div>
 
                 {/* Letterhead strip: the facts at one end, the status and the
                     generation date at the other. */}
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-end',
-                    gap: '24px',
-                    marginTop: '16px',
-                    paddingTop: '16px',
-                    borderTop: '1px solid #e2e8f0',
-                }}>
-                    <div style={{ display: 'flex', gap: '32px' }}>
+                <div className={style.bulletinLetterhead}>
+                    <div className={style.bulletinLetterheadFacts}>
                         <div>
-                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Organisation Unit')}</span>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
+                            <span className={style.bulletinFactLabel}>{i18n.t('Organisation Unit')}</span>
+                            <p className={style.bulletinFactValue}>
                                 {getOrgUnitName(bulletin.organisationUnit)}
                             </p>
                         </div>
                         <div>
-                            <span style={{ color: '#6B7280', fontSize: '12px' }}>{i18n.t('Period')}</span>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '500' }}>
-                                {formatPeriod(bulletin.period)}
+                            <span className={style.bulletinFactLabel}>{i18n.t('Period')}</span>
+                            <p className={style.bulletinFactValue}>
+                                {forecastWindow.label
+                                    ? `${forecastWindow.label} · ${i18n.t('{{total}} months', { total: forecastWindow.months })}`
+                                    : formatPeriod(bulletin.period)}
                             </p>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <div className={style.bulletinLetterheadStatus}>
                         <span className={isDraft ? style.statusDraft : style.statusSubmitted}>
                             {statusLabel}
                         </span>
-                        <span style={{ color: '#6B7280', fontSize: '11px' }}>
+                        <span className={style.bulletinGeneratedOn}>
                             {i18n.t('Generated on {{date}}', {
                                 date: GENERATED_ON_FORMAT.format(new Date()),
                             })}
@@ -369,7 +377,7 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '24px' }}>
+            <div data-pdf-block style={{ marginBottom: '20px' }}>
                 <ForecastSummaryWidget
                     style={style}
                     dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
@@ -379,25 +387,39 @@ const BulletinPreview = ({ style }) => {
                     orgUnits={orgUnits}
                 />
             </div>
-            
-            {/* 1. Highlights — now shown first, matching the numbered document order */}
-            {hasHighlights && (
-                <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
-                    {/* Numbered like sections 2 and 3: the numeral sits in the
-                        badge and only the label is translated. */}
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>1</div>
-                        <span className={style.sectionTitle}>{i18n.t('Highlights')}</span>
-                    </div>
-                    <div
-                        className={style.highlightsBody}
-                        dangerouslySetInnerHTML={{ __html: highlightsHtml }}
-                    />
+
+            {/* Leads the document, so it carries no numeral — nothing is
+                numbered before it. */}
+            {bulletin.executiveSummary && bulletin.executiveSummary.length > 0 && (
+                <div data-pdf-block>
+                    <BulletinSection title={i18n.t('Executive Summary')}>
+                        <div className={style.bulletinList}>
+                            {bulletin.executiveSummary.map((line, index) => (
+                                <div key={index} className={style.bulletinListItem}>
+                                    <span className={style.bulletinListItemText}>{line}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </BulletinSection>
                 </div>
             )}
 
-            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+            {/* 1. Highlights — now shown first, matching the numbered document order */}
+            {hasHighlights && (
+                <div data-pdf-block>
+                    {/* The numeral is a literal, as in every other section; only
+                        the label is translated. */}
+                    <BulletinSection step="1" title={i18n.t('Highlights')}>
+                        <div
+                            className={style.highlightsBody}
+                            dangerouslySetInnerHTML={{ __html: highlightsHtml }}
+                        />
+                    </BulletinSection>
+                </div>
+            )}
+
+            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div className={style.sectionCard}>
                     <HealthCasesWidget
                         dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
                         mapping={settingsData?.dataStore?.mapping}
@@ -410,7 +432,7 @@ const BulletinPreview = ({ style }) => {
                         description={i18n.t('Summary of recorded health cases.')}
                     />
                 </div>
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+                <div className={style.sectionCard}>
                     <ForecastWidget
                         forecast={bulletin.forecast || []}
                         organisationUnit={bulletin.organisationUnit}
@@ -423,7 +445,7 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '24px' }}>
+            <div data-pdf-block style={{ marginBottom: '20px' }}>
                 <SeasonalClimateChart
                     style={style}
                     rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
@@ -438,40 +460,35 @@ const BulletinPreview = ({ style }) => {
             </div>
 
             {bulletin.advisories && bulletin.advisories.length > 0 && (
-                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>4</div>
-                        <span className={style.sectionTitle}>{i18n.t('Health Advisories')}</span>
-                    </div>
-                    <div>
-                        {bulletin.advisories.map((advisory, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                                <CheckCircle size={20} color="#10b981" style={{ marginTop: '2px', flexShrink: 0 }} />
-                                <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
-                                    {advisory}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                <div data-pdf-block>
+                    <BulletinSection step="4" title={i18n.t('Health Advisories')}>
+                        {/* A left-border accent rather than an icon, which is how
+                            the reference marks advisories and messages. */}
+                        <div className={style.bulletinList}>
+                            {bulletin.advisories.map((advisory, index) => (
+                                <div
+                                    key={index}
+                                    className={`${style.bulletinListItem} ${style.bulletinListItemAdvisory}`}
+                                >
+                                    <span className={style.bulletinListItemText}>{advisory}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </BulletinSection>
                 </div>
             )}
 
             {bulletin.recommendations && bulletin.recommendations.length > 0 && (
-                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>5</div>
-                        <span className={style.sectionTitle}>{i18n.t('Recommendations')}</span>
-                    </div>
-                    <div>
-                        {bulletin.recommendations.map((recommendation, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                                <CheckCircle size={20} color="#328c94" style={{ marginTop: '2px', flexShrink: 0 }} />
-                                <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
-                                    {recommendation}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
+                <div data-pdf-block>
+                    <BulletinSection step="5" title={i18n.t('Recommendations')}>
+                        <div className={style.bulletinList}>
+                            {bulletin.recommendations.map((recommendation, index) => (
+                                <div key={index} className={style.bulletinListItem}>
+                                    <span className={style.bulletinListItemText}>{recommendation}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </BulletinSection>
                 </div>
             )}
             </div>

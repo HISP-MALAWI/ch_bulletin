@@ -6,6 +6,10 @@ const DEFAULT_MARGIN_MM = 10
 const IMAGE_TIMEOUT_MS = 8000
 const MAX_FILE_NAME_LENGTH = 120
 
+// Space between the repeated masthead and the content beneath it on pages after
+// the first.
+const REPEAT_HEADER_GAP_MM = 6
+
 // A 1x1 transparent GIF, used to stand in for images that cannot be captured.
 const TRANSPARENT_PIXEL =
     'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -42,10 +46,21 @@ export const sanitiseFileName = (parts, { maxLength = MAX_FILE_NAME_LENGTH } = {
  * driven by `start < totalHeightMm` and every slice has a positive height, a
  * trailing empty page is impossible.
  *
+ * `options.restHeightMm` narrows every page after the first, which is how a
+ * running header is paid for: the masthead is already part of the flow on page
+ * one, so only the later pages need the room reserved.
+ *
  * @returns {Array<{start: number, height: number}>} slices in page order
  */
-export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = []) => {
+export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [], options = {}) => {
     if (!(totalHeightMm > 0) || !(contentHeightMm > 0)) {
+        return []
+    }
+
+    const restHeightMm = options.restHeightMm ?? contentHeightMm
+
+    if (!(restHeightMm > 0)) {
+        // Nothing could be laid out, and the loop below would never advance.
         return []
     }
 
@@ -55,9 +70,10 @@ export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [
 
     const slices = []
     let start = 0
+    let pageIndex = 0
 
     while (start < totalHeightMm) {
-        const limit = start + contentHeightMm
+        const limit = start + (pageIndex === 0 ? contentHeightMm : restHeightMm)
 
         if (limit >= totalHeightMm) {
             slices.push({ start, height: totalHeightMm - start })
@@ -69,6 +85,7 @@ export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [
 
         slices.push({ start, height: end - start })
         start = end
+        pageIndex += 1
     }
 
     return slices
@@ -268,6 +285,84 @@ const readBlockBoundaries = (element, totalHeightMm) => {
 }
 
 /**
+ * Locates one element within the captured area, in both millimetres and source
+ * pixels, using the same fraction-of-the-render maths as the block boundaries so
+ * the two stay consistent whatever pixel ratio html2canvas chose.
+ */
+const readRegion = (element, node, totalHeightMm, pxPerMm) => {
+    const root = element.getBoundingClientRect()
+    const rect = node.getBoundingClientRect()
+
+    if (!root.height || !rect.height) {
+        return null
+    }
+
+    const topMm = ((rect.top - root.top) / root.height) * totalHeightMm
+    const heightMm = (rect.height / root.height) * totalHeightMm
+
+    return {
+        topMm,
+        heightMm,
+        topPx: Math.max(0, Math.round(topMm * pxPerMm)),
+        heightPx: Math.max(1, Math.round(heightMm * pxPerMm)),
+    }
+}
+
+/**
+ * Cuts the running header out of the captured canvas so it can be drawn again on
+ * every page. Taken from the existing capture rather than a second html2canvas
+ * pass, so it is never out of step with the page it came from and costs nothing
+ * extra to render.
+ */
+const captureRepeatedHeader = (element, source, totalHeightMm, pxPerMm, contentHeightMm) => {
+    const node = element.querySelector('[data-pdf-masthead]')
+
+    if (!node) {
+        return null
+    }
+
+    const region = readRegion(element, node, totalHeightMm, pxPerMm)
+
+    if (!region || !(region.heightMm > 0)) {
+        return null
+    }
+
+    const repeatHeightMm = region.heightMm + REPEAT_HEADER_GAP_MM
+
+    // A header that would leave no room for content is not worth repeating.
+    if (repeatHeightMm >= contentHeightMm) {
+        return null
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = source.width
+    canvas.height = region.heightPx
+
+    const context = canvas.getContext('2d')
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(
+        source,
+        0,
+        region.topPx,
+        source.width,
+        region.heightPx,
+        0,
+        0,
+        source.width,
+        region.heightPx
+    )
+
+    const dataUrl = canvas.toDataURL('image/png')
+
+    // Release the backing store; a full-width strip is still megabytes.
+    canvas.width = 0
+    canvas.height = 0
+
+    return { dataUrl, heightMm: region.heightMm, repeatHeightMm }
+}
+
+/**
  * Draws one vertical slice of the captured canvas onto a fresh canvas of the
  * same width, so it can be placed in the PDF at an exact height.
  */
@@ -343,7 +438,13 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
         const pxPerMm = source.width / contentWidthMm
         const totalHeightMm = (source.height * contentWidthMm) / source.width
         const boundaries = readBlockBoundaries(element, totalHeightMm)
-        const slices = computePageSlices(totalHeightMm, contentHeightMm, boundaries)
+        const header = captureRepeatedHeader(element, source, totalHeightMm, pxPerMm, contentHeightMm)
+        const slices = computePageSlices(
+            totalHeightMm,
+            contentHeightMm,
+            boundaries,
+            header ? { restHeightMm: contentHeightMm - header.repeatHeightMm } : {}
+        )
 
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -357,6 +458,22 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
             }
 
             const { dataUrl, heightMm } = renderSlice(source, slice, pxPerMm)
+
+            // Page one already carries the masthead, because it is part of the
+            // flow there; later pages get the copy cut out of the same capture.
+            if (index > 0 && header) {
+                pdf.addImage(header.dataUrl, 'PNG', marginMm, marginMm, contentWidthMm, header.heightMm)
+                pdf.addImage(
+                    dataUrl,
+                    'PNG',
+                    marginMm,
+                    marginMm + header.repeatHeightMm,
+                    contentWidthMm,
+                    heightMm
+                )
+                return
+            }
+
             pdf.addImage(dataUrl, 'PNG', marginMm, marginMm, contentWidthMm, heightMm)
         })
 

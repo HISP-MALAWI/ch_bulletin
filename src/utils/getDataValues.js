@@ -32,7 +32,16 @@ const getDataValues = async (data, periods, organisationUnits, engine) => {
             return [item];
         }
 
-        return [item.dataElement, item.alarmElement,item.predictionLowerBound,item.threshold,item.predictionMedian,item.predictionUpperBound].filter(Boolean);
+        return [
+            item.dataElement,
+            item.alarmElement,
+            item.predictionLowerBound,
+            item.predictionMedian,
+            item.predictionUpperBound,
+            item.predictionQuartileLow,
+            item.predictionQuartileHigh,
+            item.threshold,
+        ].filter(Boolean);
     });
 
     console.log('Unique dxValues:', dxValues);
