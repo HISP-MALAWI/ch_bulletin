@@ -68,6 +68,31 @@ describe('computePageSlices', () => {
             )
         }
     })
+
+    describe('with a running header', () => {
+        // The masthead is part of page one's flow, so only later pages pay for
+        // room to repeat it. 50mm of reserved header on a 277mm page leaves 227.
+        it('leaves the first page full and shortens the rest', () => {
+            expect(computePageSlices(600, 277, [], { restHeightMm: 227 })).toEqual([
+                { start: 0, height: 277 },
+                { start: 277, height: 227 },
+                { start: 504, height: 96 },
+            ])
+        })
+
+        it('still covers the document exactly, with no trailing empty page', () => {
+            // 277 + 227 is an exact multiple of the two page heights.
+            expect(computePageSlices(504, 277, [], { restHeightMm: 227 })).toEqual([
+                { start: 0, height: 277 },
+                { start: 277, height: 227 },
+            ])
+        })
+
+        it('returns nothing rather than looping when no space would be left', () => {
+            expect(computePageSlices(600, 277, [], { restHeightMm: 0 })).toEqual([])
+            expect(computePageSlices(600, 277, [], { restHeightMm: -10 })).toEqual([])
+        })
+    })
 })
 
 describe('sanitiseFileName', () => {

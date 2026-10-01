@@ -1,46 +1,117 @@
+// The chart reads a value out of a positional analytics row by matching the
+// data element id back to the mapping, so every prediction field has to be
+// named here as well as in the `dx:` list. One list, used both to seed an empty
+// row and to build the lookup, so adding a field is a single line.
+const PREDICTION_FIELDS = [
+    'threshold',
+    'predictionLowerBound',
+    'predictionMedian',
+    'predictionUpperBound',
+    'predictionQuartileLow',
+    'predictionQuartileHigh',
+];
+
 export const buildSelectedUnitMalariaData = ({ dataValues = [], mapping = [], periods = [], selectedOrgUnit }) => {
     const malariaMapping = mapping.find((item) => /malaria/i.test(item.displayName || ''));
     if (!malariaMapping?.dataElement || periods.length === 0) {
         return { malariaMapping: null, rows: [] };
     }
 
+    const emptyRow = (month) => {
+        const row = { period: month, cases: 0 };
+        PREDICTION_FIELDS.forEach((field) => {
+            row[field] = null;
+        });
+        return row;
+    };
+
     const periodSet = new Set(periods);
-    const rowsByPeriod = new Map(periods.map((month) => [month, {
-        period: month,
-        cases: 0,
-        threshold: null,
-        predictionLowerBound: null,
-        predictionMedian: null,
-        predictionUpperBound: null,
-    }]));
+    const rowsByPeriod = new Map(periods.map((month) => [month, emptyRow(month)]));
+
+    const rowFieldByDataElement = new Map();
+    PREDICTION_FIELDS.forEach((field) => {
+        const dataElementId = malariaMapping[field];
+        if (dataElementId) {
+            rowFieldByDataElement.set(dataElementId, field);
+        }
+    });
 
     dataValues.forEach((row) => {
         const [dataElement, month, organisationUnitId] = row;
         if (!periodSet.has(month) || organisationUnitId !== selectedOrgUnit) return;
 
         const value = Number(row.at(-1));
-        if (dataElement === malariaMapping.dataElement && Number.isFinite(value)) {
+        if (!Number.isFinite(value)) return;
+
+        if (dataElement === malariaMapping.dataElement) {
             rowsByPeriod.get(month).cases += value;
-        } else if (dataElement === malariaMapping.threshold && Number.isFinite(value)) {
-            rowsByPeriod.get(month).threshold = value;
-        } else if (dataElement === malariaMapping.predictionLowerBound && Number.isFinite(value)) {
-            rowsByPeriod.get(month).predictionLowerBound = value;
-        } else if (dataElement === malariaMapping.predictionMedian && Number.isFinite(value)) {
-            rowsByPeriod.get(month).predictionMedian = value;
-        } else if (dataElement === malariaMapping.predictionUpperBound && Number.isFinite(value)) {
-            rowsByPeriod.get(month).predictionUpperBound = value;
+            return;
+        }
+
+        const rowField = rowFieldByDataElement.get(dataElement);
+        if (rowField) {
+            rowsByPeriod.get(month)[rowField] = value;
         }
     });
 
     rowsByPeriod.forEach((row) => {
+        // A band needs both edges, so a half-populated pair is left as no band
+        // rather than drawn down to zero.
         if (row.predictionLowerBound !== null && row.predictionUpperBound !== null) {
             row.predictionRange = [row.predictionLowerBound, row.predictionUpperBound];
+        }
+        if (row.predictionQuartileLow !== null && row.predictionQuartileHigh !== null) {
+            row.quartileRange = [row.predictionQuartileLow, row.predictionQuartileHigh];
         }
     });
 
     return {
         malariaMapping,
         rows: Array.from(rowsByPeriod.values()),
+    };
+};
+
+/**
+ * Says, for each forecast month, whether its predicted median sits above the
+ * alert threshold, near it, or below it — the rule the reference bulletin
+ * documents: above the threshold is an alert, and within `watchBand` of it is a
+ * watch.
+ *
+ * Months missing either the median or a usable threshold are left out rather
+ * than guessed at. Returns structured data only; the sentence is assembled
+ * where it is shown, so it stays translatable.
+ */
+export const summariseForecast = ({ rows = [], watchBand = 0.1 } = {}) => {
+    const months = rows
+        .filter((row) => (
+            Number.isFinite(row.predictionMedian) &&
+            Number.isFinite(row.threshold) &&
+            row.threshold > 0
+        ))
+        .map((row) => {
+            const ratio = row.predictionMedian / row.threshold;
+            return {
+                period: row.period,
+                median: row.predictionMedian,
+                threshold: row.threshold,
+                status: ratio > 1 ? 'alert' : ratio >= 1 - watchBand ? 'watch' : 'normal',
+            };
+        });
+
+    const peak = months.reduce(
+        (highest, month) => (highest && highest.median >= month.median ? highest : month),
+        null
+    );
+
+    // Independent of the threshold: the shaded forecast region starts where the
+    // predictions do, whether or not a threshold is configured.
+    const firstForecast = rows.find((row) => Number.isFinite(row.predictionMedian));
+
+    return {
+        months,
+        monthsAboveThreshold: months.filter((month) => month.status === 'alert').length,
+        peak,
+        forecastStartsAt: firstForecast ? firstForecast.period : null,
     };
 };
 

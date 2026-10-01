@@ -9,6 +9,7 @@ import SeasonalClimateChart from "../widgets/seasonalClimateChart";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
+import ExecutiveSummaryWidget from "../widgets/executiveSummaryWidget";
 import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
 import { homeDataQuery } from "./services/getHomeData";
@@ -17,6 +18,7 @@ import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from "../utils/seasonalClimateData";
 import { buildHealthGuidance } from "../utils/healthGuidance";
+import { buildExecutiveSummaryDrafts } from "../utils/executiveSummary";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
@@ -35,6 +37,7 @@ const BulletinForm = ({ style }) => {
   const [datavalues, setDatavalues] = React.useState([]);
   const [seasonalClimate, setSeasonalClimate] = React.useState([]);
   const [recommendations, setRecommendations] = React.useState([]);
+  const [executiveSummary, setExecutiveSummary] = React.useState([]);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
@@ -61,6 +64,13 @@ const BulletinForm = ({ style }) => {
     period,
     selectedOrgUnit: organisationUnit,
   }), [data, datavalues, forecast, organisationUnit, period, seasonalClimateRows]);
+  const summaryDrafts = React.useMemo(() => buildExecutiveSummaryDrafts({
+    period,
+    dataValues: datavalues,
+    mapping: data?.dataStore?.mapping || [],
+    selectedOrgUnit: organisationUnit,
+    seasonalClimateRows,
+  }), [data, datavalues, organisationUnit, period, seasonalClimateRows]);
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -123,6 +133,7 @@ const BulletinForm = ({ style }) => {
     setDatavalues(Array.isArray(foundBulletin.cases?.[0]) ? foundBulletin.cases[0] : []);
     setSeasonalClimate(Array.isArray(foundBulletin.seasonalClimate) ? foundBulletin.seasonalClimate : []);
     setRecommendations(Array.isArray(foundBulletin.recommendations) ? foundBulletin.recommendations : []);
+    setExecutiveSummary(Array.isArray(foundBulletin.executiveSummary) ? foundBulletin.executiveSummary : []);
   }, [id, homeData]);
 
   // Fetch recorded case data values for the selected period/org unit
@@ -194,6 +205,7 @@ const BulletinForm = ({ style }) => {
           seasonalClimate,
           advisories,
           recommendations,
+          executiveSummary,
           status: existingBulletin?.status || "draft",
           period,
         },
@@ -234,15 +246,26 @@ const BulletinForm = ({ style }) => {
                 organisationUnit={organisationUnit}
                 orgUnits={orgUnits}
               />
-              <HighlightsInput
-                style={style}
-                step="1"
-                title="Highlights"
-                description="Key takeaways for the bulletin."
-                highlights={highlights}
-                setHighlights={setHighlights}
-              />
             </section>
+
+            {/* Leads the document, so it leads the form. It carries no step
+                numeral, because nothing is numbered before it. */}
+            <ExecutiveSummaryWidget
+              style={style}
+              summary={executiveSummary}
+              setSummary={setExecutiveSummary}
+              drafts={summaryDrafts}
+            />
+
+            <HighlightsInput
+              style={style}
+              fullWidth
+              step="1"
+              title="Highlights"
+              description="Key takeaways for the bulletin."
+              highlights={highlights}
+              setHighlights={setHighlights}
+            />
 
              <section className={style.sectionCard}>
               <HealthCasesWidget

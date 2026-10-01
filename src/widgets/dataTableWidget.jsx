@@ -94,6 +94,8 @@ export default function DataElementTable({ initialData, setDiseaseElements,setMa
                 <th style={thStyle}>Prediction Lower bound</th>
                 <th style={thStyle}>Prediction Median</th>
                 <th style={thStyle}>Prediction Upper bound</th>
+                <th style={thStyle}>Prediction Quartile Low</th>
+                <th style={thStyle}>Prediction Quartile High</th>
                 <th style={thStyle}>Actions</th>
               </tr>
             </thead>
@@ -122,6 +124,12 @@ export default function DataElementTable({ initialData, setDiseaseElements,setMa
                   </td>
                   <td style={tdStyle}>
                     <code style={codeStyle}>{getName(row.predictionUpperBound)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.predictionQuartileLow)}</code>
+                  </td>
+                  <td style={tdStyle}>
+                    <code style={codeStyle}>{getName(row.predictionQuartileHigh)}</code>
                   </td>
                   <td style={tdStyle}>
                     <ActionButton

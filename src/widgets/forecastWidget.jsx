@@ -10,8 +10,13 @@ import {
     CartesianGrid,
 } from 'recharts';
 import { CloudRain, Thermometer, Droplets, Wind, ChevronDown } from 'lucide-react';
+import { palette, series, fontFamily } from '../theme/tokens';
+import { BulletinSectionHeader } from './bulletinSection';
 
 const DAY_LABEL = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
+
+const RAIN_COLOUR = '#B9CBE3';
+const axisTick = { fontSize: 11, fill: palette.mute, fontFamily: fontFamily.mono };
 
 // Flattens a single MET-style timeseries entry into the fields the chart needs.
 function flattenEntry(entry) {
@@ -143,9 +148,6 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                     gap: 10px;
                     margin: 14px 0 16px;
                 }
-                @media (max-width: 620px) {
-                    .fw-stats { grid-template-columns: repeat(2, 1fr); }
-                }
                 .fw-stat {
                     display: flex;
                     gap: 10px;
@@ -153,6 +155,10 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                     border-radius: 10px;
                     background: #F8FAFC;
                 }
+                /* No width media query here on purpose. The PDF export clones
+                   this document into an iframe sized to the browser window, so
+                   a max-width rule collapses the captured layout at widths that
+                   have nothing to do with the card's real width. */
                 .fw-stat__icon {
                     width: 34px; height: 34px;
                     border-radius: 9px;
@@ -261,12 +267,8 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                 }
             `}</style>
 
-            <div className={style.sectionHeader}>
-                <div className={style.stepBadge}>{step}</div>
-                <span className={style.sectionTitle}>{title}</span>
-            </div>
+            <BulletinSectionHeader step={step} title={title} description={description} />
 
-            {description && <p className={style.sectionSub}>{description}</p>}
             {ouLabel && <p className={style.sectionSub}>{ouLabel}</p>}
 
             {!hasData ? (
@@ -316,23 +318,23 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                             <div className="fw-chart-head__range">{daily[0].label} — {daily[daily.length - 1].label}</div>
                         </div>
                         <div className="fw-legend">
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#E08A2C' }} /> Max Temp</div>
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#2E7DD1' }} /> Min Temp</div>
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#B9CBE3' }} /> Rainfall</div>
+                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: palette.maize }} /> Max Temp</div>
+                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: palette.shire }} /> Min Temp</div>
+                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: RAIN_COLOUR }} /> Rainfall</div>
                         </div>
                     </div>
 
                     <div className="fw-chart-frame">
                         <ResponsiveContainer width="100%" height={200}>
                             <ComposedChart data={daily} margin={{ top: 6, right: 16, bottom: 0, left: -18 }}>
-                                <CartesianGrid vertical={false} stroke="#E4E9F1" />
-                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                                <YAxis yAxisId="temp" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={34} />
-                                <YAxis yAxisId="rain" orientation="right" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={30} />
+                                <CartesianGrid vertical={false} stroke={palette.line} />
+                                <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                                <YAxis yAxisId="temp" tick={axisTick} axisLine={false} tickLine={false} width={34} />
+                                <YAxis yAxisId="rain" orientation="right" tick={axisTick} axisLine={false} tickLine={false} width={30} />
                                 <Tooltip content={<CustomTooltip />} />
-                                <Bar yAxisId="rain" dataKey="precip" fill="#B9CBE3" radius={[3, 3, 0, 0]} barSize={14} isAnimationActive={false} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#E08A2C" strokeWidth={2} dot={{ r: 3, fill: '#E08A2C', strokeWidth: 0 }} isAnimationActive={false} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#2E7DD1" strokeWidth={2} dot={{ r: 3, fill: '#2E7DD1', strokeWidth: 0 }} isAnimationActive={false} />
+                                <Bar yAxisId="rain" dataKey="precip" fill={RAIN_COLOUR} radius={[3, 3, 0, 0]} barSize={14} isAnimationActive={false} />
+                                <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke={palette.maize} strokeWidth={2} dot={{ r: 3, fill: palette.maize, strokeWidth: 0 }} isAnimationActive={false} />
+                                <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke={palette.shire} strokeWidth={2} dot={{ r: 3, fill: palette.shire, strokeWidth: 0 }} isAnimationActive={false} />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>

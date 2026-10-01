@@ -16,9 +16,12 @@ import {
     fetchSeasonalClimateDataValues,
     getSeasonalForecastPeriods,
 } from '../utils/seasonalClimateData';
+import { palette, series, fontFamily } from '../theme/tokens';
+import { BulletinSectionHeader } from './bulletinSection';
 
-const RAINFALL_COLOR = '#86bec3';
-const TEMPERATURE_COLOR = '#e0443e';
+const RAINFALL_COLOR = series.rainfall;
+const TEMPERATURE_COLOR = series.temperature;
+const axisTick = { fill: palette.mute, fontSize: 12, fontFamily: fontFamily.mono };
 const numberFormat = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
 
 const formatMonth = (period) => {
@@ -39,6 +42,9 @@ const SeasonalClimateChart = ({
     onDataValuesChange,
     initialDataValues,
     orgUnits = [],
+    step,
+    title = 'Seasonal rainfall and temperature',
+    description,
 }) => {
     const engine = useDataEngine();
     const [dataValues, setDataValues] = React.useState(initialDataValues || []);
@@ -104,9 +110,7 @@ const SeasonalClimateChart = ({
 
     return (
         <section className={style.sectionCard}>
-            <div className={style.sectionHeader}>
-                <h2 className={style.casesChartTitle}>Seasonal rainfall and temperature</h2>
-            </div>
+            <BulletinSectionHeader step={step} title={title} description={description} />
             <p className={style.casesChartSubtitle}>
                 Monthly rainfall and mean temperature{orgUnitName ? ` for ${orgUnitName}` : ''}, {formatMonth(periods[0])} – {formatMonth(periods.at(-1))}
             </p>
@@ -120,26 +124,26 @@ const SeasonalClimateChart = ({
                 <div className={style.casesChart}>
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={rows} margin={{ top: 12, right: 24, bottom: 8, left: 8 }}>
-                            <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                            <CartesianGrid vertical={false} stroke={palette.line} />
                             <XAxis
                                 dataKey="period"
                                 tickFormatter={formatMonth}
-                                tick={{ fill: '#334155', fontSize: 12, fontFamily: 'Courier New' }}
-                                axisLine={{ stroke: '#cbd5e1' }}
+                                tick={axisTick}
+                                axisLine={{ stroke: palette.line }}
                                 tickLine={false}
                             />
                             <YAxis
                                 yAxisId="rainfall"
-                                tick={{ fill: '#64748b', fontSize: 12, fontFamily: 'Courier New' }}
+                                tick={axisTick}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
-                                label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft', fill: '#64748b' }}
+                                label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft', fill: palette.mute }}
                             />
                             <YAxis
                                 yAxisId="temperature"
                                 orientation="right"
-                                tick={{ fill: TEMPERATURE_COLOR, fontSize: 12, fontFamily: 'Courier New' }}
+                                tick={{ ...axisTick, fill: TEMPERATURE_COLOR }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}

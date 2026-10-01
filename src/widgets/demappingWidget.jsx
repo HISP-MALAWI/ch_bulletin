@@ -15,7 +15,9 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
         threshold: '',
         predictionMedian: '',
         predictionUpperBound: '',
-        predictionLowerBound: ''
+        predictionLowerBound: '',
+        predictionQuartileLow: '',
+        predictionQuartileHigh: ''
     });
 
     const isEditMode = mappingEditRow !== null;
@@ -118,6 +120,33 @@ export const DiseaseMappingModal = ({ onClose, onSave,mappingEditRow,setMappingE
                         <SingleSelectField
                             selected={formData.predictionLowerBound}
                             onChange={({ selected }) => setFormData({ ...formData, predictionLowerBound: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+
+                    {/* Inner band. The upper and lower bounds above draw the
+                        wider interval; these two draw the narrower one inside
+                        it, so a month reads as a range within a range. */}
+                    <Field label="Prediction quartile low (Q25)" helpText="lower edge of the inner, narrower interval">
+                        <SingleSelectField
+                            selected={formData.predictionQuartileLow}
+                            onChange={({ selected }) => setFormData({ ...formData, predictionQuartileLow: selected })}
+                            filterable
+                        >
+                            {dataElements?.map(de => (
+                                <SingleSelectOption key={de.id} label={de.displayName} value={de.id} />
+                            ))}
+                        </SingleSelectField>
+                    </Field>
+
+                    <Field label="Prediction quartile high (Q75)" helpText="upper edge of the inner, narrower interval">
+                        <SingleSelectField
+                            selected={formData.predictionQuartileHigh}
+                            onChange={({ selected }) => setFormData({ ...formData, predictionQuartileHigh: selected })}
                             filterable
                         >
                             {dataElements?.map(de => (
