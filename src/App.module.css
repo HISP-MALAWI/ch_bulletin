@@ -725,6 +725,14 @@
   color: var(--bz-ink);
 }
 
+/* The month that leads an executive summary line, in the same accent the
+   rest of the document uses for emphasis. */
+.bulletinSummaryMonth {
+  font-family: var(--bz-font-display);
+  font-weight: 700;
+  color: var(--bz-shire);
+}
+
 /* =====================================================================
    Base styles for the scenario cards and the cases chart.
 
