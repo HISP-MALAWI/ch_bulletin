@@ -26,6 +26,17 @@ const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
 })
 
+// An executive summary line reads "September 2026: ...". The month leads it and
+// is picked out in the accent colour. A line the author has rewritten without a
+// colon simply comes back as one piece of text.
+const splitSummaryLine = (line) => {
+    const separator = line.indexOf(': ')
+
+    return separator === -1
+        ? { lead: null, rest: line }
+        : { lead: line.slice(0, separator), rest: line.slice(separator) }
+}
+
 const BulletinPreview = ({ style }) => {
     const { id } = useParams()
     const navigate = useNavigate()
@@ -394,11 +405,20 @@ const BulletinPreview = ({ style }) => {
                 <div data-pdf-block>
                     <BulletinSection title={i18n.t('Executive Summary')}>
                         <div className={style.bulletinList}>
-                            {bulletin.executiveSummary.map((line, index) => (
-                                <div key={index} className={style.bulletinListItem}>
-                                    <span className={style.bulletinListItemText}>{line}</span>
-                                </div>
-                            ))}
+                            {bulletin.executiveSummary.map((line, index) => {
+                                const { lead, rest } = splitSummaryLine(line)
+
+                                return (
+                                    <div key={index} className={style.bulletinListItem}>
+                                        <span className={style.bulletinListItemText}>
+                                            {lead && (
+                                                <span className={style.bulletinSummaryMonth}>{lead}</span>
+                                            )}
+                                            {rest}
+                                        </span>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </BulletinSection>
                 </div>
