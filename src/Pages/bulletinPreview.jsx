@@ -459,9 +459,11 @@ const BulletinPreview = ({ style }) => {
 
             {/* Master's pairing: the current situation beside the forecast, then
                 the weather and climate blocks together. */}
-            <div className={`${style.bulletinTwoColumnGrid} ${style.malariaChartsGrid}`}>
+            <div
+                data-pdf-block
+                className={`${style.bulletinTwoColumnGrid} ${style.malariaChartsGrid}`}
+            >
                 <div
-                    data-pdf-block
                     className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
                 >
                     <CurrentMalariaSituation
@@ -473,7 +475,7 @@ const BulletinPreview = ({ style }) => {
                         selectedOrgUnit={bulletin.organisationUnit}
                     />
                 </div>
-                <div data-pdf-block className={style.bulletinDocumentPanel}>
+                <div className={style.bulletinDocumentPanel}>
                     <HealthCasesWidget
                         dataValues={bulletinDataValues}
                         mapping={settingsData?.dataStore?.mapping}
@@ -504,8 +506,11 @@ const BulletinPreview = ({ style }) => {
                 />
             </div>
 
-            <div className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}>
-                <div data-pdf-block className={style.bulletinDocumentPanel}>
+            <div
+                data-pdf-block
+                className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}
+            >
+                <div className={style.bulletinDocumentPanel}>
                     <ForecastWidget
                         forecast={bulletin.forecast || []}
                         organisationUnit={bulletin.organisationUnit}
@@ -517,7 +522,7 @@ const BulletinPreview = ({ style }) => {
                     />
                 </div>
 
-                <div data-pdf-block className={style.bulletinDocumentPanel}>
+                <div className={style.bulletinDocumentPanel}>
                     <SeasonalClimateChart
                         style={style}
                         rainfallDataElement={settingsData?.dataStore?.rainfallForecast}

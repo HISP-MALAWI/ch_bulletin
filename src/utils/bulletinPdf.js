@@ -265,12 +265,19 @@ const waitForImages = async (element) => {
 }
 
 /**
- * Reads the bottom edge of every `[data-pdf-block]` element as a distance in
- * millimetres from the top of the captured area.
+ * Reads the bottom edge of every outermost `[data-pdf-block]` element as a
+ * distance in millimetres from the top of the captured area.
  *
  * Positions are taken as a fraction of the element's rendered height and scaled
  * by the captured height, so the result stays correct whatever pixel ratio
  * html2canvas used.
+ *
+ * Only outermost blocks count. A marker nested inside another one is ignored,
+ * because cutting at a nested block's edge breaks its parent. That is not
+ * hypothetical: the two-column grids put a marker on each column, and since the
+ * columns differ in height, a cut at the shorter column's edge sliced through
+ * the taller one mid-chart. Marking the grid instead fixes that particular case;
+ * ignoring nested markers means the next one cannot recur.
  */
 const readBlockBoundaries = (element, totalHeightMm) => {
     const rect = element.getBoundingClientRect()
@@ -279,9 +286,11 @@ const readBlockBoundaries = (element, totalHeightMm) => {
         return []
     }
 
-    return Array.from(element.querySelectorAll('[data-pdf-block]')).map(
-        (node) => ((node.getBoundingClientRect().bottom - rect.top) / rect.height) * totalHeightMm
-    )
+    return Array.from(element.querySelectorAll('[data-pdf-block]'))
+        .filter((node) => !node.parentElement?.closest('[data-pdf-block]'))
+        .map(
+            (node) => ((node.getBoundingClientRect().bottom - rect.top) / rect.height) * totalHeightMm
+        )
 }
 
 /**
