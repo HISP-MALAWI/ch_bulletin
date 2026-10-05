@@ -32,7 +32,9 @@ const SettingsPage = ({styles}) => {
         configRoles: [],
         distributionRoles: [],
         rainfallDataElement: '',
-        temperatureDataElement: ''
+        temperatureDataElement: '',
+        rainfallForecastClass: '',
+        temperatureForecastClass: '',
         });
 
     // State management for save operations
