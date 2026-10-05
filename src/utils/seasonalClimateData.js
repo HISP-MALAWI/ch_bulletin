@@ -18,39 +18,30 @@ export const fetchSeasonalClimateDataValues = async ({
     selectedOrgUnit,
     engine,
 }) => {
-    if (!engine || typeof engine.query !== 'function' || !selectedOrgUnit) return [];
+    const elements = [...new Set(dataElements.filter(Boolean))];
+    const uniquePeriods = [...new Set(periods)];
+    if (!engine || typeof engine.query !== 'function') {
+        throw new Error('Seasonal climate data requires a valid DHIS2 data engine.');
+    }
+    if (!selectedOrgUnit || !elements.length || !uniquePeriods.length) return [];
 
-    const requests = dataElements.filter(Boolean).flatMap((dataElement) =>
-        periods.map(async (period) => {
-            try {
-                const response = await engine.query({
-                    dataValue: {
-                        resource: 'dataValues',
-                        params: { de: dataElement, pe: period, ou: selectedOrgUnit },
-                    },
-                });
-                const result = response?.dataValue;
-                const dataValue = Array.isArray(result)
-                    ? result[0]
-                    : result?.dataValues?.[0] || result?.dataValue || result;
-                const value = dataValue && typeof dataValue === 'object'
-                    ? dataValue.value
-                    : dataValue;
-
-                if (value === undefined || value === null || value === '') return null;
-                return [
-                    dataValue?.dataElement || dataElement,
-                    dataValue?.period || period,
-                    dataValue?.orgUnit || selectedOrgUnit,
-                    value,
-                ];
-            } catch {
-                return null;
-            }
-        })
-    );
-
-    return (await Promise.all(requests)).filter(Boolean);
+    const response = await engine.query({
+        analytics: {
+            resource: 'analytics',
+            params: {
+                dimension: [
+                    `dx:${elements.join(';')}`,
+                    `pe:${uniquePeriods.join(';')}`,
+                    `ou:${selectedOrgUnit}`,
+                ],
+            },
+        },
+    });
+    const rows = response?.analytics?.rows;
+    if (!Array.isArray(rows)) {
+        throw new Error('DHIS2 analytics returned no seasonal climate rows.');
+    }
+    return rows;
 };
 
 export const buildSeasonalClimateRows = ({

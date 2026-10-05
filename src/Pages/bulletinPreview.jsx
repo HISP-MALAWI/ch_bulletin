@@ -9,7 +9,12 @@ import dataQuery from './services/engines/dataQuery'
 import ForecastSummaryWidget from '../widgets/forecastSummaryWidget'
 import SeasonalClimateChart from '../widgets/seasonalClimateChart'
 import HealthCasesWidget from '../widgets/surveilanceHighlights'
+import CurrentMalariaSituation from '../widgets/currentMalariaSituation'
+import HistoricalClimateCasesChart from '../widgets/historicalClimateCasesChart'
 import ForecastWidget from '../widgets/forecastWidget'
+import DistrictRiskSummary from '../widgets/districtRiskSummary'
+import DistrictActionsWidget from '../widgets/districtActionsWidget'
+import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from '../utils/seasonalClimateData'
 import { homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
@@ -65,6 +70,19 @@ const BulletinPreview = ({ style }) => {
     const bulletinTitle =
         settingsData?.dataStore?.titlePrefix?.trim() || i18n.t('Climate & Health Bulletin')
     const displayIcon = settingsData?.dataStore?.displayIcon?.trim()
+    const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
+        dataValues: bulletin?.seasonalClimate || [],
+        periods: getSeasonalForecastPeriods(bulletin?.period),
+        rainfallDataElement: settingsData?.dataStore?.rainfallForecast,
+        temperatureDataElement: settingsData?.dataStore?.temperatureForecast,
+        selectedOrgUnit: bulletin?.organisationUnit,
+    }), [
+        bulletin?.organisationUnit,
+        bulletin?.period,
+        bulletin?.seasonalClimate,
+        settingsData?.dataStore?.rainfallForecast,
+        settingsData?.dataStore?.temperatureForecast,
+    ])
 
     // Bulletins saved before this ran hold Quill's own markup, in which a
     // bullet list is an <ol> with no bullet in it and a font is a class only
@@ -288,7 +306,8 @@ const BulletinPreview = ({ style }) => {
     const isDraft = (bulletin.status || 'draft') === 'draft'
     const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
     const hasHighlights = hasHighlightsContent(highlightsHtml)
-
+    const bulletinDataValues = Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []
+    const generatedDate = GENERATED_ON_FORMAT.format(new Date())
     return (
         <main className={style.main}>
             {publishMessage && (
@@ -388,10 +407,10 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '20px' }}>
+            <div data-pdf-block>
                 <ForecastSummaryWidget
                     style={style}
-                    dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
+                    dataValues={bulletinDataValues}
                     mapping={settingsData?.dataStore?.mapping || []}
                     period={bulletin.period}
                     organisationUnit={bulletin.organisationUnit}
@@ -438,21 +457,55 @@ const BulletinPreview = ({ style }) => {
                 </div>
             )}
 
-            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div className={style.sectionCard}>
+            {/* Master's pairing: the current situation beside the forecast, then
+                the weather and climate blocks together. */}
+            <div className={`${style.bulletinTwoColumnGrid} ${style.malariaChartsGrid}`}>
+                <div
+                    data-pdf-block
+                    className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
+                >
+                    <CurrentMalariaSituation
+                        style={style}
+                        dataValues={bulletinDataValues}
+                        mapping={settingsData?.dataStore?.mapping || []}
+                        period={bulletin.period}
+                        orgUnits={orgUnits}
+                        selectedOrgUnit={bulletin.organisationUnit}
+                    />
+                </div>
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
                     <HealthCasesWidget
-                        dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
+                        dataValues={bulletinDataValues}
                         mapping={settingsData?.dataStore?.mapping}
                         orgUnits={orgUnits}
                         selectedOrgUnit={bulletin.organisationUnit}
                         period={bulletin.period}
                         style={style}
-                        step="2"
-                        title={i18n.t('Recorded Health Cases')}
-                        description={i18n.t('Summary of recorded health cases.')}
+                        title={i18n.t('Malaria Forecast')}
                     />
                 </div>
-                <div className={style.sectionCard}>
+            </div>
+
+            <div data-pdf-block>
+                <HistoricalClimateCasesChart
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
+                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    initialClimateDataValues={
+                        Array.isArray(bulletin.historicalClimate) && bulletin.historicalClimate.length > 0
+                            ? bulletin.historicalClimate
+                            : undefined
+                    }
+                />
+            </div>
+
+            <div className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}>
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
                     <ForecastWidget
                         forecast={bulletin.forecast || []}
                         organisationUnit={bulletin.organisationUnit}
@@ -463,18 +516,42 @@ const BulletinPreview = ({ style }) => {
                         description={i18n.t('Upcoming weather conditions.')}
                     />
                 </div>
+
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
+                    <SeasonalClimateChart
+                        style={style}
+                        rainfallDataElement={settingsData?.dataStore?.rainfallForecast}
+                        temperatureDataElement={settingsData?.dataStore?.temperatureForecast}
+                        selectedOrgUnit={bulletin.organisationUnit}
+                        period={bulletin.period}
+                        initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
+                            ? bulletin.seasonalClimate
+                            : undefined}
+                        orgUnits={orgUnits}
+                    />
+                </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '20px' }}>
-                <SeasonalClimateChart
+            <div data-pdf-block>
+                <DistrictRiskSummary
                     style={style}
-                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
-                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
-                    selectedOrgUnit={bulletin.organisationUnit}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
                     period={bulletin.period}
-                    initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
-                        ? bulletin.seasonalClimate
-                        : undefined}
+                    orgUnits={orgUnits}
+                    selectedOrgUnitId={bulletin.organisationUnit}
+                />
+            </div>
+
+            <div data-pdf-block>
+                <DistrictActionsWidget
+                    style={style}
+                    forecast={bulletin.forecast}
+                    seasonalClimateRows={seasonalClimateRows}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    selectedOrgUnitId={bulletin.organisationUnit}
                     orgUnits={orgUnits}
                 />
             </div>
@@ -511,6 +588,11 @@ const BulletinPreview = ({ style }) => {
                     </BulletinSection>
                 </div>
             )}
+            <footer data-pdf-block className={style.bulletinDocumentFooter}>
+                <span>{bulletinTitle}</span>
+                <span>{getOrgUnitName(bulletin.organisationUnit)} · {formatPeriod(bulletin.period)}</span>
+                <span>{i18n.t('Generated on {{date}}', { date: generatedDate })}</span>
+            </footer>
             </div>
         </main>
     )

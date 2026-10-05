@@ -11,7 +11,7 @@ export const homeDataQuery = {
     organisationUnits: {
         resource: 'organisationUnits',
         params: {
-            fields: 'id,displayName,children[id,displayName],parent[id,displayName]',
+            fields: 'id,displayName,level,children[id,displayName,level],parent[id,displayName,level]',
             paging: false,
         },
     }

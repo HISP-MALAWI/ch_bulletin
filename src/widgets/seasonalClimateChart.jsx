@@ -49,18 +49,21 @@ const SeasonalClimateChart = ({
     const engine = useDataEngine();
     const [dataValues, setDataValues] = React.useState(initialDataValues || []);
     const [loading, setLoading] = React.useState(false);
+    const [loadError, setLoadError] = React.useState(null);
     const periods = React.useMemo(() => getSeasonalForecastPeriods(period), [period]);
     const hasConfiguredElements = rainfallDataElement && temperatureDataElement;
 
     React.useEffect(() => {
         if (initialDataValues !== undefined) {
             setDataValues(initialDataValues);
+            setLoadError(null);
             setLoading(false);
             return undefined;
         }
 
         if (!periods.length || !hasConfiguredElements || !selectedOrgUnit) {
             setDataValues([]);
+            setLoadError(null);
             onDataValuesChange?.([]);
             setLoading(false);
             return undefined;
@@ -68,6 +71,7 @@ const SeasonalClimateChart = ({
 
         let cancelled = false;
         setLoading(true);
+        setLoadError(null);
         fetchSeasonalClimateDataValues({
             dataElements: [rainfallDataElement, temperatureDataElement],
             periods,
@@ -77,6 +81,13 @@ const SeasonalClimateChart = ({
             if (!cancelled) {
                 setDataValues(values);
                 onDataValuesChange?.(values);
+            }
+        }).catch((error) => {
+            console.error('Failed to load seasonal climate data:', error);
+            if (!cancelled) {
+                setDataValues([]);
+                onDataValuesChange?.([]);
+                setLoadError(error);
             }
         }).finally(() => {
             if (!cancelled) setLoading(false);
@@ -116,6 +127,10 @@ const SeasonalClimateChart = ({
             </p>
             {loading ? (
                 <div className={style.casesChartEmpty}>Loading seasonal climate data…</div>
+            ) : loadError ? (
+                <div className={style.casesChartEmpty} role="alert">
+                    Unable to load seasonal climate data from DHIS2. Check data access and the configured indicators.
+                </div>
             ) : !hasConfiguredElements ? (
                 <div className={style.casesChartEmpty}>
                     Select rainfall and temperature data elements in Settings to display this chart.

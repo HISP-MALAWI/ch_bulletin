@@ -14,10 +14,12 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import SettingsPage from './Pages/setting'
 import { Inventory } from '@mui/icons-material'
 import { AccessProvider, useAccess } from './context/AccessContext'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 
 
 const MyApp = () => {
     const { loading, canDraft, canConfigure } = useAccess()
+    const [isNavigationVisible, setIsNavigationVisible] = React.useState(true)
 
     // Hold gated routes until access resolves, otherwise a permitted user
     // reloading the URL would be bounced to Home mid-query.
@@ -32,7 +34,11 @@ const MyApp = () => {
         <HashRouter>
             <div className={classes.container}>
                 {/* Sidebar Navigation */}
-                <aside className={classes.sidebar}>
+                <aside
+                    id="primary-navigation"
+                    className={`${classes.sidebar} ${!isNavigationVisible ? classes.sidebarHidden : ''}`}
+                    aria-hidden={!isNavigationVisible}
+                >
                     <NavLink
                         to="/"
                         className={({ isActive }) =>
@@ -66,7 +72,19 @@ const MyApp = () => {
                     )}
                 </aside>
 
-                <div className={classes.main}>
+                <button
+                    type="button"
+                    className={`${classes.navigationToggle} ${isNavigationVisible ? classes.navigationToggleOpen : ''}`}
+                    onClick={() => setIsNavigationVisible((visible) => !visible)}
+                    aria-controls="primary-navigation"
+                    aria-expanded={isNavigationVisible}
+                    aria-label={isNavigationVisible ? i18n.t('Hide navigation') : i18n.t('Show navigation')}
+                    title={isNavigationVisible ? i18n.t('Hide navigation') : i18n.t('Show navigation')}
+                >
+                    {isNavigationVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+                </button>
+
+                <div className={`${classes.appMain} ${!isNavigationVisible ? classes.appMainExpanded : ''}`}>
                     <Routes>
                         <Route path="/" element={<HomePage style={classes}/>} />
                         <Route path="/archived-bulletins" element={<HomePage style={classes}/>} />
