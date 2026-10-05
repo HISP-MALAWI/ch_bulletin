@@ -73,7 +73,7 @@ const TotalLabel = ({ x, y, width, payload }) => {
     );
 };
 
-const HealthCasesWidget = ({ style, step, title, description, dataValues = [], mapping = [], orgUnits = [], selectedOrgUnit, period }) => {
+const HealthCasesWidget = ({ style, step, title = 'Malaria Forecast', description, dataValues = [], mapping = [], orgUnits = [], selectedOrgUnit, period }) => {
     const organisationUnitList = Array.isArray(orgUnits) ? orgUnits : [];
     const periods = React.useMemo(
         () => (period ? getMonthlyPeriods(period) : []),
