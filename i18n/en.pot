@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-09-30T16:48:58.291Z\n"
-"PO-Revision-Date: 2026-09-30T16:48:58.292Z\n"
+"POT-Creation-Date: 2026-10-05T13:38:06.652Z\n"
+"PO-Revision-Date: 2026-10-05T13:38:06.652Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -16,6 +16,12 @@ msgstr "Archived Bulletins"
 
 msgid "Settings"
 msgstr "Settings"
+
+msgid "Hide navigation"
+msgstr "Hide navigation"
+
+msgid "Show navigation"
+msgstr "Show navigation"
 
 msgid "Climate & Health Bulletin"
 msgstr "Climate & Health Bulletin"
@@ -117,23 +123,14 @@ msgstr "Generated on {{date}}"
 msgid "Highlights"
 msgstr "Highlights"
 
-msgid "Recorded Health Cases"
-msgstr "Recorded Health Cases"
-
-msgid "Summary of recorded health cases."
-msgstr "Summary of recorded health cases."
+msgid "Malaria Forecast"
+msgstr "Malaria Forecast"
 
 msgid "Weather Forecast"
 msgstr "Weather Forecast"
 
 msgid "Upcoming weather conditions."
 msgstr "Upcoming weather conditions."
-
-msgid "Health Advisories"
-msgstr "Health Advisories"
-
-msgid "Recommendations"
-msgstr "Recommendations"
 
 msgid "N/A"
 msgstr "N/A"
@@ -164,9 +161,6 @@ msgstr "You do not have permission to draft bulletins"
 
 msgid "Please add highlights before saving"
 msgstr "Please add highlights before saving"
-
-msgid "Please add at least one advisory before saving"
-msgstr "Please add at least one advisory before saving"
 
 msgid "Bulletin updated successfully!"
 msgstr "Bulletin updated successfully!"
