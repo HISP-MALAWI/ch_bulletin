@@ -40,11 +40,46 @@ export const SeasonalForecastWidget = ({ styles, settings, setSettings }) => {
                 </SingleSelectField>
             </Field>
 
+             <Field label="Rainfall forecast class">
+                <SingleSelectField
+                    selected={settings.rainfallForecastClass}
+                    onChange={({ selected }) =>
+                        handleDataElementChange('rainfallForecastClass', selected)
+                    }
+                    filterable
+                >
+                    {dataElements.map(dataElement => (
+                        <SingleSelectOption
+                            key={dataElement.id}
+                            label={dataElement.displayName}
+                            value={dataElement.id}
+                        />
+                    ))}
+                </SingleSelectField>
+            </Field>
+
             <Field label="Temperature">
                 <SingleSelectField
                     selected={settings.temperatureDataElement}
                     onChange={({ selected }) =>
                         handleDataElementChange('temperatureDataElement', selected)
+                    }
+                    filterable
+                >
+                    {dataElements.map(dataElement => (
+                        <SingleSelectOption
+                            key={dataElement.id}
+                            label={dataElement.displayName}
+                            value={dataElement.id}
+                        />
+                    ))}
+                </SingleSelectField>
+            </Field>
+            <Field label="Temperature forecast class">
+                <SingleSelectField
+                    selected={settings.temperatureForecastClass}
+                    onChange={({ selected }) =>
+                        handleDataElementChange('temperatureForecastClass', selected)
                     }
                     filterable
                 >
