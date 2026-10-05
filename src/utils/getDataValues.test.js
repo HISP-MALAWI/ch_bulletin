@@ -33,4 +33,30 @@ describe('getDataValues', () => {
             },
         });
     });
+
+    it('requests the selected unit and its district units in one analytics query', async () => {
+        const engine = {
+            query: jest.fn().mockResolvedValue({ analytics: { rows: [] } }),
+        };
+
+        await getDataValues(
+            ['data-element'],
+            ['202610', '202611'],
+            ['selected-unit', 'district-one', 'district-two'],
+            engine
+        );
+
+        expect(engine.query).toHaveBeenCalledWith({
+            analytics: {
+                resource: 'analytics',
+                params: {
+                    dimension: [
+                        'dx:data-element',
+                        'pe:202610;202611',
+                        'ou:selected-unit;district-one;district-two',
+                    ],
+                },
+            },
+        });
+    });
 });
