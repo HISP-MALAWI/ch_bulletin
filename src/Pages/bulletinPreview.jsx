@@ -9,8 +9,12 @@ import dataQuery from './services/engines/dataQuery'
 import ForecastSummaryWidget from '../widgets/forecastSummaryWidget'
 import SeasonalClimateChart from '../widgets/seasonalClimateChart'
 import HealthCasesWidget from '../widgets/surveilanceHighlights'
+import CurrentMalariaSituation from '../widgets/currentMalariaSituation'
+import HistoricalClimateCasesChart from '../widgets/historicalClimateCasesChart'
 import ForecastWidget from '../widgets/forecastWidget'
-import { CheckCircle } from 'lucide-react'
+import DistrictRiskSummary from '../widgets/districtRiskSummary'
+import DistrictActionsWidget from '../widgets/districtActionsWidget'
+import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from '../utils/seasonalClimateData'
 import { homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
@@ -53,6 +57,19 @@ const BulletinPreview = ({ style }) => {
     const bulletinTitle =
         settingsData?.dataStore?.titlePrefix?.trim() || i18n.t('Climate & Health Bulletin')
     const displayIcon = settingsData?.dataStore?.displayIcon?.trim()
+    const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
+        dataValues: bulletin?.seasonalClimate || [],
+        periods: getSeasonalForecastPeriods(bulletin?.period),
+        rainfallDataElement: settingsData?.dataStore?.rainfallForecast,
+        temperatureDataElement: settingsData?.dataStore?.temperatureForecast,
+        selectedOrgUnit: bulletin?.organisationUnit,
+    }), [
+        bulletin?.organisationUnit,
+        bulletin?.period,
+        bulletin?.seasonalClimate,
+        settingsData?.dataStore?.rainfallForecast,
+        settingsData?.dataStore?.temperatureForecast,
+    ])
 
     // Bulletins saved before this ran hold Quill's own markup, in which a
     // bullet list is an <ol> with no bullet in it and a font is a class only
@@ -268,7 +285,8 @@ const BulletinPreview = ({ style }) => {
     const isDraft = (bulletin.status || 'draft') === 'draft'
     const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
     const hasHighlights = hasHighlightsContent(highlightsHtml)
-
+    const bulletinDataValues = Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []
+    const generatedDate = GENERATED_ON_FORMAT.format(new Date())
     return (
         <main className={style.main}>
             {publishMessage && (
@@ -310,10 +328,10 @@ const BulletinPreview = ({ style }) => {
                 </div>
                 </ButtonStrip>
 
-            <div ref={contentRef}>
+            <div ref={contentRef} className={style.bulletinDocument}>
             {/* Preview Header. No box-shadow: html2canvas renders it, so on
                 paper it is a grey smudge around the heading. */}
-            <div data-pdf-block style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '4px', marginBottom: '24px' }}>
+            <div data-pdf-block className={style.bulletinDocumentHeader}>
                 <div style={{ textAlign: 'center' }}>
                     {displayIcon && (
                         <img
@@ -369,10 +387,10 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '24px' }}>
+            <div data-pdf-block>
                 <ForecastSummaryWidget
                     style={style}
-                    dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
+                    dataValues={bulletinDataValues}
                     mapping={settingsData?.dataStore?.mapping || []}
                     period={bulletin.period}
                     organisationUnit={bulletin.organisationUnit}
@@ -382,7 +400,7 @@ const BulletinPreview = ({ style }) => {
             
             {/* 1. Highlights — now shown first, matching the numbered document order */}
             {hasHighlights && (
-                <div data-pdf-block style={{ marginBottom: '24px', backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
                     {/* Numbered like sections 2 and 3: the numeral sits in the
                         badge and only the label is translated. */}
                     <div className={style.sectionHeader}>
@@ -396,21 +414,53 @@ const BulletinPreview = ({ style }) => {
                 </div>
             )}
 
-            <div data-pdf-block style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+            <div className={`${style.bulletinTwoColumnGrid} ${style.malariaChartsGrid}`}>
+                <div
+                    data-pdf-block
+                    className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
+                >
+                    <CurrentMalariaSituation
+                        style={style}
+                        dataValues={bulletinDataValues}
+                        mapping={settingsData?.dataStore?.mapping || []}
+                        period={bulletin.period}
+                        orgUnits={orgUnits}
+                        selectedOrgUnit={bulletin.organisationUnit}
+                    />
+                </div>
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
                     <HealthCasesWidget
-                        dataValues={Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []}
+                        dataValues={bulletinDataValues}
                         mapping={settingsData?.dataStore?.mapping}
                         orgUnits={orgUnits}
                         selectedOrgUnit={bulletin.organisationUnit}
                         period={bulletin.period}
                         style={style}
-                        step="2"
-                        title={i18n.t('Recorded Health Cases')}
-                        description={i18n.t('Summary of recorded health cases.')}
+                        title={i18n.t('Malaria Forecast')}
                     />
                 </div>
-                <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px' }}>
+            </div>
+
+            <div data-pdf-block>
+                <HistoricalClimateCasesChart
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
+                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    initialClimateDataValues={
+                        Array.isArray(bulletin.historicalClimate) && bulletin.historicalClimate.length > 0
+                            ? bulletin.historicalClimate
+                            : undefined
+                    }
+                />
+            </div>
+
+            <div className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}>
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
                     <ForecastWidget
                         forecast={bulletin.forecast || []}
                         organisationUnit={bulletin.organisationUnit}
@@ -421,59 +471,51 @@ const BulletinPreview = ({ style }) => {
                         description={i18n.t('Upcoming weather conditions.')}
                     />
                 </div>
+
+                <div data-pdf-block className={style.bulletinDocumentPanel}>
+                    <SeasonalClimateChart
+                        style={style}
+                        rainfallDataElement={settingsData?.dataStore?.rainfallForecast}
+                        temperatureDataElement={settingsData?.dataStore?.temperatureForecast}
+                        selectedOrgUnit={bulletin.organisationUnit}
+                        period={bulletin.period}
+                        initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
+                            ? bulletin.seasonalClimate
+                            : undefined}
+                        orgUnits={orgUnits}
+                    />
+                </div>
             </div>
 
-            <div data-pdf-block style={{ marginBottom: '24px' }}>
-                <SeasonalClimateChart
+            <div data-pdf-block>
+                <DistrictRiskSummary
                     style={style}
-                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
-                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
-                    selectedOrgUnit={bulletin.organisationUnit}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
                     period={bulletin.period}
-                    initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
-                        ? bulletin.seasonalClimate
-                        : undefined}
+                    orgUnits={orgUnits}
+                    selectedOrgUnitId={bulletin.organisationUnit}
+                />
+            </div>
+
+            <div data-pdf-block>
+                <DistrictActionsWidget
+                    style={style}
+                    forecast={bulletin.forecast}
+                    seasonalClimateRows={seasonalClimateRows}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    selectedOrgUnitId={bulletin.organisationUnit}
                     orgUnits={orgUnits}
                 />
             </div>
 
-            {bulletin.advisories && bulletin.advisories.length > 0 && (
-                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>4</div>
-                        <span className={style.sectionTitle}>{i18n.t('Health Advisories')}</span>
-                    </div>
-                    <div>
-                        {bulletin.advisories.map((advisory, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                                <CheckCircle size={20} color="#10b981" style={{ marginTop: '2px', flexShrink: 0 }} />
-                                <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
-                                    {advisory}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {bulletin.recommendations && bulletin.recommendations.length > 0 && (
-                <div data-pdf-block style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '4px', marginBottom: '24px' }}>
-                    <div className={style.sectionHeader}>
-                        <div className={style.stepBadge}>5</div>
-                        <span className={style.sectionTitle}>{i18n.t('Recommendations')}</span>
-                    </div>
-                    <div>
-                        {bulletin.recommendations.map((recommendation, index) => (
-                            <div key={index} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                                <CheckCircle size={20} color="#328c94" style={{ marginTop: '2px', flexShrink: 0 }} />
-                                <span style={{ color: '#334155', fontSize: '14px', lineHeight: '1.5' }}>
-                                    {recommendation}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <footer data-pdf-block className={style.bulletinDocumentFooter}>
+                <span>{bulletinTitle}</span>
+                <span>{getOrgUnitName(bulletin.organisationUnit)} · {formatPeriod(bulletin.period)}</span>
+                <span>{i18n.t('Generated on {{date}}', { date: generatedDate })}</span>
+            </footer>
             </div>
         </main>
     )
