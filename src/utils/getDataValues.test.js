@@ -63,4 +63,30 @@ describe('getDataValues', () => {
         // The icon is a URL, not a data element, so it must not be requested.
         expect(dimension[0]).not.toContain('example.test');
     });
+
+    it('requests the selected unit and its district units in one analytics query', async () => {
+        const engine = {
+            query: jest.fn().mockResolvedValue({ analytics: { rows: [] } }),
+        };
+
+        await getDataValues(
+            ['data-element'],
+            ['202610', '202611'],
+            ['selected-unit', 'district-one', 'district-two'],
+            engine
+        );
+
+        expect(engine.query).toHaveBeenCalledWith({
+            analytics: {
+                resource: 'analytics',
+                params: {
+                    dimension: [
+                        'dx:data-element',
+                        'pe:202610;202611',
+                        'ou:selected-unit;district-one;district-two',
+                    ],
+                },
+            },
+        });
+    });
 });

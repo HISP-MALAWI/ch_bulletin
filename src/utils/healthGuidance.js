@@ -20,7 +20,7 @@ const getForecastEntries = (forecast) => {
     return Array.isArray(entries) ? entries : [];
 };
 
-const getClimateSignals = (forecast) => {
+export const getClimateSignals = (forecast) => {
     const daily = new Map();
     getForecastEntries(forecast).forEach((entry) => {
         const details = entry?.data?.instant?.details ?? entry;

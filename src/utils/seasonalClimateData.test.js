@@ -58,42 +58,52 @@ describe('buildSeasonalClimateRows', () => {
 });
 
 describe('fetchSeasonalClimateDataValues', () => {
-    it('queries the dataValues resource once per element and period', async () => {
+    it('queries analytics once for the configured elements and seasonal periods', async () => {
         const engine = {
-            query: jest.fn().mockImplementation(({ dataValue }) => Promise.resolve({
-                dataValue: {
-                    dataElement: dataValue.params.de,
-                    period: dataValue.params.pe,
-                    orgUnit: dataValue.params.ou,
-                    value: '12.5',
+            query: jest.fn().mockResolvedValue({
+                analytics: {
+                    rows: [
+                        ['rain', '202610', 'district', '12.5'],
+                        ['temp', '202610', 'district', '24.3'],
+                        ['rain', '202611', 'district', '18'],
+                    ],
                 },
-            })),
+            }),
         };
 
         const rows = await fetchSeasonalClimateDataValues({
-            dataElements: ['rain'],
+            dataElements: ['rain', 'temp', 'rain'],
             periods: ['202610', '202611'],
             selectedOrgUnit: 'district',
             engine,
         });
 
-        expect(engine.query).toHaveBeenCalledTimes(2);
+        expect(engine.query).toHaveBeenCalledTimes(1);
         expect(engine.query).toHaveBeenCalledWith({
-            dataValue: {
-                resource: 'dataValues',
-                params: { de: 'rain', pe: '202610', ou: 'district' },
+            analytics: {
+                resource: 'analytics',
+                params: {
+                    dimension: [
+                        'dx:rain;temp',
+                        'pe:202610;202611',
+                        'ou:district',
+                    ],
+                },
             },
         });
         expect(rows).toEqual([
             ['rain', '202610', 'district', '12.5'],
-            ['rain', '202611', 'district', '12.5'],
+            ['temp', '202610', 'district', '24.3'],
+            ['rain', '202611', 'district', '18'],
         ]);
     });
 
     it('maps a one-value array response using the requested dimensions', async () => {
         const engine = {
             query: jest.fn().mockResolvedValue({
-                dataValue: ['24.013564452528954'],
+                analytics: {
+                    rows: [['rain', '202610', 'district', '24.013564452528954']],
+                },
             }),
         };
 
@@ -114,5 +124,18 @@ describe('fetchSeasonalClimateDataValues', () => {
             temperatureDataElement: 'temp',
             selectedOrgUnit: 'district',
         })[0].rainfall).toBeCloseTo(24.013564452528954);
+    });
+
+    it('does not hide analytics failures', async () => {
+        const engine = {
+            query: jest.fn().mockRejectedValue(new Error('Analytics unavailable')),
+        };
+
+        await expect(fetchSeasonalClimateDataValues({
+            dataElements: ['rain'],
+            periods: ['202610'],
+            selectedOrgUnit: 'district',
+            engine,
+        })).rejects.toThrow('Analytics unavailable');
     });
 });
