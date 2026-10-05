@@ -100,7 +100,7 @@ const SettingsPage = ({styles}) => {
                 {/* SECTION 1: DISEASE MAPPING */}
                 <DiseaseMappingWidget styles={styles} diseaseElements={diseaseElementsMapping} setDiseaseElements={setdiseaseElementsMapping} />
 
-                {/* SECTION 2: SEASONAL FORECAST */}
+                {/* SECTION 2: CLIMATE DATA */}
                 <SeasonalForecastWidget styles={styles} settings={settings} setSettings={setSettings} />
                 
                 {/* SECTION 3: ACCESS & WORKFLOW */}
