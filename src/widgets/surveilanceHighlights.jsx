@@ -37,7 +37,7 @@ const TotalLabel = ({ x, y, width, payload }) => {
     );
 };
 
-const HealthCasesWidget = ({ style, step, dataValues = [], mapping = [], orgUnits = [], selectedOrgUnit, period }) => {
+const HealthCasesWidget = ({ style, title = 'Malaria Forecast', dataValues = [], mapping = [], orgUnits = [], selectedOrgUnit, period }) => {
     const organisationUnitList = Array.isArray(orgUnits) ? orgUnits : [];
     const periods = React.useMemo(
         () => (period ? getMonthlyPeriods(period) : []),
@@ -53,7 +53,6 @@ const HealthCasesWidget = ({ style, step, dataValues = [], mapping = [], orgUnit
         row.predictionMedian !== null ||
         row.predictionRange !== undefined
     ));
-    const diseaseName = malariaMapping?.displayName?.replace(/\s+cases?$/i, '').toLowerCase() || 'malaria';
     const selectedOrgUnitName = organisationUnitList.find((unit) => unit.id === selectedOrgUnit)?.displayName || '';
     const dateRange = periods.length
         ? `${shortMonth(periods[0]).replace(/ (\d{2})$/, ' 20$1')} – ${shortMonth(periods.at(-1)).replace(/ (\d{2})$/, ' 20$1')}`
@@ -62,8 +61,7 @@ const HealthCasesWidget = ({ style, step, dataValues = [], mapping = [], orgUnit
     return (
         <div>
             <div className={style.sectionHeader}>
-                <div className={style.stepBadge}>{step}</div>
-                <h2 className={style.casesChartTitle}>Current {diseaseName} cases and prediction</h2>
+                <h2 className={style.casesChartTitle}>{title}</h2>
             </div>
             <p className={style.casesChartSubtitle}>
                 Confirmed cases and forecast range{selectedOrgUnitName ? ` for ${selectedOrgUnitName}` : ''}{dateRange ? `, ${dateRange}` : ''}
