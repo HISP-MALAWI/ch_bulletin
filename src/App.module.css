@@ -363,6 +363,23 @@
   text-align: center;
 }
 
+/* The chart and the reading that goes with it. One column by default, which is
+   what the narrower editor form wants; the document sets them side by side. */
+.casesChartLayout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.casesChartNotes {
+  min-width: 0;
+}
+
+.casesChartNotes .bulletinList {
+  margin-top: 0;
+}
+
 .historicalClimateCasesChart {
   width: 100%;
   height: 310px;
@@ -1189,7 +1206,14 @@
 
 .bulletinDocument .casesChart {
   height: 340px;
+  margin-top: 0;
+}
+
+/* Chart on the left, its reading on the right. */
+.bulletinDocument .casesChartLayout {
   margin-top: 14px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
 }
 
 .bulletinDocument :global(.fw-chart-frame) {

@@ -4,7 +4,6 @@ import {
     Bar,
     CartesianGrid,
     ComposedChart,
-    LabelList,
     Legend,
     Line,
     ReferenceArea,
@@ -62,13 +61,13 @@ const forecastRegionLabel = {
     fontFamily: fontFamily.mono,
 };
 
-const TotalLabel = ({ x, y, width, payload }) => {
-    if (!payload) return null;
-    const total = payload.cases;
-    if (total <= 0) return null;
+// Labels the confirmed-cases line at each point that has one. A line's points
+// arrive as x/y/value, not the bar's payload and width.
+const CasesLabel = ({ x, y, value }) => {
+    if (!Number.isFinite(value) || value <= 0) return null;
     return (
-        <text x={x + width / 2} y={y - 8} fill={palette.ink} textAnchor="middle" fontSize={12}>
-            {compactNumber(total)}
+        <text x={x} y={y - 9} fill={palette.ink} textAnchor="middle" fontSize={11}>
+            {compactNumber(value)}
         </text>
     );
 };
@@ -153,6 +152,9 @@ const HealthCasesWidget = ({ style, step, title = 'Malaria Forecast', descriptio
             <p className={style.casesChartSubtitle}>
                 Confirmed cases and forecast range{selectedOrgUnitName ? ` for ${selectedOrgUnitName}` : ''}{dateRange ? `, ${dateRange}` : ''}
             </p>
+            {/* The chart beside its own reading, so the marks and the words that
+                explain them sit together rather than in one tall stack. */}
+            <div className={style.casesChartLayout}>
             {hasChartData ? (
                 <div className={style.casesChart}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -195,9 +197,19 @@ const HealthCasesWidget = ({ style, step, title = 'Malaria Forecast', descriptio
                                 labelFormatter={(label) => shortMonth(label)}
                             />
                             <Legend verticalAlign="bottom" />
-                            <Bar dataKey="cases" name="Confirmed cases" fill={series.cases} maxBarSize={58}>
-                                <LabelList dataKey="cases" content={<TotalLabel />} />
-                            </Bar>
+                            {/* A line rather than bars, so observed cases and the
+                                alert threshold are the same kind of mark and can
+                                be read against each other. */}
+                            <Line
+                                dataKey="cases"
+                                name="Confirmed cases"
+                                type="monotone"
+                                stroke={series.cases}
+                                strokeWidth={2}
+                                dot={{ r: 3, fill: series.cases, strokeWidth: 0 }}
+                                label={CasesLabel}
+                                connectNulls
+                            />
                             {/* Two bands, the wider one drawn first and lighter,
                                 with the narrower interval inside it. */}
                             <Area
@@ -251,6 +263,7 @@ const HealthCasesWidget = ({ style, step, title = 'Malaria Forecast', descriptio
                 </div>
             )}
 
+            <div className={style.casesChartNotes}>
             {forecast.months.length > 0 && (
                 <div className={style.bulletinList}>
                     {forecast.months.map((month) => (
@@ -274,6 +287,8 @@ const HealthCasesWidget = ({ style, step, title = 'Malaria Forecast', descriptio
             {interpretation && (
                 <p className={style.bulletinInterpretation}>{interpretation}</p>
             )}
+            </div>
+            </div>
         </div>
     );
 };

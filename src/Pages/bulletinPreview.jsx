@@ -457,35 +457,35 @@ const BulletinPreview = ({ style }) => {
                 </div>
             )}
 
-            {/* Master's pairing: the current situation beside the forecast, then
-                the weather and climate blocks together. */}
+            {/* The current situation gets its own block rather than being paired
+                with the forecast. The forecast needs the full width of the page
+                so its chart and the reading beside it both have room. */}
             <div
                 data-pdf-block
-                className={`${style.bulletinTwoColumnGrid} ${style.malariaChartsGrid}`}
+                className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
             >
-                <div
-                    className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
-                >
-                    <CurrentMalariaSituation
-                        style={style}
-                        dataValues={bulletinDataValues}
-                        mapping={settingsData?.dataStore?.mapping || []}
-                        period={bulletin.period}
-                        orgUnits={orgUnits}
-                        selectedOrgUnit={bulletin.organisationUnit}
-                    />
-                </div>
-                <div className={style.bulletinDocumentPanel}>
-                    <HealthCasesWidget
-                        dataValues={bulletinDataValues}
-                        mapping={settingsData?.dataStore?.mapping}
-                        orgUnits={orgUnits}
-                        selectedOrgUnit={bulletin.organisationUnit}
-                        period={bulletin.period}
-                        style={style}
-                        title={i18n.t('Malaria Forecast')}
-                    />
-                </div>
+                <CurrentMalariaSituation
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                />
+            </div>
+
+            <div data-pdf-block className={style.bulletinDocumentPanel}>
+                <HealthCasesWidget
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    period={bulletin.period}
+                    style={style}
+                    step="2"
+                    title={i18n.t('Malaria Forecast')}
+                    description={i18n.t('Recorded cases, the predicted range and the alert threshold.')}
+                />
             </div>
 
             <div data-pdf-block>
