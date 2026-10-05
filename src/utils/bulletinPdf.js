@@ -1,7 +1,7 @@
 import i18n from '@dhis2/d2-i18n'
 
-const A4_WIDTH_MM = 210
-const A4_HEIGHT_MM = 297
+const A4_WIDTH_MM = 297
+const A4_HEIGHT_MM = 210
 const DEFAULT_MARGIN_MM = 10
 const IMAGE_TIMEOUT_MS = 8000
 const MAX_FILE_NAME_LENGTH = 120
@@ -345,7 +345,7 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
         const boundaries = readBlockBoundaries(element, totalHeightMm)
         const slices = computePageSlices(totalHeightMm, contentHeightMm, boundaries)
 
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
 
         if (title) {
             pdf.setProperties({ title, creator: 'Climate & Health Bulletin' })
