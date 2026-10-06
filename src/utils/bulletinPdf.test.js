@@ -125,3 +125,88 @@ describe('sanitiseFileName', () => {
         expect(fileName.endsWith('.')).toBe(false)
     })
 })
+
+// The export reaches into a real DOM and two lazily imported libraries, so the
+// capture is stood in for and the canvas methods, which jsdom does not
+// implement, are stubbed. What is under test is the excluded sections: that they
+// are out of the page while the capture runs, and back in it afterwards however
+// the export ends.
+describe('exportBulletinPdf', () => {
+    const canvasContext = { fillRect: jest.fn(), drawImage: jest.fn() }
+    let displayDuringCapture = null
+    let captureError = null
+
+    const buildDocument = () => {
+        document.body.innerHTML = `
+            <div id="document">
+                <div data-pdf-block id="forecast"></div>
+                <div data-pdf-block data-pdf-exclude id="summary" style="display: block"></div>
+                <div data-pdf-block id="actions"></div>
+            </div>`
+
+        return document.getElementById('document')
+    }
+
+    beforeAll(() => {
+        HTMLCanvasElement.prototype.getContext = () => canvasContext
+        HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,stub'
+    })
+
+    beforeEach(() => {
+        jest.resetModules()
+        displayDuringCapture = null
+        captureError = null
+
+        jest.doMock('html2canvas', () => ({
+            __esModule: true,
+            default: async (element) => {
+                displayDuringCapture = element.querySelector('#summary').style.display
+
+                if (captureError) {
+                    throw captureError
+                }
+
+                return { width: 800, height: 1200 }
+            },
+        }))
+
+        jest.doMock('jspdf', () => ({
+            __esModule: true,
+            default: class {
+                setProperties() {}
+                addPage() {}
+                addImage() {}
+                save = jest.fn()
+            },
+        }))
+    })
+
+    it('takes the excluded sections out of the page while capturing', async () => {
+        const { exportBulletinPdf } = require('./bulletinPdf')
+
+        await exportBulletinPdf(buildDocument(), { fileName: 'bulletin.pdf' })
+
+        expect(displayDuringCapture).toBe('none')
+    })
+
+    it('puts them back afterwards, with whatever display they had', async () => {
+        const { exportBulletinPdf } = require('./bulletinPdf')
+        const element = buildDocument()
+
+        await exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
+
+        expect(element.querySelector('#summary').style.display).toBe('block')
+    })
+
+    it('puts them back when the capture fails', async () => {
+        const { exportBulletinPdf } = require('./bulletinPdf')
+        const element = buildDocument()
+        captureError = new Error('capture failed')
+
+        await expect(
+            exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
+        ).rejects.toThrow('capture failed')
+
+        expect(element.querySelector('#summary').style.display).toBe('block')
+    })
+})

@@ -236,6 +236,74 @@
   grid-column: 1 / span 2;
 }
 
+/* The band that opens the document, above the scenario cards: the disease, one
+   line on what it does, and the risk level for each region. */
+.malariaRiskOverview {
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: #12374e;
+  color: #fff;
+}
+
+.malariaRiskEyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.malariaRiskTitle {
+  margin: 4px 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.malariaRiskDescription {
+  max-width: 780px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.malariaRiskRegions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.malariaRiskRegion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 5px 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12.5px;
+}
+
+.malariaRiskLevel {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.malariaRiskNote {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12.5px;
+}
+
 .forecastSummary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -334,6 +402,12 @@
   font-size: 16px;
 }
 
+/* The chart's own heading, centred over the plot it names. The section heading
+   above it stays left-aligned, so only this block moves. */
+.casesChartHeader {
+  text-align: center;
+}
+
 .casesChartTitle {
   margin: 0 0 4px;
   color: #102b42;
@@ -363,8 +437,8 @@
   text-align: center;
 }
 
-/* The chart and the reading that goes with it. One column by default, which is
-   what the narrower editor form wants; the document sets them side by side. */
+/* The chart and the reading that goes with it, stacked: the plot across the
+   full width, its reading beneath. */
 .casesChartLayout {
   display: grid;
   grid-template-columns: 1fr;
@@ -1202,6 +1276,28 @@
   font-size: 11.5px;
 }
 
+/* --- the hazard band --------------------------------------------------- */
+
+.bulletinDocument .malariaRiskOverview {
+  background: var(--bz-lake);
+  margin: 0 0 18px;
+}
+
+.bulletinDocument .malariaRiskEyebrow {
+  font-family: var(--bz-font-mono);
+}
+
+.bulletinDocument .malariaRiskDescription,
+.bulletinDocument .malariaRiskRegion,
+.bulletinDocument .malariaRiskNote {
+  font-family: var(--bz-font-body);
+}
+
+.bulletinDocument .malariaRiskTitle {
+  font-family: var(--bz-font-display);
+  font-size: 28px;
+}
+
 /* --- charts ------------------------------------------------------------ */
 
 .bulletinDocument .casesChart {
@@ -1209,16 +1305,12 @@
   margin-top: 0;
 }
 
-/* Chart on the left, its reading on the right. */
+/* Chart across the full width, its reading beneath it. The side-by-side split
+   this replaces squeezed the plot into the left column and left the status list
+   too narrow to scan. The base rule is already a single column, so dropping the
+   override here is the whole change. */
 .bulletinDocument .casesChartLayout {
   margin-top: 14px;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 20px;
-}
-
-.bulletinDocument :global(.fw-chart-frame) {
-  background: var(--bz-paper);
-  border-radius: 8px;
 }
 
 .bulletinDocument .highlightsBody {

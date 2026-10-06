@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-05T15:28:30.749Z\n"
-"PO-Revision-Date: 2026-10-05T15:28:30.749Z\n"
+"POT-Creation-Date: 2026-10-06T11:29:41.787Z\n"
+"PO-Revision-Date: 2026-10-06T11:29:41.787Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -102,6 +102,30 @@ msgstr "Draft"
 msgid "Published"
 msgstr "Published"
 
+msgid "Executive Summary"
+msgstr "Executive Summary"
+
+msgid "Highlights"
+msgstr "Highlights"
+
+msgid "Malaria Forecast"
+msgstr "Malaria Forecast"
+
+msgid "Recorded cases, the predicted range and the alert threshold."
+msgstr "Recorded cases, the predicted range and the alert threshold."
+
+msgid "Weather Forecast"
+msgstr "Weather Forecast"
+
+msgid "Upcoming weather conditions."
+msgstr "Upcoming weather conditions."
+
+msgid "Health Advisories"
+msgstr "Health Advisories"
+
+msgid "Recommendations"
+msgstr "Recommendations"
+
 msgid "Download PDF"
 msgstr "Download PDF"
 
@@ -122,27 +146,6 @@ msgstr "{{total}} months"
 
 msgid "Generated on {{date}}"
 msgstr "Generated on {{date}}"
-
-msgid "Executive Summary"
-msgstr "Executive Summary"
-
-msgid "Highlights"
-msgstr "Highlights"
-
-msgid "Malaria Forecast"
-msgstr "Malaria Forecast"
-
-msgid "Weather Forecast"
-msgstr "Weather Forecast"
-
-msgid "Upcoming weather conditions."
-msgstr "Upcoming weather conditions."
-
-msgid "Health Advisories"
-msgstr "Health Advisories"
-
-msgid "Recommendations"
-msgstr "Recommendations"
 
 msgid "N/A"
 msgstr "N/A"
@@ -183,6 +186,13 @@ msgstr "Bulletin saved to draft successfully!"
 msgid "Error saving bulletin. Please try again."
 msgstr "Error saving bulletin. Please try again."
 
+msgid ""
+"The document does not show {{total}} of its sections. Change this in "
+"Settings."
+msgstr ""
+"The document does not show {{total}} of its sections. Change this in "
+"Settings."
+
 msgid "Save Changes"
 msgstr "Save Changes"
 
@@ -214,6 +224,69 @@ msgstr ""
 "An image in this bulletin blocked the export. Check the disease icon URLs "
 "in Settings."
 
+msgid "High"
+msgstr "High"
+
+msgid "Moderate"
+msgstr "Moderate"
+
+msgid "Low"
+msgstr "Low"
+
+msgid ""
+"No district-level readings are available for this period, so the regional "
+"risk levels are not shown."
+msgstr ""
+"No district-level readings are available for this period, so the regional "
+"risk levels are not shown."
+
+msgid ""
+"Regional risk levels need the malaria alarm and threshold indicators mapped "
+"in Settings."
+msgstr ""
+"Regional risk levels need the malaria alarm and threshold indicators mapped "
+"in Settings."
+
+msgid "Malaria overview"
+msgstr "Malaria overview"
+
+msgid "Forecast summary cards"
+msgstr "Forecast summary cards"
+
+msgid "Current Malaria Situation"
+msgstr "Current Malaria Situation"
+
+msgid "Historical climate and cases"
+msgstr "Historical climate and cases"
+
+msgid "Seasonal climate"
+msgstr "Seasonal climate"
+
+msgid "District forecast risk"
+msgstr "District forecast risk"
+
+msgid "District actions"
+msgstr "District actions"
+
+msgid "Document Sections"
+msgstr "Document Sections"
+
+msgid ""
+"The sections the document carries, in the order it reads. The masthead and "
+"the footer are fixed."
+msgstr ""
+"The sections the document carries, in the order it reads. The masthead and "
+"the footer are fixed."
+
+msgid "{{total}} hidden"
+msgstr "{{total}} hidden"
+
+msgid "Move {{section}} up"
+msgstr "Move {{section}} up"
+
+msgid "Move {{section}} down"
+msgstr "Move {{section}} down"
+
 msgid "Alert"
 msgstr "Alert"
 
@@ -223,6 +296,30 @@ msgstr "Watch"
 msgid "Normal"
 msgstr "Normal"
 
+msgid "Confirmed cases"
+msgstr "Confirmed cases"
+
+msgid "Median forecast"
+msgstr "Median forecast"
+
+msgid "50% interval"
+msgstr "50% interval"
+
+msgid "80% interval"
+msgstr "80% interval"
+
+msgid "Alert threshold"
+msgstr "Alert threshold"
+
+msgid "Forecast"
+msgstr "Forecast"
+
+msgid "Chart series"
+msgstr "Chart series"
+
+msgid "No data for this month"
+msgstr "No data for this month"
+
 msgid ""
 "The median forecast is above the alert threshold in {{months}} of {{total}} "
 "months. The highest is {{month}} at {{value}} against a threshold of "
@@ -240,14 +337,35 @@ msgstr ""
 "The median forecast stays below the alert threshold in every month. It "
 "comes closest in {{month}}, at {{value}} against a threshold of "
 "{{threshold}}."
+
+msgid "Current {{disease}} cases and prediction"
+msgstr "Current {{disease}} cases and prediction"
+
+msgid "Monthly confirmed cases and forecast range"
+msgstr "Monthly confirmed cases and forecast range"
+
+msgid "Loading chart data…"
+msgstr "Loading chart data…"
+
+msgid "The chart could not be loaded. Try again, or check your connection."
+msgstr "The chart could not be loaded. Try again, or check your connection."
+
+msgid ""
+"No malaria case data is available for these months and the selected "
+"organization unit."
+msgstr ""
+"No malaria case data is available for these months and the selected "
+"organization unit."
+
+msgid "Add a malaria mapping to display case trends."
+msgstr "Add a malaria mapping to display case trends."
+
+msgid ""
+"Confirmed cases are missing for {{total}} of the months before the "
+"forecast; the line is drawn across the gap."
+msgstr ""
+"Confirmed cases are missing for {{total}} of the months before the "
+"forecast; the line is drawn across the gap."
 
 msgid "median {{median}}, threshold {{threshold}}"
 msgstr "median {{median}}, threshold {{threshold}}"
-
-msgctxt "Application title"
-msgid "__MANIFEST_APP_TITLE"
-msgstr "Climate and Health Bulletin"
-
-msgctxt "Application description"
-msgid "__MANIFEST_APP_DESCRIPTION"
-msgstr ""

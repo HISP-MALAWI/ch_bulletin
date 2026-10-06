@@ -10,6 +10,8 @@ import { DiseaseMappingWidget } from '../widgets/diseasemappingWIdget';
 import { AccessWorkflowWidget } from '../widgets/accessWidget';
 import { SeasonalForecastWidget } from '../widgets/seasonalForecastWidget';
 import { DistributionWidget } from '../widgets/distributionWIdget';
+import { SectionsConfigWidget } from '../widgets/sectionsConfigWidget';
+import { DEFAULT_SECTIONS } from '../utils/bulletinSections';
 import { RolesQuery } from './services/getRoles';
 import { dataSettingsStoreQuery } from './services/getSettingsStore';
 import { dataStoreQuery } from './services/getDataSoreItem';
@@ -35,6 +37,10 @@ const SettingsPage = ({styles}) => {
         temperatureDataElement: '',
         rainfallForecastClass: '',
         temperatureForecastClass: '',
+        // The document's contents. Declared here so the key exists before the
+        // first save; installs that have never saved hold no such key and read
+        // the same defaults through `resolveSections`.
+        sections: DEFAULT_SECTIONS,
         });
 
     // State management for save operations
@@ -114,10 +120,17 @@ const SettingsPage = ({styles}) => {
                 {/* SECTION 4: DISTRIBUTION */}
                 <DistributionWidget group={data?.userGroups?.userGroups} setSettings={setSettings} settings={settings} styles={styles} />
 
-                {/* SECTION 5: GLOBAL SETTINGS */}
+                {/* SECTION 5: DOCUMENT SECTIONS */}
+                <SectionsConfigWidget
+                    styles={styles}
+                    sections={settings.sections}
+                    setSections={(sections) => setSettings((current) => ({ ...current, sections }))}
+                />
+
+                {/* SECTION 6: GLOBAL SETTINGS */}
                 <section className={styles.sectionCard}>
                     <div className={styles.sectionHeader}>
-                        <span className={styles.stepBadge}>5</span>
+                        <span className={styles.stepBadge}>6</span>
                         <h3 className={styles.sectionTitle}>Global Settings</h3>
                     </div>
                     <p className={styles.sectionSub}>General app-wide defaults.</p>
