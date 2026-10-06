@@ -10,6 +10,7 @@ import ForecastSummaryWidget from '../widgets/forecastSummaryWidget'
 import SeasonalClimateChart from '../widgets/seasonalClimateChart'
 import HealthCasesWidget from '../widgets/surveilanceHighlights'
 import CurrentMalariaSituation from '../widgets/currentMalariaSituation'
+import MalariaRiskOverview from '../widgets/malariaRiskOverview'
 import HistoricalClimateCasesChart from '../widgets/historicalClimateCasesChart'
 import ForecastWidget from '../widgets/forecastWidget'
 import DistrictRiskSummary from '../widgets/districtRiskSummary'
@@ -24,6 +25,12 @@ import { normaliseHighlightsHtml, hasHighlightsContent } from '../utils/highligh
 import { useAccess } from '../context/AccessContext'
 import { BulletinSection } from '../widgets/bulletinSection'
 import { describeForecastWindow } from '../utils/periodLabel'
+import {
+    groupRows,
+    numberSections,
+    resolveSections,
+    visibleSections,
+} from '../utils/bulletinSections'
 
 const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
@@ -308,6 +315,255 @@ const BulletinPreview = ({ style }) => {
     const hasHighlights = hasHighlightsContent(highlightsHtml)
     const bulletinDataValues = Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []
     const generatedDate = GENERATED_ON_FORMAT.format(new Date())
+
+    // The sections the document carries, and in what order. Not memoised: the
+    // list is thirteen entries and this component re-renders as a whole anyway.
+    const sectionRows = groupRows(
+        visibleSections(resolveSections(settingsData?.dataStore?.sections))
+    )
+    const sectionNumbers = numberSections(sectionRows)
+
+    // One entry per configurable section, each closing over the bulletin and the
+    // settings read above — which is why this is built here rather than at module
+    // scope. An entry returns `null` when its section has nothing to show, so the
+    // wrapper is never rendered empty.
+    //
+    // The step numeral arrives as an argument, counted in the order the rows are
+    // rendered rather than hardcoded per section, so a reordered or half-hidden
+    // document still reads 1, 2, 3, … down the page. Each entry also carries its
+    // own wrapper class, because they are not interchangeable: the section that
+    // carries `bulletinDocumentPanel` today is the one whose chart is pinned to
+    // 280px by it, and applying it everywhere would resize the other charts.
+    const sectionContent = {
+        malariaOverview: () => ({
+            node: (
+                <MalariaRiskOverview
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                />
+            ),
+        }),
+
+        forecastSummary: () => ({
+            node: (
+                <ForecastSummaryWidget
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    organisationUnit={bulletin.organisationUnit}
+                    orgUnits={orgUnits}
+                />
+            ),
+        }),
+
+        executiveSummary: () => {
+            if (!Array.isArray(bulletin.executiveSummary) || bulletin.executiveSummary.length === 0) {
+                return null
+            }
+
+            return {
+                node: (
+                    <BulletinSection title={i18n.t('Executive Summary')}>
+                        <div className={style.bulletinList}>
+                            {bulletin.executiveSummary.map((line, index) => {
+                                const { lead, rest } = splitSummaryLine(line)
+
+                                return (
+                                    <div key={index} className={style.bulletinListItem}>
+                                        <span className={style.bulletinListItemText}>
+                                            {lead && (
+                                                <span className={style.bulletinSummaryMonth}>{lead}</span>
+                                            )}
+                                            {rest}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </BulletinSection>
+                ),
+            }
+        },
+
+        highlights: (step) => {
+            if (!hasHighlights) {
+                return null
+            }
+
+            return {
+                node: (
+                    <BulletinSection step={step} title={i18n.t('Highlights')}>
+                        <div
+                            className={style.highlightsBody}
+                            dangerouslySetInnerHTML={{ __html: highlightsHtml }}
+                        />
+                    </BulletinSection>
+                ),
+            }
+        },
+
+        currentMalariaSituation: () => ({
+            className: `${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`,
+            node: (
+                <CurrentMalariaSituation
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                />
+            ),
+        }),
+
+        malariaForecast: (step) => ({
+            className: style.bulletinDocumentPanel,
+            node: (
+                <HealthCasesWidget
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    period={bulletin.period}
+                    style={style}
+                    step={step}
+                    title={i18n.t('Malaria Forecast')}
+                    description={i18n.t('Recorded cases, the predicted range and the alert threshold.')}
+                />
+            ),
+        }),
+
+        historicalClimate: () => ({
+            node: (
+                <HistoricalClimateCasesChart
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
+                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    initialClimateDataValues={
+                        Array.isArray(bulletin.historicalClimate) && bulletin.historicalClimate.length > 0
+                            ? bulletin.historicalClimate
+                            : undefined
+                    }
+                />
+            ),
+        }),
+
+        weatherForecast: (step) => ({
+            className: style.bulletinDocumentPanel,
+            node: (
+                <ForecastWidget
+                    forecast={bulletin.forecast || []}
+                    organisationUnit={bulletin.organisationUnit}
+                    period={bulletin.period}
+                    style={style}
+                    step={step}
+                    title={i18n.t('Weather Forecast')}
+                    description={i18n.t('Upcoming weather conditions.')}
+                />
+            ),
+        }),
+
+        seasonalClimate: () => ({
+            className: style.bulletinDocumentPanel,
+            node: (
+                <SeasonalClimateChart
+                    style={style}
+                    rainfallDataElement={settingsData?.dataStore?.rainfallForecast}
+                    temperatureDataElement={settingsData?.dataStore?.temperatureForecast}
+                    selectedOrgUnit={bulletin.organisationUnit}
+                    period={bulletin.period}
+                    initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
+                        ? bulletin.seasonalClimate
+                        : undefined}
+                    orgUnits={orgUnits}
+                />
+            ),
+        }),
+
+        districtRisk: () => ({
+            node: (
+                <DistrictRiskSummary
+                    style={style}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    orgUnits={orgUnits}
+                    selectedOrgUnitId={bulletin.organisationUnit}
+                />
+            ),
+        }),
+
+        districtActions: () => ({
+            node: (
+                <DistrictActionsWidget
+                    style={style}
+                    forecast={bulletin.forecast}
+                    seasonalClimateRows={seasonalClimateRows}
+                    dataValues={bulletinDataValues}
+                    mapping={settingsData?.dataStore?.mapping || []}
+                    period={bulletin.period}
+                    selectedOrgUnitId={bulletin.organisationUnit}
+                    orgUnits={orgUnits}
+                />
+            ),
+        }),
+
+        advisories: (step) => {
+            if (!Array.isArray(bulletin.advisories) || bulletin.advisories.length === 0) {
+                return null
+            }
+
+            return {
+                node: (
+                    <BulletinSection step={step} title={i18n.t('Health Advisories')}>
+                        {/* A left-border accent rather than an icon, which is how
+                            the reference marks advisories and messages. */}
+                        <div className={style.bulletinList}>
+                            {bulletin.advisories.map((advisory, index) => (
+                                <div
+                                    key={index}
+                                    className={`${style.bulletinListItem} ${style.bulletinListItemAdvisory}`}
+                                >
+                                    <span className={style.bulletinListItemText}>{advisory}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </BulletinSection>
+                ),
+            }
+        },
+
+        recommendations: (step) => {
+            if (!Array.isArray(bulletin.recommendations) || bulletin.recommendations.length === 0) {
+                return null
+            }
+
+            return {
+                node: (
+                    <BulletinSection step={step} title={i18n.t('Recommendations')}>
+                        <div className={style.bulletinList}>
+                            {bulletin.recommendations.map((recommendation, index) => (
+                                <div key={index} className={style.bulletinListItem}>
+                                    <span className={style.bulletinListItemText}>{recommendation}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </BulletinSection>
+                ),
+            }
+        },
+    }
+
     return (
         <main className={style.main}>
             {publishMessage && (
@@ -407,192 +663,60 @@ const BulletinPreview = ({ style }) => {
                 </div>
             </div>
 
-            <div data-pdf-block>
-                <ForecastSummaryWidget
-                    style={style}
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping || []}
-                    period={bulletin.period}
-                    organisationUnit={bulletin.organisationUnit}
-                    orgUnits={orgUnits}
-                />
-            </div>
+            {/* The document's contents, in the order and with the visibility
+                configured in Settings — see `utils/bulletinSections.js`. The
+                masthead above and the footer below are fixed: the export repeats
+                the masthead at the top of every page after the first, so it is
+                not a section that can be moved or hidden.
+                Each entry returns its own wrapper class, because the wrapper
+                classes are not interchangeable — `bulletinDocumentPanel` pins
+                `.casesChart` to 280px and zeroes the padding of any `.sectionCard`
+                inside it, so applying it everywhere would resize the charts in
+                the sections that do not carry it today. */}
+            {sectionRows.map(({ row, items }) => {
+                const panels = items
+                    .map(({ id }) => ({ id, ...(sectionContent[id]?.(sectionNumbers[id]) || {}) }))
+                    // A widget that renders nothing (MalariaRiskOverview returns
+                    // null with no malaria mapping configured) must not leave an
+                    // empty block behind: the export treats every block edge as a
+                    // page-break candidate.
+                    .filter(({ node }) => Boolean(node))
 
-            {/* Leads the document, so it carries no numeral — nothing is
-                numbered before it. */}
-            {bulletin.executiveSummary && bulletin.executiveSummary.length > 0 && (
-                <div data-pdf-block>
-                    <BulletinSection title={i18n.t('Executive Summary')}>
-                        <div className={style.bulletinList}>
-                            {bulletin.executiveSummary.map((line, index) => {
-                                const { lead, rest } = splitSummaryLine(line)
+                if (panels.length === 0) {
+                    return null
+                }
 
-                                return (
-                                    <div key={index} className={style.bulletinListItem}>
-                                        <span className={style.bulletinListItemText}>
-                                            {lead && (
-                                                <span className={style.bulletinSummaryMonth}>{lead}</span>
-                                            )}
-                                            {rest}
-                                        </span>
-                                    </div>
-                                )
-                            })}
+                const key = row || items[0].id
+
+                // One section on the row keeps its class on the block itself, as
+                // it has today. A shared row puts the block marker on the grid
+                // and the panel class on each column: the export only counts
+                // outermost blocks, and a cut at the shorter column's edge would
+                // slice through the taller one.
+                if (panels.length === 1) {
+                    const [{ className, node }] = panels
+
+                    return (
+                        <div key={key} data-pdf-block className={className}>
+                            {node}
                         </div>
-                    </BulletinSection>
-                </div>
-            )}
+                    )
+                }
 
-            {/* 1. Highlights — now shown first, matching the numbered document order */}
-            {hasHighlights && (
-                <div data-pdf-block>
-                    {/* The numeral is a literal, as in every other section; only
-                        the label is translated. */}
-                    <BulletinSection step="1" title={i18n.t('Highlights')}>
-                        <div
-                            className={style.highlightsBody}
-                            dangerouslySetInnerHTML={{ __html: highlightsHtml }}
-                        />
-                    </BulletinSection>
-                </div>
-            )}
-
-            {/* The current situation gets its own block rather than being paired
-                with the forecast. The forecast needs the full width of the page
-                so its chart and the reading beside it both have room. */}
-            <div
-                data-pdf-block
-                className={`${style.bulletinDocumentPanel} ${style.currentMalariaDocumentPanel}`}
-            >
-                <CurrentMalariaSituation
-                    style={style}
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping || []}
-                    period={bulletin.period}
-                    orgUnits={orgUnits}
-                    selectedOrgUnit={bulletin.organisationUnit}
-                />
-            </div>
-
-            <div data-pdf-block className={style.bulletinDocumentPanel}>
-                <HealthCasesWidget
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping}
-                    orgUnits={orgUnits}
-                    selectedOrgUnit={bulletin.organisationUnit}
-                    period={bulletin.period}
-                    style={style}
-                    step="2"
-                    title={i18n.t('Malaria Forecast')}
-                    description={i18n.t('Recorded cases, the predicted range and the alert threshold.')}
-                />
-            </div>
-
-            <div data-pdf-block>
-                <HistoricalClimateCasesChart
-                    style={style}
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping || []}
-                    rainfallDataElement={settingsData?.dataStore?.rainfallDataElement}
-                    temperatureDataElement={settingsData?.dataStore?.temperatureDataElement}
-                    period={bulletin.period}
-                    orgUnits={orgUnits}
-                    selectedOrgUnit={bulletin.organisationUnit}
-                    initialClimateDataValues={
-                        Array.isArray(bulletin.historicalClimate) && bulletin.historicalClimate.length > 0
-                            ? bulletin.historicalClimate
-                            : undefined
-                    }
-                />
-            </div>
-
-            <div
-                data-pdf-block
-                className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}
-            >
-                <div className={style.bulletinDocumentPanel}>
-                    <ForecastWidget
-                        forecast={bulletin.forecast || []}
-                        organisationUnit={bulletin.organisationUnit}
-                        period={bulletin.period}
-                        style={style}
-                        step="3"
-                        title={i18n.t('Weather Forecast')}
-                        description={i18n.t('Upcoming weather conditions.')}
-                    />
-                </div>
-
-                <div className={style.bulletinDocumentPanel}>
-                    <SeasonalClimateChart
-                        style={style}
-                        rainfallDataElement={settingsData?.dataStore?.rainfallForecast}
-                        temperatureDataElement={settingsData?.dataStore?.temperatureForecast}
-                        selectedOrgUnit={bulletin.organisationUnit}
-                        period={bulletin.period}
-                        initialDataValues={Array.isArray(bulletin.seasonalClimate) && bulletin.seasonalClimate.length > 0
-                            ? bulletin.seasonalClimate
-                            : undefined}
-                        orgUnits={orgUnits}
-                    />
-                </div>
-            </div>
-
-            <div data-pdf-block>
-                <DistrictRiskSummary
-                    style={style}
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping || []}
-                    period={bulletin.period}
-                    orgUnits={orgUnits}
-                    selectedOrgUnitId={bulletin.organisationUnit}
-                />
-            </div>
-
-            <div data-pdf-block>
-                <DistrictActionsWidget
-                    style={style}
-                    forecast={bulletin.forecast}
-                    seasonalClimateRows={seasonalClimateRows}
-                    dataValues={bulletinDataValues}
-                    mapping={settingsData?.dataStore?.mapping || []}
-                    period={bulletin.period}
-                    selectedOrgUnitId={bulletin.organisationUnit}
-                    orgUnits={orgUnits}
-                />
-            </div>
-
-            {bulletin.advisories && bulletin.advisories.length > 0 && (
-                <div data-pdf-block>
-                    <BulletinSection step="4" title={i18n.t('Health Advisories')}>
-                        {/* A left-border accent rather than an icon, which is how
-                            the reference marks advisories and messages. */}
-                        <div className={style.bulletinList}>
-                            {bulletin.advisories.map((advisory, index) => (
-                                <div
-                                    key={index}
-                                    className={`${style.bulletinListItem} ${style.bulletinListItemAdvisory}`}
-                                >
-                                    <span className={style.bulletinListItemText}>{advisory}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </BulletinSection>
-                </div>
-            )}
-
-            {bulletin.recommendations && bulletin.recommendations.length > 0 && (
-                <div data-pdf-block>
-                    <BulletinSection step="5" title={i18n.t('Recommendations')}>
-                        <div className={style.bulletinList}>
-                            {bulletin.recommendations.map((recommendation, index) => (
-                                <div key={index} className={style.bulletinListItem}>
-                                    <span className={style.bulletinListItemText}>{recommendation}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </BulletinSection>
-                </div>
-            )}
+                return (
+                    <div
+                        key={key}
+                        data-pdf-block
+                        className={`${style.bulletinTwoColumnGrid} ${style.fullWidth}`}
+                    >
+                        {panels.map(({ id, className, node }) => (
+                            <div key={id} className={className}>
+                                {node}
+                            </div>
+                        ))}
+                    </div>
+                )
+            })}
             <footer data-pdf-block className={style.bulletinDocumentFooter}>
                 <span>{bulletinTitle}</span>
                 <span>{getOrgUnitName(bulletin.organisationUnit)} · {formatPeriod(bulletin.period)}</span>

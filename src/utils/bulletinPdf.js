@@ -243,6 +243,39 @@ const waitForFonts = async () => {
     }
 }
 
+/**
+ * Takes every `[data-pdf-exclude]` node out of the page for the duration of the
+ * export, returning a function that puts them back.
+ *
+ * They are hidden here rather than left to html2canvas' `ignoreElements`, which
+ * drops the node from the clone and so closes the gap it left. The block
+ * boundaries are measured on the live document, which still has the node in it,
+ * so the clone and the measurements would describe two different layouts and
+ * every boundary below an excluded block would be read too low — a page could
+ * cut through a card. Collapsing the live document by the same amount keeps the
+ * two in step. `ignoreElements` is still passed as a backstop for a node that
+ * something else keeps visible.
+ */
+const hideExcluded = (element) => {
+    const nodes = Array.from(element.querySelectorAll('[data-pdf-exclude]'))
+
+    if (nodes.length === 0) {
+        return () => {}
+    }
+
+    const previous = nodes.map((node) => node.style.display)
+
+    nodes.forEach((node) => {
+        node.style.display = 'none'
+    })
+
+    return () => {
+        nodes.forEach((node, index) => {
+            node.style.display = previous[index]
+        })
+    }
+}
+
 const waitForImages = async (element) => {
     const pending = Array.from(element.querySelectorAll('img'))
         .filter((img) => !img.complete)
@@ -278,6 +311,10 @@ const waitForImages = async (element) => {
  * columns differ in height, a cut at the shorter column's edge sliced through
  * the taller one mid-chart. Marking the grid instead fixes that particular case;
  * ignoring nested markers means the next one cannot recur.
+ *
+ * A block that is also `[data-pdf-exclude]` is hidden by the time this runs, so
+ * it measures as zero and drops out below — which is what an excluded block
+ * should contribute, since there is nothing of it left to cut at.
  */
 const readBlockBoundaries = (element, totalHeightMm) => {
     const rect = element.getBoundingClientRect()
@@ -428,10 +465,18 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     const contentHeightMm = A4_HEIGHT_MM - marginMm * 2
 
     const { dropped, restore } = await inlineImages(element)
+    // Declared out here so the `finally` below can put the document back even
+    // if the capture throws before the nodes have been hidden.
+    let restoreExcluded = () => {}
 
     try {
         await waitForFonts()
         await waitForImages(element)
+
+        // After the images, so that nothing the reader never sees is left
+        // waiting to load; before the capture, so that the layout it renders and
+        // the layout the boundaries are measured against are the same one.
+        restoreExcluded = hideExcluded(element)
 
         const source = await html2canvas(element, {
             scale: 2,
@@ -498,6 +543,7 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
 
         throw err
     } finally {
+        restoreExcluded()
         restore()
     }
 

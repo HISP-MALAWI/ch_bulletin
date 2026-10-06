@@ -72,7 +72,16 @@ export const buildHistoricalClimateCaseRows = ({
     return Array.from(rowsByPeriod.values());
 };
 
-export const getRainfallCasePeakInsight = (rows = []) => {
+/**
+ * The month the rainfall peaks, the month the confirmed cases peak, and how far
+ * apart they are. `leadMonths` is positive when the rain comes first, which is
+ * the relationship the bulletin is making a claim about; zero and negative are
+ * both possible and mean the claim does not hold for this period.
+ *
+ * Both peaks are needed for any of it to mean anything, so a period missing
+ * either one gives `null` rather than a number nobody should read.
+ */
+export const getRainfallCasePeaks = (rows = []) => {
     const rainfallPeak = rows
         .filter((row) => Number.isFinite(row.rainfall))
         .reduce((peak, row) => !peak || row.rainfall > peak.rainfall ? row : peak, null);
@@ -84,7 +93,22 @@ export const getRainfallCasePeakInsight = (rows = []) => {
 
     const rainfallIndex = rows.findIndex((row) => row.period === rainfallPeak.period);
     const casesIndex = rows.findIndex((row) => row.period === casesPeak.period);
-    const leadMonths = casesIndex - rainfallIndex;
+
+    return {
+        rainfallPeriod: rainfallPeak.period,
+        casePeriod: casesPeak.period,
+        rainfallIndex,
+        casesIndex,
+        leadMonths: casesIndex - rainfallIndex,
+    };
+};
+
+export const getRainfallCasePeakInsight = (rows = []) => {
+    const peaks = getRainfallCasePeaks(rows);
+
+    if (!peaks) return null;
+
+    const { leadMonths } = peaks;
 
     if (leadMonths > 0) {
         return `The rainfall peak precedes the confirmed-case peak by ${leadMonths} month${leadMonths === 1 ? '' : 's'}, supporting anticipatory preparedness.`;

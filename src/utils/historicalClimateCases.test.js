@@ -1,6 +1,7 @@
 import {
     buildHistoricalClimateCaseRows,
     getRainfallCasePeakInsight,
+    getRainfallCasePeaks,
 } from './historicalClimateCases';
 
 describe('buildHistoricalClimateCaseRows', () => {
@@ -75,5 +76,63 @@ describe('buildHistoricalClimateCaseRows', () => {
             { period: '202602', rainfall: 40, cases: 60 },
             { period: '202603', rainfall: 10, cases: 100 },
         ])).toContain('precedes the confirmed-case peak by 2 months');
+    });
+});
+
+describe('getRainfallCasePeaks', () => {
+    const rows = [
+        { period: '202601', rainfall: 120, cases: 20 },
+        { period: '202602', rainfall: 40, cases: 60 },
+        { period: '202603', rainfall: 10, cases: 100 },
+    ];
+
+    it('names the two peak months and the gap between them', () => {
+        expect(getRainfallCasePeaks(rows)).toEqual({
+            rainfallPeriod: '202601',
+            casePeriod: '202603',
+            rainfallIndex: 0,
+            casesIndex: 2,
+            leadMonths: 2,
+        });
+    });
+
+    it('reports a negative lead when the cases peak comes first', () => {
+        const reversed = [
+            { period: '202601', rainfall: 10, cases: 100 },
+            { period: '202602', rainfall: 120, cases: 20 },
+        ];
+
+        expect(getRainfallCasePeaks(reversed).leadMonths).toBe(-1);
+    });
+
+    it('reports no lead when both peak in the same month', () => {
+        const together = [
+            { period: '202601', rainfall: 120, cases: 100 },
+            { period: '202602', rainfall: 10, cases: 20 },
+        ];
+
+        expect(getRainfallCasePeaks(together).leadMonths).toBe(0);
+    });
+
+    it('returns nothing without both peaks to compare', () => {
+        expect(getRainfallCasePeaks([])).toBeNull();
+        expect(getRainfallCasePeaks([
+            { period: '202601', rainfall: 120, cases: null },
+        ])).toBeNull();
+        expect(getRainfallCasePeaks([
+            { period: '202601', rainfall: null, cases: 100 },
+        ])).toBeNull();
+    });
+
+    it('ignores a month that carries only one of the two series', () => {
+        // The gap is counted in months of the chart, not in months that happen
+        // to carry both numbers, so a missing case month still takes up a step.
+        const gapped = [
+            { period: '202601', rainfall: 120, cases: 20 },
+            { period: '202602', rainfall: 30, cases: null },
+            { period: '202603', rainfall: 10, cases: 100 },
+        ];
+
+        expect(getRainfallCasePeaks(gapped).leadMonths).toBe(2);
     });
 });
