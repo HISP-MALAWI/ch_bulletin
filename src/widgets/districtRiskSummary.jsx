@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    buildDistrictAlertRows,
     buildDistrictForecastStatuses,
     buildSelectedDistrictForecastRows,
 } from '../utils/districtForecasts';
@@ -12,6 +13,18 @@ const periodLabel = (period) => {
     return new Intl.DateTimeFormat('en', {
         month: 'short',
         year: 'numeric',
+        timeZone: 'UTC',
+    }).format(date);
+};
+
+// The peak column is one month inside a window of four, so the year is written
+// short rather than dropped: a window that crosses a year boundary would
+// otherwise name a month the reader has to place themselves.
+const peakLabel = (period) => {
+    const date = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(4, 6)) - 1, 1));
+    return new Intl.DateTimeFormat('en', {
+        month: 'short',
+        year: '2-digit',
         timeZone: 'UTC',
     }).format(date);
 };
@@ -82,32 +95,6 @@ const SelectedDistrictForecastTable = ({ style, district, rows, isConfigured }) 
     </section>
 );
 
-const DistrictList = ({ style, title, districts, variant, emptyMessage }) => (
-    <section className={`${style.districtRiskList} ${variant === 'alert'
-        ? style.districtRiskAlert
-        : variant === 'watch'
-            ? style.districtRiskWatch
-            : style.districtRiskNormal}`}>
-        <h3>{title} <span>{districts.length}</span></h3>
-        {districts.length > 0 ? (
-            <ul>
-                {districts.map((district) => (
-                    <li key={district.id}>
-                        <strong>{district.name}</strong>
-                        <span>
-                            {district.predictionMedian === null
-                                ? district.period
-                                : `${district.period}: ${numberFormat.format(district.predictionMedian)} / ${numberFormat.format(district.threshold)}`}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        ) : (
-            <p>{emptyMessage}</p>
-        )}
-    </section>
-);
-
 const DistrictRiskMap = ({ style, districts, alerts, watches }) => {
     const riskByDistrict = new Map([
         ...alerts.map((district) => [district.id, 'alert']),
@@ -151,6 +138,59 @@ const DistrictRiskMap = ({ style, districts, alerts, watches }) => {
     );
 };
 
+/**
+ * The alerted districts in full, under the map: which month each one is
+ * expected to peak in, that month's prediction beside its threshold, how far
+ * above it runs, and over how many of the forecast months. The map says how
+ * many districts are on alert; this says which and by how much.
+ */
+const AlertDistrictTable = ({ style, rows }) => {
+    if (rows.length === 0) return null;
+
+    return (
+        <section className={style.districtAlertTable} aria-label="Districts on alert">
+            <h3>
+                Districts on alert <span>({rows.length})</span>
+            </h3>
+            <p className={style.districtAlertTableNote}>
+                Ranked by forecast cases above threshold.
+            </p>
+            <div className={style.districtForecastTableWrap}>
+                <table className={style.districtForecastTable}>
+                    <thead>
+                        <tr>
+                            <th>District</th>
+                            <th>Region</th>
+                            <th>Peak</th>
+                            <th>Median</th>
+                            <th>Threshold</th>
+                            <th>Excess</th>
+                            <th>Months</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row) => (
+                            <tr key={row.id}>
+                                <td>{row.name}</td>
+                                <td>{row.region || '—'}</td>
+                                <td>{row.peakPeriod ? peakLabel(row.peakPeriod) : '—'}</td>
+                                <td><ForecastValue value={row.peakMedian} /></td>
+                                <td><ForecastValue value={row.peakThreshold} /></td>
+                                <td>
+                                    {row.excess === null
+                                        ? '—'
+                                        : `${row.excess > 0 ? '+' : ''}${row.excess}%`}
+                                </td>
+                                <td>{row.monthsAbove}/{row.monthsTotal}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+};
+
 const DistrictRiskSummary = ({
     style,
     dataValues = [],
@@ -165,6 +205,17 @@ const DistrictRiskSummary = ({
     );
     const status = React.useMemo(
         () => buildDistrictForecastStatuses({
+            dataValues,
+            mapping,
+            periods: forecastPeriods,
+            orgUnits,
+            selectedOrgUnitId,
+        }),
+        [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId]
+    );
+
+    const alertRows = React.useMemo(
+        () => buildDistrictAlertRows({
             dataValues,
             mapping,
             periods: forecastPeriods,
@@ -198,16 +249,6 @@ const DistrictRiskSummary = ({
 
     if (!status) return null;
 
-    const noForecastData = status.alerts.length === 0 && status.watches.length === 0;
-    let emptyMessage = 'No districts in this category.';
-    if (!status.isConfigured) {
-        emptyMessage = 'Configure malaria alarm indicators and, for Watch status, threshold and median prediction indicators.';
-    } else if (status.districts.length === 0) {
-        emptyMessage = 'No district-level units are available under this selection.';
-    } else if (noForecastData) {
-        emptyMessage = 'No alert or watch districts were identified from available forecast data.';
-    }
-
     return (
         <section className={`${style.sectionCard} ${style.districtRiskSummary}`}>
             <div className={style.sectionHeader}>
@@ -216,37 +257,13 @@ const DistrictRiskSummary = ({
             <p className={style.casesChartSubtitle}>
                 Alerts are based on configured alarm indicators. Watch districts have a predicted median at least 75% of, but below, the configured threshold.
             </p>
-            <div className={style.districtForecastLayout}>
-                <DistrictRiskMap
-                    style={style}
-                    districts={status.districts}
-                    alerts={status.alerts}
-                    watches={status.watches}
-                />
-                <div className={style.districtRiskGrid}>
-                    <DistrictList
-                        style={style}
-                        title="Alert districts"
-                        districts={status.alerts}
-                        variant="alert"
-                        emptyMessage={emptyMessage}
-                    />
-                    <DistrictList
-                        style={style}
-                        title="Watch districts"
-                        districts={status.watches}
-                        variant="watch"
-                        emptyMessage={emptyMessage}
-                    />
-                    <DistrictList
-                        style={style}
-                        title="Normal districts"
-                        districts={status.normal}
-                        variant="normal"
-                        emptyMessage="No districts are classified as Normal."
-                    />
-                </div>
-                </div>
+            <DistrictRiskMap
+                style={style}
+                districts={status.districts}
+                alerts={status.alerts}
+                watches={status.watches}
+            />
+            <AlertDistrictTable style={style} rows={alertRows} />
         </section>
     );
 };

@@ -679,8 +679,7 @@
 }
 
 .bulletinTwoColumnGrid,
-.bulletinGuidanceGrid,
-.districtRiskGrid {
+.bulletinGuidanceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -693,10 +692,6 @@
 
 .bulletinTwoColumnGrid > .sectionCard {
   margin: 0;
-}
-
-.districtRiskGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .bulletinGuidanceGrid > :only-child {
@@ -798,37 +793,37 @@
   line-height: 1.5;
 }
 
-.districtRiskGrid {
-  margin-top: 12px;
-}
-
-.districtForecastLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 12px;
-  align-items: stretch;
-  margin-top: 12px;
-}
-
-.districtForecastLayout .districtRiskGrid {
+/* The alert table sits under the map and continues it, so the two share their
+   card treatment rather than each carrying their own copy of it. */
+.districtRiskMap,
+.districtAlertTable {
   min-width: 0;
-  margin-top: 0;
-}
-
-.districtRiskMap {
-  min-width: 0;
+  margin-top: 12px;
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
   background: #fff;
 }
 
-.districtRiskMap h3 {
+.districtRiskMap h3,
+.districtAlertTable h3 {
   margin: 0 0 8px;
   color: #102b42;
   font-size: 12px;
   line-height: 1.4;
   text-transform: uppercase;
+}
+
+.districtAlertTable h3 span {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.districtAlertTableNote {
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .districtRiskLegend {
@@ -867,7 +862,13 @@
 
 .districtRiskTiles {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* The map now has the section's full width to itself. `auto-fill` keeps the
+     tiles a readable size as that width grows — with a fixed five columns they
+     would stretch to about 200px each on a desktop window — and it leaves the
+     unused tracks in place, so a short last row stays the same size as the rest
+     rather than stretching to fill. At the width the map had when the district
+     lists sat beside it this comes out at five columns, as before. */
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 4px;
 }
 
@@ -955,72 +956,6 @@
   margin-top: 3px;
 }
 
-.districtRiskList {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #fff;
-}
-
-.districtRiskList h3 {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0;
-  padding: 9px 12px;
-  color: #fff;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.districtRiskAlert h3 {
-  background: #c51627;
-}
-
-.districtRiskWatch h3 {
-  background: #e3a400;
-  color: #16233a;
-}
-
-.districtRiskNormal h3 {
-  background: #27813c;
-}
-
-.districtRiskList h3 span {
-  font-variant-numeric: tabular-nums;
-}
-
-.districtRiskList ul {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.districtRiskList li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 8px 12px;
-  border-top: 1px solid #edf0f4;
-  font-size: 11px;
-}
-
-.districtRiskList li span {
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
-}
-
-.districtRiskList > p {
-  margin: 0;
-  padding: 12px;
-  color: #64748b;
-  font-size: 12px;
-}
-
 @media (max-width: 700px) {
   .bulletinDocument {
     padding: 8px;
@@ -1029,18 +964,6 @@
   .bulletinTwoColumnGrid,
   .bulletinGuidanceGrid {
     grid-template-columns: 1fr;
-  }
-
-  .districtRiskGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .districtForecastLayout {
-    grid-template-columns: 1fr;
-  }
-
-  .districtRiskTiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .districtActionsGrid {
