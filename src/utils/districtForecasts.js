@@ -1,5 +1,122 @@
 const getParentId = (unit) => unit?.parent?.id || unit?.parent || null;
 
+/**
+ * Each district's alarm, threshold and median prediction, month by month. The
+ * risk classification and the alert table under the map read the same numbers,
+ * so they are collected once here rather than twice in two slightly different
+ * ways — a district must not be able to appear on the map and not in the table.
+ */
+const collectDistrictValues = ({ districts, dataValues, malariaMapping, periods }) => {
+    const periodSet = new Set(periods);
+    const rowsByDistrict = new Map(
+        districts.map((district) => [district.id, new Map()])
+    );
+
+    dataValues.forEach((row) => {
+        const [dataElement, period, orgUnitId] = row;
+        const districtPeriods = rowsByDistrict.get(orgUnitId);
+        if (!districtPeriods || !periodSet.has(period)) return;
+
+        const value = Number(row.at(-1));
+        if (!Number.isFinite(value)) return;
+
+        const values = districtPeriods.get(period) || {};
+        if (dataElement === malariaMapping.alarmElement) {
+            values.alarm = value;
+        } else if (dataElement === malariaMapping.threshold) {
+            values.threshold = value;
+        } else if (dataElement === malariaMapping.predictionMedian) {
+            values.predictionMedian = value;
+        }
+        districtPeriods.set(period, values);
+    });
+
+    return rowsByDistrict;
+};
+
+const isAboveThreshold = (values) =>
+    Number.isFinite(values.predictionMedian) &&
+    Number.isFinite(values.threshold) &&
+    values.threshold > 0 &&
+    values.predictionMedian >= values.threshold;
+
+/**
+ * One row per district on alert, for the table under the risk map: the month
+ * its median prediction peaks, that month's prediction and threshold, how far
+ * the prediction runs above the threshold, and in how many of the forecast
+ * months it does so.
+ *
+ * Ranked by that excess, so the districts expected furthest above threshold
+ * lead. A district whose peak month carries no threshold has no excess to rank
+ * by and sorts last, after the ones that do.
+ */
+export const buildDistrictAlertRows = ({
+    dataValues = [],
+    mapping = [],
+    periods = [],
+    orgUnits = [],
+    selectedOrgUnitId,
+}) => {
+    const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
+    if (![1, 2].includes(Number(selectedUnit?.level))) return [];
+
+    const malariaMapping = mapping.find((item) => /malaria/i.test(item?.displayName || ''));
+    if (!malariaMapping || periods.length === 0) return [];
+
+    const districts = getDistrictDescendants(orgUnits, selectedOrgUnitId);
+    const rowsByDistrict = collectDistrictValues({
+        districts,
+        dataValues,
+        malariaMapping,
+        periods,
+    });
+    const unitsById = new Map(orgUnits.map((unit) => [unit.id, unit]));
+
+    const rows = districts.flatMap((district) => {
+        const months = periods.map(
+            (period) => rowsByDistrict.get(district.id).get(period) || {}
+        );
+
+        if (!months.some((values) => values.alarm === 1)) return [];
+
+        // The first month holding the highest prediction, so a plateau names
+        // the month it starts in rather than the last month it reaches.
+        const peakIndex = months.reduce(
+            (best, values, index) =>
+                Number.isFinite(values.predictionMedian) &&
+                (best === -1 || values.predictionMedian > months[best].predictionMedian)
+                    ? index
+                    : best,
+            -1
+        );
+        const peak = peakIndex === -1 ? {} : months[peakIndex];
+        const median = Number.isFinite(peak.predictionMedian) ? peak.predictionMedian : null;
+        const threshold = Number.isFinite(peak.threshold) ? peak.threshold : null;
+
+        return [{
+            id: district.id,
+            name: district.displayName || district.name || district.id,
+            region: unitsById.get(getParentId(district))?.displayName || null,
+            peakPeriod: peakIndex === -1 ? null : periods[peakIndex],
+            peakMedian: median,
+            peakThreshold: threshold,
+            excess: median !== null && threshold > 0
+                ? Math.round(((median - threshold) / threshold) * 100)
+                : null,
+            monthsAbove: months.filter(isAboveThreshold).length,
+            monthsTotal: periods.length,
+        }];
+    });
+
+    const rank = (row) => (row.excess === null ? Number.NEGATIVE_INFINITY : row.excess);
+
+    return rows.sort((left, right) =>
+        rank(left) === rank(right)
+            ? left.name.localeCompare(right.name)
+            : rank(right) - rank(left)
+    );
+};
+
 export const buildSelectedDistrictForecastRows = ({
     dataValues = [],
     mapping = [],
@@ -114,9 +231,8 @@ export const buildDistrictForecastStatuses = ({
     const districts = getDistrictDescendants(orgUnits, selectedOrgUnitId);
 
     const malariaMapping = mapping.find((item) => /malaria/i.test(item.displayName || ''));
-    const periodSet = new Set(periods);
 
-    if (!malariaMapping || periodSet.size === 0) {
+    if (!malariaMapping || periods.length === 0) {
         return {
             districts,
             alerts: [],
@@ -129,27 +245,11 @@ export const buildDistrictForecastStatuses = ({
         };
     }
 
-    const rowsByDistrict = new Map(
-        districts.map((district) => [district.id, new Map()])
-    );
-
-    dataValues.forEach((row) => {
-        const [dataElement, period, orgUnitId] = row;
-        const districtPeriods = rowsByDistrict.get(orgUnitId);
-        if (!districtPeriods || !periodSet.has(period)) return;
-
-        const value = Number(row.at(-1));
-        if (!Number.isFinite(value)) return;
-
-        const values = districtPeriods.get(period) || {};
-        if (dataElement === malariaMapping.alarmElement) {
-            values.alarm = value;
-        } else if (dataElement === malariaMapping.threshold) {
-            values.threshold = value;
-        } else if (dataElement === malariaMapping.predictionMedian) {
-            values.predictionMedian = value;
-        }
-        districtPeriods.set(period, values);
+    const rowsByDistrict = collectDistrictValues({
+        districts,
+        dataValues,
+        malariaMapping,
+        periods,
     });
 
     const alerts = [];
