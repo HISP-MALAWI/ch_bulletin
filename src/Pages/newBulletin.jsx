@@ -8,6 +8,7 @@ import ForecastSummaryWidget from "../widgets/forecastSummaryWidget";
 import SeasonalClimateChart from "../widgets/seasonalClimateChart";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import CurrentMalariaSituation from "../widgets/currentMalariaSituation";
+import MalariaRiskOverview from "../widgets/malariaRiskOverview";
 import HistoricalClimateCasesChart from "../widgets/historicalClimateCasesChart";
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
@@ -28,6 +29,7 @@ import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
 import { normaliseHighlightsHtml, hasHighlightsContent } from "../utils/highlightsHtml";
+import { resolveSections } from "../utils/bulletinSections";
 import { useAccess } from "../context/AccessContext";
 
 const ALERT_AUTO_HIDE_MS = 5000;
@@ -232,6 +234,13 @@ const BulletinForm = ({ style }) => {
     }
   };
 
+  // The editor keeps every section, whatever the document is configured to show:
+  // a hidden section still has to be fillable, and Highlights is required to save
+  // a bulletin at all. This count is only so that a section being filled in does
+  // not silently go nowhere.
+  const hiddenSectionCount = resolveSections(data?.dataStore?.sections)
+    .filter((section) => !section.visible).length;
+
   return (
     <div className={style.main}>
       <DashboardHeader
@@ -246,6 +255,31 @@ const BulletinForm = ({ style }) => {
       {period && organisationUnit ? (
         <>
           <div className={style.formGrid}>
+            {/* Which sections reach the document is a Settings decision and is
+                made once for every issue, so it is a note here rather than a
+                control: filling a section in that the document does not carry
+                would otherwise be silent. */}
+            {hiddenSectionCount > 0 && (
+              <p className={`${style.sectionSub} ${style.fullWidth}`}>
+                {i18n.t(
+                  "The document does not show {{total}} of its sections. Change this in Settings.",
+                  { total: hiddenSectionCount }
+                )}
+              </p>
+            )}
+
+            {/* Mirrors where the band sits in the document: above the cards. */}
+            <section className={`${style.sectionCard} ${style.fullWidth}`}>
+              <MalariaRiskOverview
+                style={style}
+                dataValues={datavalues}
+                mapping={data?.dataStore?.mapping || []}
+                period={period}
+                orgUnits={orgUnits}
+                selectedOrgUnit={organisationUnit}
+              />
+            </section>
+
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <ForecastSummaryWidget
                 style={style}
