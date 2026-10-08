@@ -4,6 +4,7 @@ import {
     buildSelectedDistrictForecastRows,
     getDistrictDescendants,
     getZoneDescendants,
+    shortDistrictName,
 } from './districtForecasts';
 
 const orgUnits = [
@@ -285,5 +286,27 @@ describe('buildDistrictAlertRows', () => {
             periods,
             dataValues: [['alarm', '202610', 'a-district', '1']],
         })).toEqual([]);
+    });
+});
+
+describe('shortDistrictName', () => {
+    it('drops the suffix the map labels do not need', () => {
+        expect(shortDistrictName('Balaka-DHO')).toBe('Balaka');
+        expect(shortDistrictName('Mzimba-North-DHO')).toBe('Mzimba-North');
+        expect(shortDistrictName('Nkhata Bay-DHO')).toBe('Nkhata Bay');
+        expect(shortDistrictName('Nsanje DHO')).toBe('Nsanje');
+    });
+
+    it('leaves a name that does not carry the suffix exactly as it is', () => {
+        expect(shortDistrictName('Zomba Mental Hospital')).toBe('Zomba Mental Hospital');
+        expect(shortDistrictName('Dedza')).toBe('Dedza');
+        // Nothing but the suffix: emptying the label would be worse than
+        // repeating it.
+        expect(shortDistrictName('DHO')).toBe('DHO');
+    });
+
+    it('passes a name that is not a string straight through', () => {
+        expect(shortDistrictName(undefined)).toBeUndefined();
+        expect(shortDistrictName(null)).toBeNull();
     });
 });

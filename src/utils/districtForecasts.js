@@ -317,3 +317,18 @@ export const buildDistrictForecastStatuses = ({
         ),
     };
 };
+
+/**
+ * A district's name as it fits on a map label.
+ *
+ * Every level-three unit in this instance is a District Health Office, so its
+ * name ends in "-DHO": "Balaka-DHO", "Mzimba-North-DHO". Four characters
+ * repeated on all twenty-nine labels are the difference between a name that
+ * sits inside its own district and one that runs across its neighbour, so the
+ * map drops them. The hover title, the tiles and the alert table beside it keep
+ * the full name.
+ *
+ * A name that is nothing but the suffix is left as it is rather than emptied.
+ */
+export const shortDistrictName = (name) =>
+    typeof name === 'string' ? name.replace(/[\s-]+DHO$/i, '') || name : name;
