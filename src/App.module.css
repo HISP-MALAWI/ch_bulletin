@@ -932,11 +932,45 @@
 /* A fixed height, following `.casesChart`. The PDF export measures its page
    breaks off the live layout, so a box that resized when the boundaries landed
    would put every cut below it out of step. The loading state is the same
-   height, for the same reason. */
+   height, for the same reason, and the height an embedded DHIS2 map is given is
+   set inline from the bulletin.
+
+   The two layers inside it are stacked and out of flow. The drawing sits
+   underneath, the plugin frame over it, so a frame that never loads uncovers the
+   drawing instead of leaving an empty box — and neither layer can change the
+   height the page breaks are measured from. */
 .districtRiskMapViewport {
-  display: grid;
+  position: relative;
   height: 520px;
+  overflow: hidden;
+}
+
+/* The computed map, centred in the viewport. It stays mounted under an embedded
+   DHIS2 map, which is what makes a plugin that fails harmless. */
+.districtRiskMapDrawing {
+  position: absolute;
+  display: grid;
+  inset: 0;
   place-items: center;
+}
+
+/* The Maps plugin over the drawing, transparent until its map has painted, so
+   the box shows the drawing rather than a blank frame while the plugin loads. */
+.districtRiskEmbed {
+  position: absolute;
+  background: #fff;
+  inset: 0;
+  opacity: 0;
+}
+
+.districtRiskEmbedShown {
+  opacity: 1;
+}
+
+/* Sized by the numeric width and height it is given, which the PDF export needs
+   and which leaves no reason for the frame to be inline. */
+.districtRiskEmbed iframe {
+  display: block;
 }
 
 .districtRiskMapSvg {
