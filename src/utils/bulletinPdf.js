@@ -298,6 +298,31 @@ const waitForImages = async (element) => {
 }
 
 /**
+ * Waits out anything the page says it is still working on, so the capture does
+ * not rasterise a placeholder.
+ *
+ * The district risk map fetches its boundaries from DHIS2 and paints them when
+ * they arrive. Its box is already the height the drawing will be, so nothing
+ * moves when they land — but the section would be exported still saying
+ * "Loading district boundaries…". `data-pdf-pending` marks a node whose content
+ * is on its way; it is cleared when there is nothing left to wait for.
+ *
+ * Gives up after the same timeout as an image, so a request that never comes
+ * back costs the reader a placeholder rather than the whole export.
+ */
+const waitForPending = async (element) => {
+    const deadline = Date.now() + IMAGE_TIMEOUT_MS
+
+    while (element.querySelector('[data-pdf-pending]')) {
+        if (Date.now() > deadline) {
+            return
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+}
+
+/**
  * Reads the bottom edge of every outermost `[data-pdf-block]` element as a
  * distance in millimetres from the top of the captured area.
  *
@@ -472,6 +497,7 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     try {
         await waitForFonts()
         await waitForImages(element)
+        await waitForPending(element)
 
         // After the images, so that nothing the reader never sees is left
         // waiting to load; before the capture, so that the layout it renders and
