@@ -2,7 +2,7 @@ import React from "react";
 import i18n from "@dhis2/d2-i18n";
 import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
 import ForecastSummaryWidget from "../widgets/forecastSummaryWidget";
 import SeasonalClimateChart from "../widgets/seasonalClimateChart";
@@ -49,10 +49,11 @@ const BulletinForm = ({ style }) => {
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
-  const [saveStatus, setSaveStatus] = React.useState(null); // 'success' | 'error' | null
+  const [saveStatus, setSaveStatus] = React.useState(null); // 'error' | null
   const [existingBulletin, setExistingBulletin] = React.useState(null);
 
   const { id } = useParams();
+  const navigate = useNavigate();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
@@ -158,7 +159,11 @@ const BulletinForm = ({ style }) => {
 
     const fetchDataValues = async () => {
       try {
-        const periods = getMonthlyPeriods(period, 12, 3);
+        // Thirteen months back rather than twelve: the historical climate chart
+        // draws from thirteen months before the period, and the case values it
+        // plots come from this one fetch. At twelve the chart's oldest month
+        // would have rainfall and no confirmed cases.
+        const periods = getMonthlyPeriods(period, 13, 3);
         const zoneIds = getZoneDescendants(orgUnits, organisationUnit)
           .map((unit) => unit.id);
         console.log(data.dataStore)
@@ -222,7 +227,11 @@ const BulletinForm = ({ style }) => {
         },
         engine
       );
-      showTransientMessage("success", existingBulletin ? i18n.t("Bulletin updated successfully!") : i18n.t("Bulletin saved to draft successfully!"));
+      // Straight back to the list, which fetches again on arrival so that the
+      // bulletin just saved is in it. There is no success message to show here:
+      // it would go with the page a moment later, and the reloaded list is the
+      // better confirmation that the save worked.
+      navigate("/", { state: { refresh: true } });
     } catch (err) {
       console.error("Save bulletin error:", err);
       showTransientMessage(
@@ -425,12 +434,8 @@ const BulletinForm = ({ style }) => {
             </Layer>
           )}
 
-          {saveStatus === "success" && (
-            <AlertBar success permanent={false} onHidden={() => setSaveStatus(null)}>
-              {saveMessage}
-            </AlertBar>
-          )}
-
+          {/* Errors only. A save leaves for the list of bulletins, so a success
+              bar here would be gone before it could be read. */}
           {saveStatus === "error" && (
             <AlertBar critical permanent={false} onHidden={() => setSaveStatus(null)}>
               {saveMessage}
