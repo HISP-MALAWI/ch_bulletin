@@ -1,6 +1,6 @@
 import React from "react";
 import i18n from "@dhis2/d2-i18n";
-import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@dhis2/ui";
+import { Button, Center, CircularLoader, IconError24, Layer, AlertBar, SingleSelectField, SingleSelectOption, InputField } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
 import { useNavigate, useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
@@ -13,11 +13,12 @@ import HistoricalClimateCasesChart from "../widgets/historicalClimateCasesChart"
 import ForecastWidget from "../widgets/forecastWidget";
 import AdvisoriesWidget from "../widgets/advisoriesWidget";
 import ExecutiveSummaryWidget from "../widgets/executiveSummaryWidget";
-import DistrictRiskSummary from "../widgets/districtRiskSummary";
+import DistrictRiskSummary, { DEFAULT_MAP_HEIGHT } from "../widgets/districtRiskSummary";
 import DistrictActionsWidget from "../widgets/districtActionsWidget";
 import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
 import { homeDataQuery } from "./services/getHomeData";
+import { mapsQuery } from "./services/getMaps";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
@@ -46,6 +47,9 @@ const BulletinForm = ({ style }) => {
   const [recommendations, setRecommendations] = React.useState([]);
   const [executiveSummary, setExecutiveSummary] = React.useState([]);
   const [historicalClimate, setHistoricalClimate] = React.useState([]);
+  // The saved DHIS2 map the district risk section is drawn from, if the author
+  // has chosen one: `{ uid, name, height }`.
+  const [districtRiskMap, setDistrictRiskMap] = React.useState(null);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
@@ -56,6 +60,9 @@ const BulletinForm = ({ style }) => {
   const navigate = useNavigate();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
+  // Only the picker needs these, and a saved map is a few hundred bytes.
+  const { loading: mapsLoading, data: mapsData } = dataQuery(mapsQuery);
+  const savedMaps = mapsData?.maps?.maps || [];
   const engine = useDataEngine();
   const { canDraft } = useAccess();
   const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
@@ -123,6 +130,7 @@ const BulletinForm = ({ style }) => {
     if (!id) {
       setExistingBulletin(null);
       setHistoricalClimate([]);
+      setDistrictRiskMap(null);
       return;
     }
 
@@ -132,6 +140,7 @@ const BulletinForm = ({ style }) => {
     if (!foundBulletin) {
       setExistingBulletin(null);
       setHistoricalClimate([]);
+      setDistrictRiskMap(null);
       return;
     }
 
@@ -146,6 +155,7 @@ const BulletinForm = ({ style }) => {
     setRecommendations(Array.isArray(foundBulletin.recommendations) ? foundBulletin.recommendations : []);
     setExecutiveSummary(Array.isArray(foundBulletin.executiveSummary) ? foundBulletin.executiveSummary : []);
     setHistoricalClimate(Array.isArray(foundBulletin.historicalClimate) ? foundBulletin.historicalClimate : []);
+    setDistrictRiskMap(foundBulletin.districtRiskMap?.uid ? foundBulletin.districtRiskMap : null);
   }, [id, homeData]);
 
   // Fetch recorded case data values for the selected period/org unit
@@ -224,6 +234,19 @@ const BulletinForm = ({ style }) => {
           executiveSummary,
           status: existingBulletin?.status || "draft",
           period,
+          // Stored as a number, and null rather than absent when no map is
+          // chosen: the section keeps drawing from the bulletin's own data, and
+          // the record says so.
+          districtRiskMap: districtRiskMap?.uid
+            ? {
+                uid: districtRiskMap.uid,
+                name: districtRiskMap.name || null,
+                height:
+                  Number(districtRiskMap.height) > 0
+                    ? Math.round(Number(districtRiskMap.height))
+                    : DEFAULT_MAP_HEIGHT,
+              }
+            : null,
         },
         engine
       );
@@ -249,6 +272,13 @@ const BulletinForm = ({ style }) => {
   // not silently go nowhere.
   const hiddenSectionCount = resolveSections(data?.dataStore?.sections)
     .filter((section) => !section.visible).length;
+
+  // A map this bulletin carries but the list does not offer: deleted since it was
+  // chosen, or not shared with this user.
+  const chosenMapIsMissing =
+    Boolean(districtRiskMap?.uid) &&
+    !mapsLoading &&
+    !savedMaps.some((map) => map.id === districtRiskMap.uid);
 
   return (
     <div className={style.main}>
@@ -395,8 +425,99 @@ const BulletinForm = ({ style }) => {
                 period={period}
                 orgUnits={orgUnits}
                 selectedOrgUnitId={organisationUnit}
+                districtMap={districtRiskMap}
+                // The editor is a long form, so the Maps app is only loaded once
+                // this section is close to the screen. The preview mounts it as
+                // soon as it opens instead: its map is what the PDF captures.
+                deferMap
               />
             </div>
+
+            {/* The district risk section draws its own map from the bulletin's
+                forecast data. A saved DHIS2 map is a different map — its own
+                indicator, period and class breaks, edited in the Maps app — so
+                it is the author's choice per bulletin rather than a setting. */}
+            <section className={`${style.sectionCard} ${style.fullWidth}`}>
+              <div className={style.sectionHeader}>
+                <span className={style.sectionTitle}>
+                  {i18n.t("District risk map")}
+                </span>
+              </div>
+              <p className={style.sectionSub}>
+                {i18n.t(
+                  "Use a map saved in the DHIS2 Maps app in place of the map drawn from this bulletin's forecast data. Its extent and styling are edited in the Maps app, and it follows its own period and organisation units rather than this bulletin's."
+                )}
+              </p>
+              {mapsLoading ? (
+                <CircularLoader small />
+              ) : (
+                <div className={style.bulletinTwoColumnGrid}>
+                  <SingleSelectField
+                    filterable
+                    label={i18n.t("Map")}
+                    selected={districtRiskMap?.uid || ""}
+                    onChange={({ selected }) => {
+                      if (!selected) {
+                        setDistrictRiskMap(null);
+                        return;
+                      }
+
+                      const chosen = savedMaps.find((map) => map.id === selected);
+
+                      setDistrictRiskMap({
+                        uid: selected,
+                        name: chosen?.displayName || selected,
+                        // Kept when switching between maps, so comparing two of
+                        // them does not resize the document each time.
+                        height: districtRiskMap?.height || DEFAULT_MAP_HEIGHT,
+                      });
+                    }}
+                    helpText={i18n.t(
+                      "The map is added to the bulletin by id, so editing it in the Maps app changes it in every bulletin that uses it."
+                    )}
+                  >
+                    <SingleSelectOption
+                      value=""
+                      label={i18n.t("None — draw from bulletin data")}
+                    />
+                    {/* The chosen map can be gone from the list: deleted, or not
+                        shared with this user. It stays selected so the author
+                        sees which map the bulletin is carrying rather than
+                        finding the choice quietly reset. */}
+                    {chosenMapIsMissing ? (
+                      <SingleSelectOption
+                        value={districtRiskMap.uid}
+                        label={districtRiskMap.name || districtRiskMap.uid}
+                      />
+                    ) : null}
+                    {savedMaps.map((map) => (
+                      <SingleSelectOption
+                        key={map.id}
+                        value={map.id}
+                        label={map.displayName}
+                      />
+                    ))}
+                  </SingleSelectField>
+                  <InputField
+                    type="number"
+                    label={i18n.t("Map height (px)")}
+                    min="200"
+                    max="900"
+                    step="20"
+                    disabled={!districtRiskMap?.uid}
+                    value={String(districtRiskMap?.height || DEFAULT_MAP_HEIGHT)}
+                    onChange={({ value }) =>
+                      setDistrictRiskMap((current) =>
+                        current ? { ...current, height: value } : current
+                      )
+                    }
+                    helpText={i18n.t(
+                      "How tall the map is in the document. It is drawn to fit the box, so its shape does not change."
+                    )}
+                  />
+                </div>
+              )}
+            </section>
 
             <div className={style.fullWidth}>
               <DistrictActionsWidget

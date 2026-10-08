@@ -245,18 +245,33 @@ const BulletinPreview = ({ style }) => {
                 getOrgUnitName(bulletin.organisationUnit),
             ])}.pdf`
 
-            const { droppedImages } = await exportBulletinPdf(contentRef.current, {
+            const { droppedImages, mapFallbacks } = await exportBulletinPdf(contentRef.current, {
                 fileName,
                 title: `${bulletinTitle} - ${formatPeriod(bulletin.period)}`,
             })
 
+            // Both are things the reader would otherwise only find out by
+            // looking at the PDF, so neither is allowed to swallow the other.
+            const warnings = []
+
             if (droppedImages > 0) {
-                showDownloadMessage(
-                    'warning',
+                warnings.push(
                     i18n.t('PDF downloaded, but {{total}} image(s) could not be included. Check the image URLs in Settings.', {
                         total: droppedImages,
                     })
                 )
+            }
+
+            if (mapFallbacks > 0) {
+                warnings.push(
+                    i18n.t('{{total}} DHIS2 map(s) could not be captured from this address, so the bulletin drew the district map itself. Export from the instance to capture the DHIS2 map.', {
+                        total: mapFallbacks,
+                    })
+                )
+            }
+
+            if (warnings.length > 0) {
+                showDownloadMessage('warning', warnings.join(' '))
             }
         } catch (err) {
             console.error('Error generating PDF:', err)
@@ -499,6 +514,7 @@ const BulletinPreview = ({ style }) => {
                     period={bulletin.period}
                     orgUnits={orgUnits}
                     selectedOrgUnitId={bulletin.organisationUnit}
+                    districtMap={bulletin.districtRiskMap}
                 />
             ),
         }),

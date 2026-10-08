@@ -1,4 +1,5 @@
 import i18n from '@dhis2/d2-i18n'
+import { swapMapCanvases } from './districtMapCanvas'
 
 const A4_WIDTH_MM = 210
 const A4_HEIGHT_MM = 297
@@ -468,7 +469,9 @@ const renderSlice = (source, slice, pxPerMm) => {
 /**
  * Renders `element` to a paginated A4 PDF and saves it.
  *
- * @returns {Promise<{droppedImages: number}>} how many images were left out
+ * @returns {Promise<{droppedImages: number, mapFallbacks: number}>} how many
+ * images were left out, and how many embedded DHIS2 maps could not be captured
+ * and were drawn from the bulletin's own data instead
  */
 export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     if (!element) {
@@ -493,11 +496,23 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     // Declared out here so the `finally` below can put the document back even
     // if the capture throws before the nodes have been hidden.
     let restoreExcluded = () => {}
+    let restoreMaps = () => {}
+    let mapFallbacks = 0
 
     try {
         await waitForFonts()
         await waitForImages(element)
         await waitForPending(element)
+
+        // After the wait, so the map that is captured is the one that has
+        // finished painting, and before the capture, because html2canvas
+        // re-renders an iframe without reporting a failure when the canvas
+        // inside it clones empty — which would put a blank map box in the
+        // document. Whatever cannot be read is uncovered instead, so the map the
+        // bulletin draws itself is what lands on the page.
+        const maps = swapMapCanvases(element)
+        restoreMaps = maps.restore
+        mapFallbacks = maps.maps - maps.captured
 
         // After the images, so that nothing the reader never sees is left
         // waiting to load; before the capture, so that the layout it renders and
@@ -570,8 +585,9 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
         throw err
     } finally {
         restoreExcluded()
+        restoreMaps()
         restore()
     }
 
-    return { droppedImages: dropped }
+    return { droppedImages: dropped, mapFallbacks }
 }
