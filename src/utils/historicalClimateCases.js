@@ -73,6 +73,20 @@ export const buildHistoricalClimateCaseRows = ({
 };
 
 /**
+ * Whether stored climate values were fetched for the months the chart draws.
+ *
+ * The values are a cache of an earlier fetch: a bulletin saved while the chart
+ * drew twelve months holds twelve, and drawing a thirteenth from it would show
+ * the oldest month as "no data" rather than as the month it is. A stored set
+ * that does not reach the first month drawn is therefore not a cache of this
+ * window and has to be fetched again.
+ */
+export const hasClimateValuesForPeriods = (climateDataValues = [], periods = []) => {
+    const covered = new Set(climateDataValues.map((row) => row[1]));
+    return periods.every((period) => covered.has(period));
+};
+
+/**
  * The month the rainfall peaks, the month the confirmed cases peak, and how far
  * apart they are. `leadMonths` is positive when the rain comes first, which is
  * the relationship the bulletin is making a claim about; zero and negative are

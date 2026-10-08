@@ -2,7 +2,24 @@ import {
     buildHistoricalClimateCaseRows,
     getRainfallCasePeakInsight,
     getRainfallCasePeaks,
+    hasClimateValuesForPeriods,
 } from './historicalClimateCases';
+
+describe('hasClimateValuesForPeriods', () => {
+    it('is true only when a stored value reaches every month drawn', () => {
+        const stored = [
+            ['rain', '202509', 'country', '10'],
+            ['rain', '202510', 'country', '40'],
+            ['temperature', '202510', 'country', '26'],
+        ];
+
+        expect(hasClimateValuesForPeriods(stored, ['202509', '202510'])).toBe(true);
+        // A month the chart now draws but the stored fetch never asked for.
+        expect(hasClimateValuesForPeriods(stored, ['202508', '202509', '202510'])).toBe(false);
+        expect(hasClimateValuesForPeriods([], ['202510'])).toBe(false);
+        expect(hasClimateValuesForPeriods(stored, [])).toBe(true);
+    });
+});
 
 describe('buildHistoricalClimateCaseRows', () => {
     const orgUnits = [
