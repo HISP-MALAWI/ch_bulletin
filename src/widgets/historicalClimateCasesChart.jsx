@@ -19,6 +19,7 @@ import {
     buildHistoricalClimateCaseRows,
     getRainfallCasePeakInsight,
     getRainfallCasePeaks,
+    hasClimateValuesForPeriods,
 } from '../utils/historicalClimateCases';
 
 const RAINFALL_COLOR = '#86bec3';
@@ -55,6 +56,17 @@ const LAG_ARROW_HEAD = 7;
 // Courier New at LAG_FONT_SIZE. Only used to keep the label inside the chart
 // when the two peaks sit against one edge; nothing depends on it being exact.
 const LAG_CHAR_WIDTH = 6.3;
+
+// The months the chart draws: everything from thirteen months before the
+// bulletin period through to it. For the August 2026 issue that is July 2025 to
+// August 2026, the span the bulletin is written about — its season starts in
+// July, so the chart has to reach back to it.
+//
+// The window ends at the bulletin period and slides with it rather than
+// starting from a fixed July: pinned to a calendar month it would grow by a
+// month every issue, and its bars would keep thinning for as long as the
+// bulletin keeps being published.
+const HISTORY_MONTHS_BACK = 13;
 
 const shortMonth = (period) => {
     const date = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(4, 6)) - 1, 1));
@@ -157,12 +169,18 @@ const HistoricalClimateCasesChart = ({
     const [climateDataValues, setClimateDataValues] = React.useState(initialClimateDataValues || []);
     const [loading, setLoading] = React.useState(initialClimateDataValues === undefined);
     const periods = React.useMemo(
-        () => period ? getMonthlyPeriods(period, 11, 0) : [],
+        () => period ? getMonthlyPeriods(period, HISTORY_MONTHS_BACK, 0) : [],
         [period]
     );
 
     React.useEffect(() => {
-        if (initialClimateDataValues !== undefined) {
+        // Stored values are used when they already cover this window, and
+        // fetched again when they do not — a bulletin saved while the chart
+        // drew fewer months holds values that stop short of the first month
+        // drawn now, and the difference would read as a month with no rainfall
+        // rather than as a month that was never asked for.
+        if (initialClimateDataValues !== undefined &&
+            hasClimateValuesForPeriods(initialClimateDataValues, periods)) {
             setClimateDataValues(initialClimateDataValues);
             setLoading(false);
             return undefined;

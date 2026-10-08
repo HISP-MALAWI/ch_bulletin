@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-06T11:50:08.549Z\n"
-"PO-Revision-Date: 2026-10-06T11:50:08.550Z\n"
+"POT-Creation-Date: 2026-10-08T08:08:39.322Z\n"
+"PO-Revision-Date: 2026-10-08T08:08:39.322Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -176,12 +176,6 @@ msgstr "You do not have permission to draft bulletins"
 
 msgid "Please add highlights before saving"
 msgstr "Please add highlights before saving"
-
-msgid "Bulletin updated successfully!"
-msgstr "Bulletin updated successfully!"
-
-msgid "Bulletin saved to draft successfully!"
-msgstr "Bulletin saved to draft successfully!"
 
 msgid "Error saving bulletin. Please try again."
 msgstr "Error saving bulletin. Please try again."
