@@ -646,6 +646,13 @@
   height: 260px;
 }
 
+/* The map needs less room on the page than on the screen: the document column
+   is roughly 50mm wide, so the screen height would spend about 120mm of the A4
+   page on it. The drawing scales to whatever box it is given. */
+.bulletinDocumentPanel .districtRiskMapViewport {
+  height: 300px;
+}
+
 .currentMalariaPanel {
   box-sizing: border-box;
   display: flex;
@@ -714,6 +721,12 @@
 }
 
 .districtRiskSummary {
+  /* One definition of each risk colour for the legend swatches, the tiles and
+     the map, so a district cannot come out amber in one and red in another.
+     The legend and the tiles read `background`, the map reads `fill`. */
+  --risk-alert: #c51627;
+  --risk-watch: #e3a400;
+  --risk-normal: #27813c;
   margin: 0;
   padding: 14px;
 }
@@ -793,12 +806,28 @@
   line-height: 1.5;
 }
 
-/* The alert table sits under the map and continues it, so the two share their
-   card treatment rather than each carrying their own copy of it. */
+/* The map and the alert table answer the same question from two directions —
+   the map says where, the table says which and by how much — so they sit side
+   by side. The gap between them is the margin the two carried when they were
+   stacked, moved onto the row that now separates them from the subtitle. */
+.districtRiskRow {
+  display: grid;
+  grid-template-columns: minmax(170px, 250px) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  align-items: start;
+}
+
+/* No district is on alert, so there is no table and the map has the row to
+   itself. `preserveAspectRatio` centres the drawing in the wider box. */
+.districtRiskRowWide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The two share their card treatment rather than each carrying its own copy. */
 .districtRiskMap,
 .districtAlertTable {
   min-width: 0;
-  margin-top: 12px;
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
@@ -848,26 +877,34 @@
   border-radius: 2px;
 }
 
-.districtRiskLegendAlert {
-  background: #c51627;
+.districtRiskLegendAlert,
+.districtRiskTileAlert,
+.districtRiskMapAlert {
+  background: var(--risk-alert);
+  fill: var(--risk-alert);
 }
 
-.districtRiskLegendWatch {
-  background: #e3a400;
+.districtRiskLegendWatch,
+.districtRiskTileWatch,
+.districtRiskMapWatch {
+  background: var(--risk-watch);
+  fill: var(--risk-watch);
 }
 
-.districtRiskLegendNormal {
-  background: #27813c;
+.districtRiskLegendNormal,
+.districtRiskTileNormal,
+.districtRiskMapNormal {
+  background: var(--risk-normal);
+  fill: var(--risk-normal);
 }
 
+/* Where the districts go when no boundary can be drawn for them — a failed
+   request, or geometry the instance does not have. `auto-fill` keeps the tiles
+   a readable size as the column widens, and it leaves the unused tracks in
+   place, so a short last row stays the same size as the rest rather than
+   stretching to fill. */
 .districtRiskTiles {
   display: grid;
-  /* The map now has the section's full width to itself. `auto-fill` keeps the
-     tiles a readable size as that width grows — with a fixed five columns they
-     would stretch to about 200px each on a desktop window — and it leaves the
-     unused tracks in place, so a short last row stays the same size as the rest
-     rather than stretching to fill. At the width the map had when the district
-     lists sat beside it this comes out at five columns, as before. */
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 4px;
 }
@@ -887,17 +924,63 @@
   text-align: center;
 }
 
-.districtRiskTileAlert {
-  background: #c51627;
-}
-
 .districtRiskTileWatch {
-  background: #e3a400;
+  /* Amber is too light to carry white text. */
   color: #16233a;
 }
 
-.districtRiskTileNormal {
-  background: #27813c;
+/* A fixed height, following `.casesChart`. The PDF export measures its page
+   breaks off the live layout, so a box that resized when the boundaries landed
+   would put every cut below it out of step. The loading state is the same
+   height, for the same reason. */
+.districtRiskMapViewport {
+  display: grid;
+  height: 520px;
+  place-items: center;
+}
+
+.districtRiskMapSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A white hairline between neighbours. Each ring is thinned on its own, so two
+   adjacent districts can leave a sliver of background showing between them. */
+.districtRiskMapArea {
+  stroke: #ffffff;
+  stroke-width: 0.5;
+}
+
+.districtRiskMapArea:hover {
+  opacity: 0.82;
+}
+
+.districtRiskMapPoint {
+  stroke: #ffffff;
+  stroke-width: 1;
+}
+
+/* Outlined rather than filled, so a name stays readable over whichever colour
+   its district happens to carry — and over the neighbour's label, since twenty
+   nine names in a drawing this size cannot all have clear space. The halo is
+   what keeps the one on top legible. */
+.districtRiskMapLabel {
+  fill: #102b42;
+  font-size: 7px;
+  font-weight: 600;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 2px;
+}
+
+/* The districts the section is about get a step up in size and weight, so they
+   still lead the eye in a fully labelled map. */
+.districtRiskMapLabelAlert {
+  font-size: 8.5px;
+  font-weight: 800;
 }
 
 .districtRiskMapEmpty,
@@ -967,6 +1050,10 @@
   }
 
   .districtActionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .districtRiskRow {
     grid-template-columns: 1fr;
   }
 

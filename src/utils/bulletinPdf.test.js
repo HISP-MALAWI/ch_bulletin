@@ -134,6 +134,7 @@ describe('sanitiseFileName', () => {
 describe('exportBulletinPdf', () => {
     const canvasContext = { fillRect: jest.fn(), drawImage: jest.fn() }
     let displayDuringCapture = null
+    let pendingDuringCapture = null
     let captureError = null
 
     const buildDocument = () => {
@@ -155,12 +156,14 @@ describe('exportBulletinPdf', () => {
     beforeEach(() => {
         jest.resetModules()
         displayDuringCapture = null
+        pendingDuringCapture = null
         captureError = null
 
         jest.doMock('html2canvas', () => ({
             __esModule: true,
             default: async (element) => {
                 displayDuringCapture = element.querySelector('#summary').style.display
+                pendingDuringCapture = element.querySelector('[data-pdf-pending]') !== null
 
                 if (captureError) {
                     throw captureError
@@ -196,6 +199,22 @@ describe('exportBulletinPdf', () => {
         await exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
 
         expect(element.querySelector('#summary').style.display).toBe('block')
+    })
+
+    it('holds the capture back while a section is still loading', async () => {
+        const { exportBulletinPdf } = require('./bulletinPdf')
+        const element = buildDocument()
+        const pending = document.createElement('div')
+        pending.setAttribute('data-pdf-pending', '')
+        element.appendChild(pending)
+
+        // The district risk map's boundaries land just after the download is
+        // clicked: the export must wait rather than capture the placeholder.
+        setTimeout(() => pending.removeAttribute('data-pdf-pending'), 20)
+
+        await exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
+
+        expect(pendingDuringCapture).toBe(false)
     })
 
     it('puts them back when the capture fails', async () => {
