@@ -11,7 +11,21 @@ const PREDICTION_FIELDS = [
     'predictionQuartileHigh',
 ];
 
-export const buildSelectedUnitMalariaData = ({ dataValues = [], mapping = [], periods = [], selectedOrgUnit }) => {
+const FORECAST_FIELDS = new Set([
+    'predictionLowerBound',
+    'predictionMedian',
+    'predictionUpperBound',
+    'predictionQuartileLow',
+    'predictionQuartileHigh',
+]);
+
+export const buildSelectedUnitMalariaData = ({
+    dataValues = [],
+    mapping = [],
+    periods = [],
+    selectedOrgUnit,
+    forecastStartPeriod,
+}) => {
     const malariaMapping = mapping.find((item) => /malaria/i.test(item.displayName || ''));
     if (!malariaMapping?.dataElement || periods.length === 0) {
         return { malariaMapping: null, rows: [] };
@@ -50,6 +64,11 @@ export const buildSelectedUnitMalariaData = ({ dataValues = [], mapping = [], pe
 
         const rowField = rowFieldByDataElement.get(dataElement);
         if (rowField) {
+            if (
+                FORECAST_FIELDS.has(rowField) &&
+                forecastStartPeriod &&
+                month < forecastStartPeriod
+            ) return;
             rowsByPeriod.get(month)[rowField] = value;
         }
     });
