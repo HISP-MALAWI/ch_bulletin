@@ -87,6 +87,65 @@ describe('buildSelectedUnitMalariaData', () => {
         expect(rows[0].predictionQuartileLow).toBe(125);
         expect(rows[0].quartileRange).toBeUndefined();
     });
+
+    it('omits historical forecast values while retaining historical cases and thresholds', () => {
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping: [{
+                displayName: 'Malaria Cases',
+                dataElement: 'malaria',
+                threshold: 'threshold',
+                predictionLowerBound: 'lower',
+                predictionMedian: 'median',
+                predictionUpperBound: 'upper',
+                predictionQuartileLow: 'q1',
+                predictionQuartileHigh: 'q3',
+            }],
+            periods: ['202609', '202610'],
+            selectedOrgUnit: 'district',
+            forecastStartPeriod: '202610',
+            dataValues: [
+                ['malaria', '202609', 'district', '100'],
+                ['threshold', '202609', 'district', '90'],
+                ['lower', '202609', 'district', '80'],
+                ['median', '202609', 'district', '110'],
+                ['upper', '202609', 'district', '130'],
+                ['q1', '202609', 'district', '95'],
+                ['q3', '202609', 'district', '120'],
+                ['malaria', '202610', 'district', '105'],
+                ['threshold', '202610', 'district', '95'],
+                ['lower', '202610', 'district', '85'],
+                ['median', '202610', 'district', '115'],
+                ['upper', '202610', 'district', '135'],
+                ['q1', '202610', 'district', '100'],
+                ['q3', '202610', 'district', '125'],
+            ],
+        });
+
+        expect(rows).toEqual([
+            {
+                period: '202609',
+                cases: 100,
+                threshold: 90,
+                predictionLowerBound: null,
+                predictionMedian: null,
+                predictionUpperBound: null,
+                predictionQuartileLow: null,
+                predictionQuartileHigh: null,
+            },
+            {
+                period: '202610',
+                cases: 105,
+                threshold: 95,
+                predictionLowerBound: 85,
+                predictionMedian: 115,
+                predictionUpperBound: 135,
+                predictionQuartileLow: 100,
+                predictionQuartileHigh: 125,
+                predictionRange: [85, 135],
+                quartileRange: [100, 125],
+            },
+        ]);
+    });
 });
 
 describe('summariseForecast', () => {
