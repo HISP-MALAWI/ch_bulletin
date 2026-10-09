@@ -108,7 +108,6 @@ const BulletinForm = ({ style }) => {
         const json = await res.json();
         if (!cancelled) setForecast(json);
       } catch (err) {
-        console.error("Error fetching forecast:", err);
         if (!cancelled) setForecast([]);
       }
     };
@@ -166,7 +165,6 @@ const BulletinForm = ({ style }) => {
         const periods = getMonthlyPeriods(period, 13, 3);
         const zoneIds = getZoneDescendants(orgUnits, organisationUnit)
           .map((unit) => unit.id);
-        console.log(data.dataStore)
         const districtIds = getDistrictDescendants(orgUnits, organisationUnit)
           .map((unit) => unit.id);
         const values = await getDataValues(
@@ -175,8 +173,6 @@ const BulletinForm = ({ style }) => {
           [organisationUnit, ...zoneIds, ...districtIds],
           engine
         );
-        console.log(data.dataStore.mapping);
-        console.log(values)
         if (!cancelled) setDatavalues(values);
       } catch (err) {
         console.error("Error fetching data values:", err);
