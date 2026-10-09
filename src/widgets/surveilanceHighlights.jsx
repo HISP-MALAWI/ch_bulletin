@@ -367,8 +367,14 @@ const HealthCasesWidget = ({
         [period]
     );
     const { malariaMapping, rows } = React.useMemo(
-        () => buildSelectedUnitMalariaData({ dataValues, mapping, periods, selectedOrgUnit }),
-        [dataValues, mapping, periods, selectedOrgUnit]
+        () => buildSelectedUnitMalariaData({
+            dataValues,
+            mapping,
+            periods,
+            selectedOrgUnit,
+            forecastStartPeriod: period,
+        }),
+        [dataValues, mapping, periods, selectedOrgUnit, period]
     );
     const forecast = React.useMemo(() => summariseForecast({ rows }), [rows]);
 
