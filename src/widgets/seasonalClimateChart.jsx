@@ -42,7 +42,6 @@ const SeasonalClimateChart = ({
     onDataValuesChange,
     initialDataValues,
     orgUnits = [],
-    step,
     title = 'Seasonal rainfall and temperature',
     description,
 }) => {
@@ -121,7 +120,7 @@ const SeasonalClimateChart = ({
 
     return (
         <section className={style.sectionCard}>
-            <BulletinSectionHeader step={step} title={title} description={description} />
+            <BulletinSectionHeader title={title} description={description} />
             <p className={style.casesChartSubtitle}>
                 Monthly rainfall and mean temperature{orgUnitName ? ` for ${orgUnitName}` : ''}, {formatMonth(periods[0])} – {formatMonth(periods.at(-1))}
             </p>

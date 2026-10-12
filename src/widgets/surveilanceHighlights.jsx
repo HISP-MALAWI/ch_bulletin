@@ -348,7 +348,6 @@ const CasesLabel = ({ x, y, value }) => {
 
 const HealthCasesWidget = ({
     style,
-    step,
     title = 'Malaria Forecast',
     description,
     dataValues = [],
@@ -502,7 +501,7 @@ const HealthCasesWidget = ({
 
     return (
         <div>
-            <BulletinSectionHeader step={step} title={title} description={description} />
+            <BulletinSectionHeader title={title} description={description} />
             {/* The chart's own heading sits over the plot it names, so it is
                 centred across it; the section heading above keeps the app's
                 left alignment. */}

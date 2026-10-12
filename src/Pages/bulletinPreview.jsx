@@ -27,7 +27,6 @@ import { BulletinSection } from '../widgets/bulletinSection'
 import { describeForecastWindow } from '../utils/periodLabel'
 import {
     groupRows,
-    numberSections,
     resolveSections,
     visibleSections,
 } from '../utils/bulletinSections'
@@ -37,17 +36,6 @@ const GENERATED_ON_FORMAT = new Intl.DateTimeFormat('en-GB', {
     month: 'long',
     year: 'numeric',
 })
-
-// An executive summary line reads "September 2026: ...". The month leads it and
-// is picked out in the accent colour. A line the author has rewritten without a
-// colon simply comes back as one piece of text.
-const splitSummaryLine = (line) => {
-    const separator = line.indexOf(': ')
-
-    return separator === -1
-        ? { lead: null, rest: line }
-        : { lead: line.slice(0, separator), rest: line.slice(separator) }
-}
 
 const BulletinPreview = ({ style }) => {
     const { id } = useParams()
@@ -325,8 +313,6 @@ const BulletinPreview = ({ style }) => {
         )
     }
 
-    const isDraft = (bulletin.status || 'draft') === 'draft'
-    const statusLabel = isDraft ? i18n.t('Draft') : i18n.t('Published')
     const hasHighlights = hasHighlightsContent(highlightsHtml)
     const bulletinDataValues = Array.isArray(bulletin.cases?.[0]) ? bulletin.cases[0] : []
     const generatedDate = GENERATED_ON_FORMAT.format(new Date())
@@ -336,19 +322,17 @@ const BulletinPreview = ({ style }) => {
     const sectionRows = groupRows(
         visibleSections(resolveSections(settingsData?.dataStore?.sections))
     )
-    const sectionNumbers = numberSections(sectionRows)
 
     // One entry per configurable section, each closing over the bulletin and the
     // settings read above — which is why this is built here rather than at module
     // scope. An entry returns `null` when its section has nothing to show, so the
     // wrapper is never rendered empty.
     //
-    // The step numeral arrives as an argument, counted in the order the rows are
-    // rendered rather than hardcoded per section, so a reordered or half-hidden
-    // document still reads 1, 2, 3, … down the page. Each entry also carries its
-    // own wrapper class, because they are not interchangeable: the section that
-    // carries `bulletinDocumentPanel` today is the one whose chart is pinned to
-    // 280px by it, and applying it everywhere would resize the other charts.
+    // Each entry carries its own wrapper class, because they are not
+    // interchangeable: the section that carries `bulletinDocumentPanel` today is
+    // the one whose chart is pinned to 280px by it, and applying it everywhere
+    // would resize the other charts. None of them takes an argument: the step
+    // numerals the document used to print are gone, so there is nothing to count.
     const sectionContent = {
         malariaOverview: () => ({
             node: (
@@ -376,43 +360,17 @@ const BulletinPreview = ({ style }) => {
             ),
         }),
 
-        executiveSummary: () => {
-            if (!Array.isArray(bulletin.executiveSummary) || bulletin.executiveSummary.length === 0) {
-                return null
-            }
-
-            return {
-                node: (
-                    <BulletinSection title={i18n.t('Executive Summary')}>
-                        <div className={style.bulletinList}>
-                            {bulletin.executiveSummary.map((line, index) => {
-                                const { lead, rest } = splitSummaryLine(line)
-
-                                return (
-                                    <div key={index} className={style.bulletinListItem}>
-                                        <span className={style.bulletinListItemText}>
-                                            {lead && (
-                                                <span className={style.bulletinSummaryMonth}>{lead}</span>
-                                            )}
-                                            {rest}
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </BulletinSection>
-                ),
-            }
-        },
-
-        highlights: (step) => {
+        // The document's executive summary. The field is the record's
+        // `highlights` and the section id is `highlights`; only the title the
+        // reader sees is the executive summary's — see `bulletinSections.js`.
+        highlights: () => {
             if (!hasHighlights) {
                 return null
             }
 
             return {
                 node: (
-                    <BulletinSection step={step} title={i18n.t('Highlights')}>
+                    <BulletinSection title={i18n.t('Executive Summary')}>
                         <div
                             className={style.highlightsBody}
                             dangerouslySetInnerHTML={{ __html: highlightsHtml }}
@@ -436,7 +394,7 @@ const BulletinPreview = ({ style }) => {
             ),
         }),
 
-        malariaForecast: (step) => ({
+        malariaForecast: () => ({
             className: style.bulletinDocumentPanel,
             node: (
                 <HealthCasesWidget
@@ -446,7 +404,6 @@ const BulletinPreview = ({ style }) => {
                     selectedOrgUnit={bulletin.organisationUnit}
                     period={bulletin.period}
                     style={style}
-                    step={step}
                     title={i18n.t('Malaria Forecast')}
                     description={i18n.t('Recorded cases, the predicted range and the alert threshold.')}
                 />
@@ -473,7 +430,7 @@ const BulletinPreview = ({ style }) => {
             ),
         }),
 
-        weatherForecast: (step) => ({
+        weatherForecast: () => ({
             className: style.bulletinDocumentPanel,
             node: (
                 <ForecastWidget
@@ -481,7 +438,6 @@ const BulletinPreview = ({ style }) => {
                     organisationUnit={bulletin.organisationUnit}
                     period={bulletin.period}
                     style={style}
-                    step={step}
                     title={i18n.t('Weather Forecast')}
                     description={i18n.t('Upcoming weather conditions.')}
                 />
@@ -534,50 +490,6 @@ const BulletinPreview = ({ style }) => {
             ),
         }),
 
-        advisories: (step) => {
-            if (!Array.isArray(bulletin.advisories) || bulletin.advisories.length === 0) {
-                return null
-            }
-
-            return {
-                node: (
-                    <BulletinSection step={step} title={i18n.t('Health Advisories')}>
-                        {/* A left-border accent rather than an icon, which is how
-                            the reference marks advisories and messages. */}
-                        <div className={style.bulletinList}>
-                            {bulletin.advisories.map((advisory, index) => (
-                                <div
-                                    key={index}
-                                    className={`${style.bulletinListItem} ${style.bulletinListItemAdvisory}`}
-                                >
-                                    <span className={style.bulletinListItemText}>{advisory}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </BulletinSection>
-                ),
-            }
-        },
-
-        recommendations: (step) => {
-            if (!Array.isArray(bulletin.recommendations) || bulletin.recommendations.length === 0) {
-                return null
-            }
-
-            return {
-                node: (
-                    <BulletinSection step={step} title={i18n.t('Recommendations')}>
-                        <div className={style.bulletinList}>
-                            {bulletin.recommendations.map((recommendation, index) => (
-                                <div key={index} className={style.bulletinListItem}>
-                                    <span className={style.bulletinListItemText}>{recommendation}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </BulletinSection>
-                ),
-            }
-        },
     }
 
     return (
@@ -666,10 +578,12 @@ const BulletinPreview = ({ style }) => {
                             </p>
                         </div>
                     </div>
+                    {/* The date only. The document used to print its own status
+                        in a pill, which the reader has no use for: a published
+                        bulletin is published, and a draft is one the author has
+                        not sent yet. The status stays on the list, where it is
+                        the officer's business rather than the reader's. */}
                     <div className={style.bulletinLetterheadStatus}>
-                        <span className={isDraft ? style.statusDraft : style.statusSubmitted}>
-                            {statusLabel}
-                        </span>
                         <span className={style.bulletinGeneratedOn}>
                             {i18n.t('Generated on {{date}}', {
                                 date: GENERATED_ON_FORMAT.format(new Date()),
@@ -691,7 +605,7 @@ const BulletinPreview = ({ style }) => {
                 the sections that do not carry it today. */}
             {sectionRows.map(({ row, items }) => {
                 const panels = items
-                    .map(({ id }) => ({ id, ...(sectionContent[id]?.(sectionNumbers[id]) || {}) }))
+                    .map(({ id }) => ({ id, ...(sectionContent[id]?.() || {}) }))
                     // A widget that renders nothing (MalariaRiskOverview returns
                     // null with no malaria mapping configured) must not leave an
                     // empty block behind: the export treats every block edge as a
