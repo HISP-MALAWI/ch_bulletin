@@ -3,14 +3,13 @@
 // each hazard.
 //
 // This is authored copy and there is nowhere in DHIS2 to keep it. The settings
-// store holds data-element references and numbers only, and every other piece of
-// prose in `src/utils` — healthGuidance, executiveSummary, districtActions — is
-// generated from climate and forecast signals rather than written about a
-// disease. So it lives here, in one place, to be edited deliberately.
+// store holds data-element references and numbers only, and the rest of the
+// prose in `src/utils` — districtActions, for one — is generated from climate
+// and forecast signals rather than written about a disease. So it lives here, in
+// one place, to be edited deliberately.
 //
-// Deliberately not routed through i18n, matching the generated prose in
-// healthGuidance.js. If the bulletin is ever translated, this is the file that
-// has to change.
+// Deliberately not routed through i18n, matching the generated prose elsewhere.
+// If the bulletin is ever translated, this is the file that has to change.
 
 const OVERVIEWS = [
     {

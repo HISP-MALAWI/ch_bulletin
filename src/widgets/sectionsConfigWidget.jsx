@@ -13,8 +13,9 @@ import { groupRows, resolveSections } from '../utils/bulletinSections';
 const LABELS = {
     malariaOverview: () => i18n.t('Malaria overview'),
     forecastSummary: () => i18n.t('Forecast summary cards'),
-    executiveSummary: () => i18n.t('Executive Summary'),
-    highlights: () => i18n.t('Highlights'),
+    // The id is `highlights` because that is what stored configs carry; the
+    // section is the document's executive summary. See `bulletinSections.js`.
+    highlights: () => i18n.t('Executive Summary'),
     currentMalariaSituation: () => i18n.t('Current Malaria Situation'),
     malariaForecast: () => i18n.t('Malaria Forecast'),
     historicalClimate: () => i18n.t('Historical climate and cases'),
@@ -22,8 +23,6 @@ const LABELS = {
     seasonalClimate: () => i18n.t('Seasonal climate'),
     districtRisk: () => i18n.t('District forecast risk'),
     districtActions: () => i18n.t('District actions'),
-    advisories: () => i18n.t('Health Advisories'),
-    recommendations: () => i18n.t('Recommendations'),
 };
 
 const labelFor = (id) => (LABELS[id] ? LABELS[id]() : id);

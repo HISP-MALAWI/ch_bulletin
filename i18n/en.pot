@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-08T20:34:36.241Z\n"
-"PO-Revision-Date: 2026-10-08T20:34:36.242Z\n"
+"POT-Creation-Date: 2026-10-12T11:56:34.614Z\n"
+"PO-Revision-Date: 2026-10-12T11:56:34.615Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -105,17 +105,8 @@ msgstr "Back to Home"
 msgid "No bulletin data available"
 msgstr "No bulletin data available"
 
-msgid "Draft"
-msgstr "Draft"
-
-msgid "Published"
-msgstr "Published"
-
 msgid "Executive Summary"
 msgstr "Executive Summary"
-
-msgid "Highlights"
-msgstr "Highlights"
 
 msgid "Malaria Forecast"
 msgstr "Malaria Forecast"
@@ -128,12 +119,6 @@ msgstr "Weather Forecast"
 
 msgid "Upcoming weather conditions."
 msgstr "Upcoming weather conditions."
-
-msgid "Health Advisories"
-msgstr "Health Advisories"
-
-msgid "Recommendations"
-msgstr "Recommendations"
 
 msgid "Download PDF"
 msgstr "Download PDF"
@@ -183,8 +168,8 @@ msgstr "No bulletins available."
 msgid "You do not have permission to draft bulletins"
 msgstr "You do not have permission to draft bulletins"
 
-msgid "Please add highlights before saving"
-msgstr "Please add highlights before saving"
+msgid "Please add an executive summary before saving"
+msgstr "Please add an executive summary before saving"
 
 msgid "Error saving bulletin. Please try again."
 msgstr "Error saving bulletin. Please try again."

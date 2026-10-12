@@ -8,15 +8,13 @@ import style from '../App.module.css'
  * than one block — a block heading. Sections used to disagree about both, so a
  * chart title could be larger than the section title above it.
  *
- * `step` is optional. The numeral sits in the badge and is deliberately not
- * translated; everything else is.
+ * The sections used to carry step badges numbered down the page. They were
+ * dropped: the document is read, not worked through, and the numerals read as
+ * instructions. The Settings page kept its own, which are steps.
  */
-export const BulletinSectionHeader = ({ step, title, description }) => (
+export const BulletinSectionHeader = ({ title, description }) => (
     <>
         <div className={style.sectionHeader}>
-            {step !== undefined && step !== null && step !== '' && (
-                <div className={style.stepBadge}>{step}</div>
-            )}
             <span className={style.sectionTitle}>{title}</span>
         </div>
         {description && <p className={style.sectionSub}>{description}</p>}
@@ -27,9 +25,9 @@ export const BulletinSectionHeader = ({ step, title, description }) => (
  * A complete section: card frame plus heading. Used where the preview renders
  * a section itself, rather than through one of the chart widgets.
  */
-export const BulletinSection = ({ step, title, description, children }) => (
+export const BulletinSection = ({ title, description, children }) => (
     <section className={style.bulletinCard}>
-        <BulletinSectionHeader step={step} title={title} description={description} />
+        <BulletinSectionHeader title={title} description={description} />
         {children}
     </section>
 )

@@ -18,26 +18,26 @@
 // `.bulletinTwoColumnGrid` wrapper with two children rather than anything the
 // data knows about — so the grouping has to be stated here.
 //
-// `numbered` sections are the ones carrying a step badge. The numerals used to
-// be literals on each section; they are derived now, because a reordered
-// document would otherwise read 3, 1, 4, 5, 2.
-//
 // Order here is the document's default order, and is what a fresh install and an
 // unsaved Settings page both produce.
+//
+// `highlights` is the document's executive summary. The two used to be separate
+// sections — a rich-text one the author wrote and a list of drafted lines — and
+// they read as the same thing twice, so the drafted one was folded into this
+// one. The id is kept because it is what stored configs already carry, and it is
+// the visible one of the pair: reusing `executiveSummary` would hand every
+// install that has ever saved Settings a section its stored entry marks hidden.
 const SECTION_DEFS = [
     { id: 'malariaOverview' },
     { id: 'forecastSummary' },
-    { id: 'executiveSummary', visible: false },
-    { id: 'highlights', numbered: true },
+    { id: 'highlights' },
     { id: 'currentMalariaSituation', visible: false },
-    { id: 'malariaForecast', numbered: true },
+    { id: 'malariaForecast' },
     { id: 'historicalClimate' },
-    { id: 'weatherForecast', numbered: true, row: 'weather' },
+    { id: 'weatherForecast', row: 'weather' },
     { id: 'seasonalClimate', row: 'weather' },
     { id: 'districtRisk' },
     { id: 'districtActions' },
-    { id: 'advisories', numbered: true },
-    { id: 'recommendations', numbered: true },
 ];
 
 const defById = new Map(SECTION_DEFS.map((def) => [def.id, def]));
@@ -59,7 +59,7 @@ export const DEFAULT_SECTIONS = SECTION_DEFS.map(({ id, visible }) => ({
  * - an id the registry no longer knows is dropped, so a section removed in a
  *   later release cannot resurrect an empty block;
  * - a registry id the stored config predates is inserted at the position it was
- *   designed to sit in, not appended after the recommendations;
+ *   designed to sit in, not appended after whatever the config ends with;
  * - a repeated id keeps its first position only.
  *
  * Anything that is not an array — including the absent key — gives the defaults.
@@ -93,8 +93,8 @@ export const resolveSections = (stored) => {
         // Slot the section in beside its default neighbours: immediately after
         // the default that precedes it, which is always in place by now, or at
         // the front when it has none. A section added in a later release
-        // therefore lands where it was designed to sit rather than after the
-        // recommendations.
+        // therefore lands where it was designed to sit rather than at the end
+        // of the document.
         //
         // The app writes the whole list on every save, so in the field the
         // stored config is missing at most the sections added since it was
@@ -146,30 +146,4 @@ export const groupRows = (sections = []) => {
     });
 
     return rows;
-};
-
-/**
- * The step numeral for each numbered section, counted in the order the rows
- * will be rendered — so the badges read 1, 2, 3, … down the page whatever the
- * sections have been reordered to, and a hidden section does not leave a gap in
- * the sequence.
- *
- * @returns {Object<string, number>} section id to numeral
- */
-export const numberSections = (rows = []) => {
-    const numbers = {};
-    let next = 0;
-
-    rows.forEach(({ items }) => {
-        items.forEach(({ id }) => {
-            if (!sectionDef(id)?.numbered) {
-                return;
-            }
-
-            next += 1;
-            numbers[id] = next;
-        });
-    });
-
-    return numbers;
 };

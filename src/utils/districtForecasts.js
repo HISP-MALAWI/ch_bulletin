@@ -185,6 +185,24 @@ export const buildSelectedDistrictForecastRows = ({
     };
 };
 
+/**
+ * Whether a selection is one the regional view can be built for.
+ *
+ * The regional levels describe the zones of a country, or the districts of a
+ * zone. A district selection has neither: it would be measured against itself,
+ * and the row above it would come back empty and read as an outage. So the
+ * national-and-zonal sections of the document are not rendered for one.
+ *
+ * A level that is not known — an organisation unit the client has not loaded,
+ * or one that carries none — is not a district, and does not hide anything.
+ */
+export const hasRegionalRiskView = (orgUnits = [], selectedOrgUnitId) => {
+    const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
+    const level = Number(selectedUnit?.level);
+
+    return !Number.isFinite(level) || level <= 2;
+};
+
 export const getDistrictDescendants = (orgUnits = [], selectedOrgUnitId) => {
     const unitsById = new Map(orgUnits.map((unit) => [unit.id, unit]));
     const selectedUnit = unitsById.get(selectedOrgUnitId);

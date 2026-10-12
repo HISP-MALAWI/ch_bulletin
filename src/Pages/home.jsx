@@ -32,14 +32,29 @@ const HomePage = ({ style }) => {
     React.useEffect(() => {
         if (data) {
             console.log('Fetched Data:', data)
+            const stored = Array.isArray(data?.dataStore) ? data.dataStore : []
+            // The bulletin the editor has just written, handed over with the
+            // navigation. The query behind this list is cached and re-fetched in
+            // the background, so the list paints from what is already in hand —
+            // and on a slow link that can be long enough for a fresh save to
+            // look lost. Merging the record in makes the list right on arrival,
+            // and the background fetch takes over as soon as it carries the
+            // record itself, which is what drops the copy below.
+            const saved = location.state?.saved
+            const records =
+                saved && !stored.some((bulletin) => bulletin.id === saved.id)
+                    ? [...stored, saved]
+                    : stored
+
             setBulletins(isArchive
-                ? selectPublishedBulletins(data?.dataStore)
-                : selectDraftBulletins(data?.dataStore))
+                ? selectPublishedBulletins(records)
+                : selectDraftBulletins(records))
             setOrganisationUnit(data?.organisationUnits)
         }
         // Navigating between the two routes reuses this instance rather than
-        // remounting it, so the effect has to re-run on the route as well.
-    }, [data, isArchive])
+        // remounting it, so the effect has to re-run on the route as well — and
+        // on the handed-over record, which arrives with the navigation.
+    }, [data, isArchive, location.state])
 
     // A save in the editor lands here, and what was just saved is what the
     // officer came back to look at, so the list is fetched again on arrival

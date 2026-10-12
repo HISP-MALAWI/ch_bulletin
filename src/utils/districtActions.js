@@ -3,7 +3,7 @@ import {
     buildDistrictForecastStatuses,
     buildSelectedDistrictForecastRows,
 } from './districtForecasts';
-import { getClimateSignals } from './healthGuidance';
+import { getClimateSignals } from './climateSignals';
 
 const formatMonth = (period) => {
     const date = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(4, 6)) - 1, 1));
