@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-12T11:56:34.614Z\n"
-"PO-Revision-Date: 2026-10-12T11:56:34.615Z\n"
+"POT-Creation-Date: 2026-10-12T11:59:16.680Z\n"
+"PO-Revision-Date: 2026-10-12T11:59:16.681Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -394,11 +394,3 @@ msgstr ""
 
 msgid "median {{median}}, threshold {{threshold}}"
 msgstr "median {{median}}, threshold {{threshold}}"
-
-msgctxt "Application title"
-msgid "__MANIFEST_APP_TITLE"
-msgstr "Climate and Health Bulletin"
-
-msgctxt "Application description"
-msgid "__MANIFEST_APP_DESCRIPTION"
-msgstr ""
