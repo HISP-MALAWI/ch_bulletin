@@ -11,8 +11,6 @@ import CurrentMalariaSituation from "../widgets/currentMalariaSituation";
 import MalariaRiskOverview from "../widgets/malariaRiskOverview";
 import HistoricalClimateCasesChart from "../widgets/historicalClimateCasesChart";
 import ForecastWidget from "../widgets/forecastWidget";
-import AdvisoriesWidget from "../widgets/advisoriesWidget";
-import ExecutiveSummaryWidget from "../widgets/executiveSummaryWidget";
 import DistrictRiskSummary, { DEFAULT_MAP_HEIGHT } from "../widgets/districtRiskSummary";
 import DistrictActionsWidget from "../widgets/districtActionsWidget";
 import DashboardHeader from "../widgets/headerWidget";
@@ -23,9 +21,7 @@ import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from "../utils/seasonalClimateData";
-import { buildHealthGuidance } from "../utils/healthGuidance";
-import { buildExecutiveSummaryDrafts } from "../utils/executiveSummary";
-import { getDistrictDescendants, getZoneDescendants } from "../utils/districtForecasts";
+import { getDistrictDescendants, getZoneDescendants, hasRegionalRiskView } from "../utils/districtForecasts";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
@@ -43,9 +39,6 @@ const BulletinForm = ({ style }) => {
   const [forecast, setForecast] = React.useState([]);
   const [datavalues, setDatavalues] = React.useState([]);
   const [seasonalClimate, setSeasonalClimate] = React.useState([]);
-  const [advisories, setAdvisories] = React.useState([]);
-  const [recommendations, setRecommendations] = React.useState([]);
-  const [executiveSummary, setExecutiveSummary] = React.useState([]);
   const [historicalClimate, setHistoricalClimate] = React.useState([]);
   // The saved DHIS2 map the district risk section is drawn from, if the author
   // has chosen one: `{ uid, name, height }`.
@@ -72,21 +65,6 @@ const BulletinForm = ({ style }) => {
     temperatureDataElement: data?.dataStore?.temperatureForecast,
     selectedOrgUnit: organisationUnit,
   }), [data, organisationUnit, period, seasonalClimate]);
-  const guidanceSuggestions = React.useMemo(() => buildHealthGuidance({
-    seasonalClimateRows,
-    forecast,
-    dataValues: datavalues,
-    mapping: data?.dataStore?.mapping || [],
-    period,
-    selectedOrgUnit: organisationUnit,
-  }), [data, datavalues, forecast, organisationUnit, period, seasonalClimateRows]);
-  const summaryDrafts = React.useMemo(() => buildExecutiveSummaryDrafts({
-    period,
-    dataValues: datavalues,
-    mapping: data?.dataStore?.mapping || [],
-    selectedOrgUnit: organisationUnit,
-    seasonalClimateRows,
-  }), [data, datavalues, organisationUnit, period, seasonalClimateRows]);
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -151,9 +129,6 @@ const BulletinForm = ({ style }) => {
     setForecast(foundBulletin.forecast || []);
     setDatavalues(Array.isArray(foundBulletin.cases?.[0]) ? foundBulletin.cases[0] : []);
     setSeasonalClimate(Array.isArray(foundBulletin.seasonalClimate) ? foundBulletin.seasonalClimate : []);
-    setAdvisories(Array.isArray(foundBulletin.advisories) ? foundBulletin.advisories : []);
-    setRecommendations(Array.isArray(foundBulletin.recommendations) ? foundBulletin.recommendations : []);
-    setExecutiveSummary(Array.isArray(foundBulletin.executiveSummary) ? foundBulletin.executiveSummary : []);
     setHistoricalClimate(Array.isArray(foundBulletin.historicalClimate) ? foundBulletin.historicalClimate : []);
     setDistrictRiskMap(foundBulletin.districtRiskMap?.uid ? foundBulletin.districtRiskMap : null);
   }, [id, homeData]);
@@ -208,7 +183,7 @@ const BulletinForm = ({ style }) => {
     // An untouched editor holds `<p><br></p>`, which is a non-empty string, so
     // the check is on whether it would put anything on the page.
     if (!hasHighlightsContent(highlights)) {
-      showTransientMessage("error", i18n.t("Please add highlights before saving"));
+      showTransientMessage("error", i18n.t("Please add an executive summary before saving"));
       return;
     }
 
@@ -216,45 +191,48 @@ const BulletinForm = ({ style }) => {
     setSaveStatus(null);
     setSaveMessage("");
 
+    // Built before the write so that the same record can be handed to the list
+    // below: what was written is known here, whatever the list's own query
+    // happens to be holding.
+    const bulletin = {
+      id: existingBulletin?.id || generateDhis2Uid(),
+      // Stored cleaned, so the preview can be styled by the app rather than
+      // by Quill, and so the string handed to dangerouslySetInnerHTML has
+      // been through an allowlist. The editor still holds raw Quill markup.
+      highlights: normaliseHighlightsHtml(highlights),
+      organisationUnit,
+      cases: [datavalues],
+      historicalClimate,
+      forecast,
+      seasonalClimate,
+      status: existingBulletin?.status || "draft",
+      period,
+      // Stored as a number, and null rather than absent when no map is
+      // chosen: the section keeps drawing from the bulletin's own data, and
+      // the record says so.
+      districtRiskMap: districtRiskMap?.uid
+        ? {
+            uid: districtRiskMap.uid,
+            name: districtRiskMap.name || null,
+            height:
+              Number(districtRiskMap.height) > 0
+                ? Math.round(Number(districtRiskMap.height))
+                : DEFAULT_MAP_HEIGHT,
+          }
+        : null,
+    };
+
     try {
-      await savebulletinToDataStore(
-        {
-          id: existingBulletin?.id || generateDhis2Uid(),
-          // Stored cleaned, so the preview can be styled by the app rather than
-          // by Quill, and so the string handed to dangerouslySetInnerHTML has
-          // been through an allowlist. The editor still holds raw Quill markup.
-          highlights: normaliseHighlightsHtml(highlights),
-          organisationUnit,
-          cases: [datavalues],
-          historicalClimate,
-          forecast,
-          seasonalClimate,
-          advisories,
-          recommendations,
-          executiveSummary,
-          status: existingBulletin?.status || "draft",
-          period,
-          // Stored as a number, and null rather than absent when no map is
-          // chosen: the section keeps drawing from the bulletin's own data, and
-          // the record says so.
-          districtRiskMap: districtRiskMap?.uid
-            ? {
-                uid: districtRiskMap.uid,
-                name: districtRiskMap.name || null,
-                height:
-                  Number(districtRiskMap.height) > 0
-                    ? Math.round(Number(districtRiskMap.height))
-                    : DEFAULT_MAP_HEIGHT,
-              }
-            : null,
-        },
-        engine
-      );
-      // Straight back to the list, which fetches again on arrival so that the
-      // bulletin just saved is in it. There is no success message to show here:
-      // it would go with the page a moment later, and the reloaded list is the
-      // better confirmation that the save worked.
-      navigate("/", { state: { refresh: true } });
+      await savebulletinToDataStore(bulletin, engine);
+      // Straight back to the list. There is no success message to show here: it
+      // would go with the page a moment later, and the list holding the bulletin
+      // is the better confirmation that the save worked.
+      //
+      // The record travels with the navigation because the list's query is
+      // cached and re-fetched in the background, so on a slow link the list can
+      // paint without it for long enough to look like the save was lost. Home
+      // merges it in and lets the refetch reconcile.
+      navigate("/", { state: { refresh: true, saved: bulletin } });
     } catch (err) {
       console.error("Save bulletin error:", err);
       showTransientMessage(
@@ -267,9 +245,9 @@ const BulletinForm = ({ style }) => {
   };
 
   // The editor keeps every section, whatever the document is configured to show:
-  // a hidden section still has to be fillable, and Highlights is required to save
-  // a bulletin at all. This count is only so that a section being filled in does
-  // not silently go nowhere.
+  // a hidden section still has to be fillable, and the executive summary is
+  // required to save a bulletin at all. This count is only so that a section
+  // being filled in does not silently go nowhere.
   const hiddenSectionCount = resolveSections(data?.dataStore?.sections)
     .filter((section) => !section.visible).length;
 
@@ -307,17 +285,22 @@ const BulletinForm = ({ style }) => {
               </p>
             )}
 
-            {/* Mirrors where the band sits in the document: above the cards. */}
-            <section className={`${style.sectionCard} ${style.fullWidth}`}>
-              <MalariaRiskOverview
-                style={style}
-                dataValues={datavalues}
-                mapping={data?.dataStore?.mapping || []}
-                period={period}
-                orgUnits={orgUnits}
-                selectedOrgUnit={organisationUnit}
-              />
-            </section>
+            {/* Mirrors where the band sits in the document: above the cards.
+                The card goes with the band, so a district bulletin — where the
+                band does not render at all — does not leave an empty frame
+                behind. */}
+            {hasRegionalRiskView(orgUnits, organisationUnit) && (
+              <section className={`${style.sectionCard} ${style.fullWidth}`}>
+                <MalariaRiskOverview
+                  style={style}
+                  dataValues={datavalues}
+                  mapping={data?.dataStore?.mapping || []}
+                  period={period}
+                  orgUnits={orgUnits}
+                  selectedOrgUnit={organisationUnit}
+                />
+              </section>
+            )}
 
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <ForecastSummaryWidget
@@ -330,21 +313,14 @@ const BulletinForm = ({ style }) => {
               />
             </section>
 
-            {/* Leads the document, so it leads the form. It carries no step
-                numeral, because nothing is numbered before it. */}
-            <ExecutiveSummaryWidget
-              style={style}
-              summary={executiveSummary}
-              setSummary={setExecutiveSummary}
-              drafts={summaryDrafts}
-            />
-
+            {/* Leads the document, so it leads the form. The section is the
+                document's executive summary; the field behind it is still the
+                record's `highlights`. */}
             <HighlightsInput
               style={style}
               fullWidth
-              step="1"
-              title="Highlights"
-              description="Key takeaways for the bulletin."
+              title="Executive Summary"
+              description="The bulletin's key takeaways, in the author's own words."
               highlights={highlights}
               setHighlights={setHighlights}
             />
@@ -366,7 +342,6 @@ const BulletinForm = ({ style }) => {
                   selectedOrgUnit={organisationUnit}
                   period={period}
                   style={style}
-                  step="2"
                   title="Malaria Forecast"
                 />
               </section>
@@ -398,7 +373,6 @@ const BulletinForm = ({ style }) => {
               <div className={style.sectionCard}>
               <ForecastWidget
                 style={style}
-                step="3"
                 organisationUnit={organisationUnit}
                 period={period}
                 forecast={forecast}
@@ -531,19 +505,6 @@ const BulletinForm = ({ style }) => {
                 orgUnits={orgUnits}
               />
             </div>
-
-            <AdvisoriesWidget
-              style={style}
-              advisories={advisories}
-              setAdvisories={setAdvisories}
-              recommendations={recommendations}
-              setRecommendations={setRecommendations}
-              advisorySuggestions={guidanceSuggestions.advisories}
-              recommendationSuggestions={guidanceSuggestions.recommendations}
-              step="4"
-              title="Health Advisories"
-              description="Important health advisories for the region."
-            />
 
           </div>
 

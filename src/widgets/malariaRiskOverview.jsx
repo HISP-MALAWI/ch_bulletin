@@ -2,6 +2,7 @@ import React from 'react';
 import i18n from '@dhis2/d2-i18n';
 import { getMonthlyPeriods } from '../utils/getDataValues';
 import { describeForecastWindow } from '../utils/periodLabel';
+import { hasRegionalRiskView } from '../utils/districtForecasts';
 import { buildRegionalRisk } from '../utils/regionalRisk';
 import { getDiseaseOverview } from '../utils/diseaseOverviews';
 import { palette } from '../theme/tokens';
@@ -25,6 +26,12 @@ const levelDisplay = () => ({
  * mis-set alarm indicator would show every region as Low. When the mapping is
  * not configured the levels are withheld and the reader is told why, rather
  * than being told the country is fine.
+ *
+ * It is a national and zonal view, and a district bulletin is written for
+ * someone who is already inside one region: the band would report the district
+ * against itself, and with no districts beneath it the row above it would come
+ * back as "no district-level readings", which reads as an outage. Below a zone
+ * the section is not rendered at all — see `hasRegionalRiskView`.
  */
 const MalariaRiskOverview = ({
     style,
@@ -51,7 +58,12 @@ const MalariaRiskOverview = ({
     );
     const overview = getDiseaseOverview(malariaMapping?.displayName);
 
-    if (!selectedOrgUnit || !malariaMapping || !overview) {
+    if (
+        !selectedOrgUnit ||
+        !hasRegionalRiskView(orgUnits, selectedOrgUnit) ||
+        !malariaMapping ||
+        !overview
+    ) {
         return null;
     }
 

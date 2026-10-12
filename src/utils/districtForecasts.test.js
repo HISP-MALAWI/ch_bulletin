@@ -4,6 +4,7 @@ import {
     buildSelectedDistrictForecastRows,
     getDistrictDescendants,
     getZoneDescendants,
+    hasRegionalRiskView,
     shortDistrictName,
 } from './districtForecasts';
 
@@ -40,6 +41,24 @@ describe('getZoneDescendants', () => {
     it('returns only level-two children for a level-one selection', () => {
         expect(getZoneDescendants(orgUnits, 'country').map(({ id }) => id)).toEqual(['north', 'south']);
         expect(getZoneDescendants(orgUnits, 'north')).toEqual([]);
+    });
+});
+
+describe('hasRegionalRiskView', () => {
+    it('holds for the levels the regional view is built from', () => {
+        expect(hasRegionalRiskView(orgUnits, 'country')).toBe(true);
+        expect(hasRegionalRiskView(orgUnits, 'north')).toBe(true);
+    });
+
+    it('does not hold for a district, which has no regions beneath it', () => {
+        expect(hasRegionalRiskView(orgUnits, 'north-district')).toBe(false);
+        expect(hasRegionalRiskView(orgUnits, 'health-centre')).toBe(false);
+    });
+
+    it('holds when the level is not known, rather than hiding on a guess', () => {
+        expect(hasRegionalRiskView(orgUnits, 'not-loaded')).toBe(true);
+        expect(hasRegionalRiskView([{ id: 'no-level' }], 'no-level')).toBe(true);
+        expect(hasRegionalRiskView(orgUnits, undefined)).toBe(true);
     });
 });
 

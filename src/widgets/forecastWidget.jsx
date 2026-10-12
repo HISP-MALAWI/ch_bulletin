@@ -87,7 +87,7 @@ function Stat({ icon, label, value, sub, pill, accent }) {
     );
 }
 
-const ForecastWidget = ({ style, description, step, title, forecast, organisationUnit }) => {
+const ForecastWidget = ({ style, description, title, forecast, organisationUnit }) => {
     useEffect(() => {
         // console.log(forecast);
     }, [forecast]);
@@ -218,7 +218,7 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                 }
             `}</style>
 
-            <BulletinSectionHeader step={step} title={title} description={description} />
+            <BulletinSectionHeader title={title} description={description} />
 
             {ouLabel && <p className={style.sectionSub}>{ouLabel}</p>}
 
