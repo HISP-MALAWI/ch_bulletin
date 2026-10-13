@@ -15,7 +15,7 @@ import ForecastWidget from '../widgets/forecastWidget'
 import DistrictRiskSummary from '../widgets/districtRiskSummary'
 import DistrictActionsWidget from '../widgets/districtActionsWidget'
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from '../utils/seasonalClimateData'
-import { homeDataQuery } from './services/getHomeData'
+import { districtBoundariesQuery, homeDataQuery } from './services/getHomeData'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
@@ -48,6 +48,11 @@ const BulletinPreview = ({ style }) => {
     const [downloadStatus, setDownloadStatus] = React.useState(null)
 
     const { loading: dataLoading, error: dataError, data } = dataQuery(homeDataQuery)
+    const {
+        loading: boundariesLoading,
+        error: boundariesError,
+        data: boundaryData,
+    } = dataQuery(districtBoundariesQuery)
     // Mapping config lives in a separate datastore key from the bulletins list,
     // same query BulletinForm uses to build HealthCasesWidget's mapping.
     const { loading: settingsLoading, error: settingsError, data: settingsData } = dataQuery(dataSettingsStoreQuery)
@@ -494,6 +499,11 @@ const BulletinPreview = ({ style }) => {
                     mapping={settingsData?.dataStore?.mapping || []}
                     period={bulletin.period}
                     orgUnits={orgUnits}
+                    mapDistricts={Array.isArray(boundaryData?.districtBoundaries)
+                        ? boundaryData.districtBoundaries
+                        : boundaryData?.districtBoundaries?.organisationUnits || []}
+                    mapLoading={boundariesLoading}
+                    mapError={boundariesError}
                     selectedOrgUnitId={bulletin.organisationUnit}
                 />
             </div>
