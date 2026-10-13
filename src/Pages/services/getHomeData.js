@@ -14,5 +14,16 @@ export const homeDataQuery = {
             fields: 'id,displayName,level,children[id,displayName,level],parent[id,displayName,level]',
             paging: false,
         },
-    }
+    },
+}
+
+export const districtBoundariesQuery = {
+    districtBoundaries: {
+        resource: 'organisationUnits',
+        params: {
+            fields: 'id,displayName,level,geometry',
+            filter: ['level:eq:3'],
+            paging: false,
+        },
+    },
 }
