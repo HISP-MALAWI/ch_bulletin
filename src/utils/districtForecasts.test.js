@@ -52,8 +52,12 @@ describe('buildDistrictForecastStatuses', () => {
                 ['alarm', '202610', 'north-district', '1'],
                 ['threshold', '202610', 'north-district', '100'],
                 ['median', '202610', 'north-district', '90'],
+                ['predictionLower', '202610', 'north-district', '60'],
+                ['predictionUpper', '202610', 'north-district', '120'],
                 ['threshold', '202610', 'south-district', '100'],
                 ['median', '202610', 'south-district', '75'],
+                ['predictionLower', '202610', 'south-district', ''],
+                ['predictionUpper', '202610', 'south-district', '95'],
             ],
         });
 
@@ -72,6 +76,29 @@ describe('buildDistrictForecastStatuses', () => {
             threshold: 100,
         }]);
         expect(result.normal).toEqual([]);
+        expect(result.forecastRowsByDistrict.get('north-district')).toEqual([
+            {
+                period: '202610',
+                predictionMedian: 90,
+                predictionLowerBound: 60,
+                predictionUpperBound: 120,
+                status: 'alert',
+            },
+            {
+                period: '202611',
+                predictionMedian: null,
+                predictionLowerBound: null,
+                predictionUpperBound: null,
+                status: 'unavailable',
+            },
+        ]);
+        expect(result.forecastRowsByDistrict.get('south-district')[0]).toEqual({
+            period: '202610',
+            predictionMedian: 75,
+            predictionLowerBound: null,
+            predictionUpperBound: 95,
+            status: 'watch',
+        });
     });
 
     it('ignores values outside the forecast range and medians below the watch band', () => {
@@ -106,6 +133,7 @@ describe('buildDistrictForecastStatuses', () => {
             alerts: [],
             watches: [],
             normal: [],
+            forecastRowsByDistrict: new Map(),
             isConfigured: true,
         });
     });
