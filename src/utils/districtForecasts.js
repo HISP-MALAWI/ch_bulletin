@@ -125,6 +125,16 @@ export const buildDistrictForecastStatuses = ({
                 id: district.id,
                 name: district.displayName || district.name || district.id,
             })),
+            forecastRowsByDistrict: new Map(districts.map((district) => [
+                district.id,
+                periods.map((period) => ({
+                    period,
+                    predictionMedian: null,
+                    predictionLowerBound: null,
+                    predictionUpperBound: null,
+                    status: 'unavailable',
+                })),
+            ])),
             isConfigured: false,
         };
     }
@@ -138,7 +148,9 @@ export const buildDistrictForecastStatuses = ({
         const districtPeriods = rowsByDistrict.get(orgUnitId);
         if (!districtPeriods || !periodSet.has(period)) return;
 
-        const value = Number(row.at(-1));
+        const rawValue = row.at(-1);
+        if (rawValue === '' || rawValue === null || rawValue === undefined) return;
+        const value = Number(rawValue);
         if (!Number.isFinite(value)) return;
 
         const values = districtPeriods.get(period) || {};
@@ -148,9 +160,39 @@ export const buildDistrictForecastStatuses = ({
             values.threshold = value;
         } else if (dataElement === malariaMapping.predictionMedian) {
             values.predictionMedian = value;
+        } else if (dataElement === malariaMapping.predictionLowerBound) {
+            values.predictionLowerBound = value;
+        } else if (dataElement === malariaMapping.predictionUpperBound) {
+            values.predictionUpperBound = value;
         }
         districtPeriods.set(period, values);
     });
+
+    const forecastRowsByDistrict = new Map(districts.map((district) => [
+        district.id,
+        periods.map((period) => {
+            const values = rowsByDistrict.get(district.id).get(period) || {};
+            const isAlert = values.alarm === 1;
+            const isWatch = !isAlert &&
+                values.threshold > 0 &&
+                values.predictionMedian >= values.threshold * 0.75 &&
+                values.predictionMedian < values.threshold;
+
+            return {
+                period,
+                predictionMedian: values.predictionMedian ?? null,
+                predictionLowerBound: values.predictionLowerBound ?? null,
+                predictionUpperBound: values.predictionUpperBound ?? null,
+                status: isAlert
+                    ? 'alert'
+                    : isWatch
+                        ? 'watch'
+                        : Object.values(values).some((value) => value !== undefined)
+                            ? 'normal'
+                            : 'unavailable',
+            };
+        }),
+    ]));
 
     const alerts = [];
     const watches = [];
@@ -211,6 +253,7 @@ export const buildDistrictForecastStatuses = ({
         alerts,
         watches,
         normal,
+        forecastRowsByDistrict,
         isConfigured: Boolean(
             malariaMapping.alarmElement ||
             (malariaMapping.threshold && malariaMapping.predictionMedian)
