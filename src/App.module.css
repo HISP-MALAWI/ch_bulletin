@@ -733,7 +733,10 @@
 }
 
 .districtRiskMap {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 520px;
   padding: 12px;
   border: 1px solid #e2e8f0;
   border-radius: 7px;
@@ -782,38 +785,122 @@
   background: #27813c;
 }
 
-.districtRiskTiles {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+.districtRiskLegendOutside {
+  background: #cbd5e1;
 }
 
-.districtRiskTile {
+.districtRiskMapViewport {
+  position: relative;
   display: flex;
-  min-height: 25px;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 5px;
-  overflow-wrap: anywhere;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: center;
+  flex: 1 1 auto;
+  min-height: 420px;
+  overflow: hidden;
 }
 
-.districtRiskTileAlert {
-  background: #c51627;
+.districtRiskSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  margin: 0 auto;
 }
 
-.districtRiskTileWatch {
-  background: #e3a400;
-  color: #16233a;
+.districtRiskMapTile {
+  pointer-events: none;
 }
 
-.districtRiskTileNormal {
-  background: #27813c;
+.districtRiskMapZoomControls {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 20%);
+}
+
+.districtRiskMapZoomControls button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.districtRiskMapZoomControls button + button {
+  border-top: 1px solid #cbd5e1;
+}
+
+.districtRiskMapZoomControls button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.districtRiskMapZoomControls button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.districtRiskMapFeature {
+  stroke: #fff;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  cursor: help;
+  fill-opacity: 0.52;
+}
+
+.districtRiskMapFeatureAlert {
+  fill: #c51627;
+}
+
+.districtRiskMapFeatureWatch {
+  fill: #e3a400;
+}
+
+.districtRiskMapFeatureNormal {
+  fill: #27813c;
+}
+
+.districtRiskMapFeatureOutside {
+  fill: #cbd5e1;
+}
+
+.districtRiskTooltip {
+  position: absolute;
+  z-index: 1;
+  width: 190px;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(15 23 42 / 18%);
+  color: #334155;
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.districtRiskTooltip > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #102b42;
+  font-size: 11px;
+}
+
+.districtRiskTooltipRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding-top: 4px;
+  border-top: 1px solid #edf0f4;
+}
+
+.districtRiskTooltipRow + .districtRiskTooltipRow {
+  margin-top: 4px;
 }
 
 .districtRiskMapEmpty,
@@ -822,6 +909,10 @@
   color: #64748b;
   font-size: 10px;
   line-height: 1.4;
+}
+
+.districtRiskMapCaption a {
+  color: #2563eb;
 }
 
 .districtActionsGrid {
@@ -956,8 +1047,8 @@
     grid-template-columns: 1fr;
   }
 
-  .districtRiskTiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  .districtRiskMap {
+    min-height: 560px;
   }
 
   .districtActionsGrid {
