@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-12T11:59:16.680Z\n"
-"PO-Revision-Date: 2026-10-12T11:59:16.681Z\n"
+"POT-Creation-Date: 2026-10-23T05:57:01.167Z\n"
+"PO-Revision-Date: 2026-10-23T05:57:01.167Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -88,13 +88,11 @@ msgstr ""
 "image URLs in Settings."
 
 msgid ""
-"{{total}} DHIS2 map(s) could not be captured from this address, so the "
-"bulletin drew the district map itself. Export from the instance to capture "
-"the DHIS2 map."
+"PDF downloaded, but the OpenStreetMap basemap could not be included. The "
+"district boundaries are shown without it."
 msgstr ""
-"{{total}} DHIS2 map(s) could not be captured from this address, so the "
-"bulletin drew the district map itself. Export from the instance to capture "
-"the DHIS2 map."
+"PDF downloaded, but the OpenStreetMap basemap could not be included. The "
+"district boundaries are shown without it."
 
 msgid "Failed to generate the PDF"
 msgstr "Failed to generate the PDF"
@@ -181,43 +179,6 @@ msgstr ""
 "The document does not show {{total}} of its sections. Change this in "
 "Settings."
 
-msgid "District risk map"
-msgstr "District risk map"
-
-msgid ""
-"Use a map saved in the DHIS2 Maps app in place of the map drawn from this "
-"bulletin's forecast data. Its extent and styling are edited in the Maps "
-"app, and it follows its own period and organisation units rather than this "
-"bulletin's."
-msgstr ""
-"Use a map saved in the DHIS2 Maps app in place of the map drawn from this "
-"bulletin's forecast data. Its extent and styling are edited in the Maps "
-"app, and it follows its own period and organisation units rather than this "
-"bulletin's."
-
-msgid "Map"
-msgstr "Map"
-
-msgid ""
-"The map is added to the bulletin by id, so editing it in the Maps app "
-"changes it in every bulletin that uses it."
-msgstr ""
-"The map is added to the bulletin by id, so editing it in the Maps app "
-"changes it in every bulletin that uses it."
-
-msgid "None — draw from bulletin data"
-msgstr "None — draw from bulletin data"
-
-msgid "Map height (px)"
-msgstr "Map height (px)"
-
-msgid ""
-"How tall the map is in the document. It is drawn to fit the box, so its "
-"shape does not change."
-msgstr ""
-"How tall the map is in the document. It is drawn to fit the box, so its "
-"shape does not change."
-
 msgid "Save Changes"
 msgstr "Save Changes"
 
@@ -271,6 +232,36 @@ msgid ""
 msgstr ""
 "Regional risk levels need the malaria alarm and threshold indicators mapped "
 "in Settings."
+
+msgid "This district"
+msgstr "This district"
+
+msgid "Districts in the same zone"
+msgstr "Districts in the same zone"
+
+msgid "All districts in Malawi"
+msgstr "All districts in Malawi"
+
+msgid "Districts in this zone"
+msgstr "Districts in this zone"
+
+msgid "Highlight districts"
+msgstr "Highlight districts"
+
+msgid "Choose districts"
+msgstr "Choose districts"
+
+msgid "Districts"
+msgstr "Districts"
+
+msgid "No districts selected; the map shows the bulletin district."
+msgstr "No districts selected; the map shows the bulletin district."
+
+msgid "{{total}} district(s) highlighted"
+msgstr "{{total}} district(s) highlighted"
+
+msgid "Changing the organisation unit resets this to that district."
+msgstr "Changing the organisation unit resets this to that district."
 
 msgid "Malaria overview"
 msgstr "Malaria overview"

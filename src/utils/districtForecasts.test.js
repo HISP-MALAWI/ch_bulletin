@@ -3,9 +3,9 @@ import {
     buildDistrictForecastStatuses,
     buildSelectedDistrictForecastRows,
     getDistrictDescendants,
+    getDistrictRiskFromRows,
     getZoneDescendants,
     hasRegionalRiskView,
-    shortDistrictName,
 } from './districtForecasts';
 
 const orgUnits = [
@@ -73,8 +73,12 @@ describe('buildDistrictForecastStatuses', () => {
                 ['alarm', '202610', 'north-district', '1'],
                 ['threshold', '202610', 'north-district', '100'],
                 ['median', '202610', 'north-district', '90'],
+                ['predictionLower', '202610', 'north-district', '60'],
+                ['predictionUpper', '202610', 'north-district', '120'],
                 ['threshold', '202610', 'south-district', '100'],
                 ['median', '202610', 'south-district', '75'],
+                ['predictionLower', '202610', 'south-district', ''],
+                ['predictionUpper', '202610', 'south-district', '95'],
             ],
         });
 
@@ -93,6 +97,30 @@ describe('buildDistrictForecastStatuses', () => {
             threshold: 100,
         }]);
         expect(result.normal).toEqual([]);
+        expect(result.forecastRowsByDistrict.get('north-district')).toEqual([
+            {
+                period: '202610',
+                predictionMedian: 90,
+                predictionLowerBound: 60,
+                predictionUpperBound: 120,
+                status: 'alert',
+            },
+            {
+                period: '202611',
+                predictionMedian: null,
+                predictionLowerBound: null,
+                predictionUpperBound: null,
+                status: 'unavailable',
+            },
+        ]);
+        // A blank lower bound stays absent rather than becoming zero.
+        expect(result.forecastRowsByDistrict.get('south-district')[0]).toEqual({
+            period: '202610',
+            predictionMedian: 75,
+            predictionLowerBound: null,
+            predictionUpperBound: 95,
+            status: 'watch',
+        });
     });
 
     it('ignores values outside the forecast range and medians below the watch band', () => {
@@ -127,8 +155,66 @@ describe('buildDistrictForecastStatuses', () => {
             alerts: [],
             watches: [],
             normal: [],
+            forecastRowsByDistrict: new Map(),
             isConfigured: true,
         });
+    });
+
+    it('does not turn a blank median into a zero and a false Watch', () => {
+        const result = buildDistrictForecastStatuses({
+            orgUnits,
+            selectedOrgUnitId: 'north',
+            mapping,
+            periods: ['202610'],
+            dataValues: [
+                ['threshold', '202610', 'north-district', '100'],
+                ['median', '202610', 'north-district', ''],
+                ['alarm', '202610', 'north-district', '0'],
+            ],
+        });
+
+        expect(result.watches).toEqual([]);
+        expect(result.forecastRowsByDistrict.get('north-district')[0]).toEqual({
+            period: '202610',
+            predictionMedian: null,
+            predictionLowerBound: null,
+            predictionUpperBound: null,
+            status: 'normal',
+        });
+    });
+
+    it('builds an explicit set for a district selection, which has no descendants', () => {
+        const district = orgUnits.find((unit) => unit.id === 'north-district');
+        const result = buildDistrictForecastStatuses({
+            orgUnits,
+            selectedOrgUnitId: 'north-district',
+            districts: [district],
+            mapping,
+            periods: ['202610'],
+            dataValues: [
+                ['threshold', '202610', 'north-district', '100'],
+                ['median', '202610', 'north-district', '90'],
+                ['alarm', '202610', 'north-district', '0'],
+            ],
+        });
+
+        expect(result.districts.map(({ id }) => id)).toEqual(['north-district']);
+        expect(result.watches).toHaveLength(1);
+        expect(result.forecastRowsByDistrict.get('north-district')[0].status).toBe('watch');
+    });
+
+    it('treats an explicit empty set as empty rather than falling back to the selection', () => {
+        const result = buildDistrictForecastStatuses({
+            orgUnits,
+            selectedOrgUnitId: 'country',
+            districts: [],
+            mapping,
+            periods: ['202610'],
+            dataValues: [],
+        });
+
+        expect(result.districts).toEqual([]);
+        expect(result.forecastRowsByDistrict.size).toBe(0);
     });
 
     describe('buildSelectedDistrictForecastRows', () => {
@@ -306,26 +392,62 @@ describe('buildDistrictAlertRows', () => {
             dataValues: [['alarm', '202610', 'a-district', '1']],
         })).toEqual([]);
     });
+
+    it('builds an explicit set from a district selection', () => {
+        const district = alertOrgUnits.find((unit) => unit.id === 'a-district');
+        const rows = buildDistrictAlertRows({
+            orgUnits: alertOrgUnits,
+            selectedOrgUnitId: 'a-district',
+            districts: [district],
+            mapping,
+            periods,
+            dataValues: [
+                ['alarm', '202610', 'a-district', '1'],
+                ['threshold', '202610', 'a-district', '100'],
+                ['median', '202610', 'a-district', '120'],
+            ],
+        });
+
+        expect(rows.map(({ id }) => id)).toEqual(['a-district']);
+    });
+
+    it('ranks an explicit set that spans zones', () => {
+        const rows = buildDistrictAlertRows({
+            orgUnits: alertOrgUnits,
+            selectedOrgUnitId: 'country',
+            districts: [
+                alertOrgUnits.find((unit) => unit.id === 'a-district'),
+                alertOrgUnits.find((unit) => unit.id === 'b-district'),
+            ],
+            mapping,
+            periods,
+            dataValues: [
+                ['alarm', '202610', 'a-district', '1'],
+                ['threshold', '202610', 'a-district', '100'],
+                ['median', '202610', 'a-district', '150'],
+                ['alarm', '202610', 'b-district', '1'],
+                ['threshold', '202610', 'b-district', '100'],
+                ['median', '202610', 'b-district', '120'],
+            ],
+        });
+
+        expect(rows.map(({ id }) => id)).toEqual(['a-district', 'b-district']);
+        expect(rows.map(({ excess }) => excess)).toEqual([50, 20]);
+    });
 });
 
-describe('shortDistrictName', () => {
-    it('drops the suffix the map labels do not need', () => {
-        expect(shortDistrictName('Balaka-DHO')).toBe('Balaka');
-        expect(shortDistrictName('Mzimba-North-DHO')).toBe('Mzimba-North');
-        expect(shortDistrictName('Nkhata Bay-DHO')).toBe('Nkhata Bay');
-        expect(shortDistrictName('Nsanje DHO')).toBe('Nsanje');
+describe('getDistrictRiskFromRows', () => {
+    const row = (status) => ({ period: '202610', status });
+
+    it('takes the most severe month in the window', () => {
+        expect(getDistrictRiskFromRows([row('normal'), row('watch')])).toBe('watch');
+        expect(getDistrictRiskFromRows([row('watch'), row('alert')])).toBe('alert');
+        expect(getDistrictRiskFromRows([row('normal')])).toBe('normal');
     });
 
-    it('leaves a name that does not carry the suffix exactly as it is', () => {
-        expect(shortDistrictName('Zomba Mental Hospital')).toBe('Zomba Mental Hospital');
-        expect(shortDistrictName('Dedza')).toBe('Dedza');
-        // Nothing but the suffix: emptying the label would be worse than
-        // repeating it.
-        expect(shortDistrictName('DHO')).toBe('DHO');
-    });
-
-    it('passes a name that is not a string straight through', () => {
-        expect(shortDistrictName(undefined)).toBeUndefined();
-        expect(shortDistrictName(null)).toBeNull();
+    it('has no risk when every month is unavailable', () => {
+        expect(getDistrictRiskFromRows([row('unavailable'), row('unavailable')])).toBeNull();
+        expect(getDistrictRiskFromRows([])).toBeNull();
+        expect(getDistrictRiskFromRows()).toBeNull();
     });
 });

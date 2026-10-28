@@ -16,6 +16,41 @@ export const getMonthlyPeriods = (period, monthsBack = 11, monthsForward = 3) =>
     });
 };
 
+const isEmptyValue = (value) => value === '' || value === null || value === undefined;
+
+/**
+ * Combines analytics row lists into one, with a value per data element, period
+ * and organisation unit.
+ *
+ * The editor makes a scoped fetch for its charts and a wider one for the map's
+ * highlighted districts, and those overlap for some districts. Keeping both
+ * copies would make anything that sums a district's values count the same month
+ * twice. A blank from one request must not overwrite a real value from the
+ * other, so a non-empty value wins; between two non-empty (or two empty) rows,
+ * the later one is used.
+ */
+export const mergeDataValues = (...lists) => {
+    const byKey = new Map();
+
+    lists.forEach((rows) => {
+        if (!Array.isArray(rows)) return;
+
+        rows.forEach((row) => {
+            if (!Array.isArray(row)) return;
+
+            const key = `${row[0]}|${row[1]}|${row[2]}`;
+            const existing = byKey.get(key);
+            const replace = !existing
+                || !isEmptyValue(row.at(-1))
+                || isEmptyValue(existing.at(-1));
+
+            if (replace) byKey.set(key, row);
+        });
+    });
+
+    return Array.from(byKey.values());
+};
+
 const getDataValues = async (data, periods, organisationUnits, engine) => {
     if (!engine || typeof engine.query !== 'function') {
         console.error('getDataValues requires a valid DHIS2 engine with query().');

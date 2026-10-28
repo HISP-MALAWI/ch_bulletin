@@ -1,10 +1,15 @@
 const getParentId = (unit) => unit?.parent?.id || unit?.parent || null;
 
 /**
- * Each district's alarm, threshold and median prediction, month by month. The
- * risk classification and the alert table under the map read the same numbers,
- * so they are collected once here rather than twice in two slightly different
- * ways — a district must not be able to appear on the map and not in the table.
+ * Each district's alarm, threshold and prediction values, month by month. The
+ * risk classification, the map tooltip and the alert table all read the same
+ * numbers, so they are collected once here rather than three times in slightly
+ * different ways — a district must not be able to appear on the map and not in
+ * the table.
+ *
+ * A blank is not a zero. `Number('')` and `Number(null)` are both `0`, so a
+ * missing prediction used to become a real threshold or median and could put a
+ * district in the Watch band. `'0'` is kept: zero is a valid alarm value.
  */
 const collectDistrictValues = ({ districts, dataValues, malariaMapping, periods }) => {
     const periodSet = new Set(periods);
@@ -17,7 +22,9 @@ const collectDistrictValues = ({ districts, dataValues, malariaMapping, periods 
         const districtPeriods = rowsByDistrict.get(orgUnitId);
         if (!districtPeriods || !periodSet.has(period)) return;
 
-        const value = Number(row.at(-1));
+        const rawValue = row.at(-1);
+        if (rawValue === '' || rawValue === null || rawValue === undefined) return;
+        const value = Number(rawValue);
         if (!Number.isFinite(value)) return;
 
         const values = districtPeriods.get(period) || {};
@@ -27,12 +34,58 @@ const collectDistrictValues = ({ districts, dataValues, malariaMapping, periods 
             values.threshold = value;
         } else if (dataElement === malariaMapping.predictionMedian) {
             values.predictionMedian = value;
+        } else if (dataElement === malariaMapping.predictionLowerBound) {
+            values.predictionLowerBound = value;
+        } else if (dataElement === malariaMapping.predictionUpperBound) {
+            values.predictionUpperBound = value;
         }
         districtPeriods.set(period, values);
     });
 
     return rowsByDistrict;
 };
+
+/**
+ * One forecast month as the map reads it: the three prediction columns and the
+ * risk category they classify as. Alarm wins over the Watch band; a month with
+ * no values at all is `unavailable` rather than a quiet `normal`.
+ */
+const toForecastRow = (period, values = {}) => {
+    const isAlert = values.alarm === 1;
+    const isWatch = !isAlert &&
+        values.threshold > 0 &&
+        values.predictionMedian >= values.threshold * 0.75 &&
+        values.predictionMedian < values.threshold;
+
+    return {
+        period,
+        predictionMedian: values.predictionMedian ?? null,
+        predictionLowerBound: values.predictionLowerBound ?? null,
+        predictionUpperBound: values.predictionUpperBound ?? null,
+        status: isAlert
+            ? 'alert'
+            : isWatch
+                ? 'watch'
+                : Object.values(values).some((value) => value !== undefined)
+                    ? 'normal'
+                    : 'unavailable',
+    };
+};
+
+/**
+ * The district's risk over the forecast window: alert if any month carries an
+ * alarm, otherwise watch if any month is in the band, otherwise normal if any
+ * month has values. `null` means there is nothing to classify, which the map
+ * draws as outside/unavailable rather than as a quiet district.
+ */
+export const getDistrictRiskFromRows = (rows = []) =>
+    rows.some((row) => row.status === 'alert')
+        ? 'alert'
+        : rows.some((row) => row.status === 'watch')
+            ? 'watch'
+            : rows.some((row) => row.status === 'normal')
+                ? 'normal'
+                : null;
 
 const isAboveThreshold = (values) =>
     Number.isFinite(values.predictionMedian) &&
@@ -56,14 +109,21 @@ export const buildDistrictAlertRows = ({
     periods = [],
     orgUnits = [],
     selectedOrgUnitId,
+    districts: explicitDistricts,
 }) => {
     const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
-    if (![1, 2].includes(Number(selectedUnit?.level))) return [];
+    const hasExplicitDistricts = Array.isArray(explicitDistricts);
+
+    // An explicit set may come from a level-3 (DHO) selection, so the level gate
+    // only applies when the districts have to be derived from the selection.
+    if (!hasExplicitDistricts && ![1, 2].includes(Number(selectedUnit?.level))) return [];
 
     const malariaMapping = mapping.find((item) => /malaria/i.test(item?.displayName || ''));
     if (!malariaMapping || periods.length === 0) return [];
 
-    const districts = getDistrictDescendants(orgUnits, selectedOrgUnitId);
+    const districts = hasExplicitDistricts
+        ? explicitDistricts
+        : getDistrictDescendants(orgUnits, selectedOrgUnitId);
     const rowsByDistrict = collectDistrictValues({
         districts,
         dataValues,
@@ -242,11 +302,18 @@ export const buildDistrictForecastStatuses = ({
     periods = [],
     orgUnits = [],
     selectedOrgUnitId,
+    districts: explicitDistricts,
 }) => {
     const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
-    if (![1, 2].includes(Number(selectedUnit?.level))) return null;
+    const hasExplicitDistricts = Array.isArray(explicitDistricts);
 
-    const districts = getDistrictDescendants(orgUnits, selectedOrgUnitId);
+    // An explicit set may come from a level-3 (DHO) selection, so the level gate
+    // only applies when the districts have to be derived from the selection.
+    if (!hasExplicitDistricts && ![1, 2].includes(Number(selectedUnit?.level))) return null;
+
+    const districts = hasExplicitDistricts
+        ? explicitDistricts
+        : getDistrictDescendants(orgUnits, selectedOrgUnitId);
 
     const malariaMapping = mapping.find((item) => /malaria/i.test(item.displayName || ''));
 
@@ -259,6 +326,12 @@ export const buildDistrictForecastStatuses = ({
                 id: district.id,
                 name: district.displayName || district.name || district.id,
             })),
+            // The map still needs a row per district per month, and every one
+            // of them is unavailable rather than absent.
+            forecastRowsByDistrict: new Map(districts.map((district) => [
+                district.id,
+                periods.map((period) => toForecastRow(period)),
+            ])),
             isConfigured: false,
         };
     }
@@ -269,6 +342,13 @@ export const buildDistrictForecastStatuses = ({
         malariaMapping,
         periods,
     });
+
+    const forecastRowsByDistrict = new Map(districts.map((district) => [
+        district.id,
+        periods.map((period) =>
+            toForecastRow(period, rowsByDistrict.get(district.id).get(period) || {})
+        ),
+    ]));
 
     const alerts = [];
     const watches = [];
@@ -329,24 +409,10 @@ export const buildDistrictForecastStatuses = ({
         alerts,
         watches,
         normal,
+        forecastRowsByDistrict,
         isConfigured: Boolean(
             malariaMapping.alarmElement ||
             (malariaMapping.threshold && malariaMapping.predictionMedian)
         ),
     };
 };
-
-/**
- * A district's name as it fits on a map label.
- *
- * Every level-three unit in this instance is a District Health Office, so its
- * name ends in "-DHO": "Balaka-DHO", "Mzimba-North-DHO". Four characters
- * repeated on all twenty-nine labels are the difference between a name that
- * sits inside its own district and one that runs across its neighbour, so the
- * map drops them. The hover title, the tiles and the alert table beside it keep
- * the full name.
- *
- * A name that is nothing but the suffix is left as it is rather than emptied.
- */
-export const shortDistrictName = (name) =>
-    typeof name === 'string' ? name.replace(/[\s-]+DHO$/i, '') || name : name;
