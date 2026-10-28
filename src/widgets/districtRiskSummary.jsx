@@ -1,8 +1,9 @@
 import React from 'react';
+import i18n from '@dhis2/d2-i18n';
 import { useDataEngine } from '@dhis2/app-runtime';
 import {
-    buildDistrictAlertRows,
     buildDistrictForecastStatuses,
+    buildDistrictRiskTable,
     buildSelectedDistrictForecastRows,
     getDistrictRiskFromRows,
 } from '../utils/districtForecasts';
@@ -485,54 +486,96 @@ const DistrictRiskMap = ({
 };
 
 /**
- * The alerted districts in full, under the map: which month each one is
- * expected to peak in, that month's prediction beside its threshold, how far
- * above it runs, and over how many of the forecast months. The map says how
- * many districts are on alert; this says which and by how much.
+ * The title and explanatory line for the risk table's current mode. Alert rows
+ * show how far above threshold the forecast runs; watch rows show how close;
+ * top rows show the highest forecast medians when there is no risk at all.
  */
-const AlertDistrictTable = ({ style, rows }) => {
-    if (rows.length === 0) return null;
+const riskTableCopy = (mode) => {
+    if (mode === 'alert') {
+        return {
+            title: i18n.t('Districts on alert'),
+            note: i18n.t('Ranked by forecast cases above threshold.'),
+        };
+    }
+
+    if (mode === 'watch') {
+        return {
+            title: i18n.t('Districts on watch'),
+            note: i18n.t('No district is on alert. Peak is the month closest to the threshold; ranked by how close the forecast median runs to it.'),
+        };
+    }
+
+    if (mode === 'top') {
+        return {
+            title: i18n.t('Top districts by forecast cases'),
+            note: i18n.t('No district is on alert or watch. Ranked by the highest forecast median across the forecast months.'),
+        };
+    }
+
+    return {
+        title: i18n.t('District forecast table'),
+        note: i18n.t('No district is on alert or watch, and no district has a forecast median for this bulletin period.'),
+    };
+};
+
+/**
+ * The risk table beside the map. Unlike the old alert-only table it is always
+ * rendered: with alerts, then watches, then the highest forecast medians, and
+ * an empty-state card when there is no forecast at all.
+ */
+export const DistrictRiskTable = ({ style, mode, rows, isConfigured }) => {
+    const { title, note } = riskTableCopy(mode);
 
     return (
-        <section className={style.districtAlertTable} aria-label="Districts on alert">
+        <section
+            className={`${style.districtAlertTable} ${style.districtRiskTable}`}
+            aria-label="District forecast risk table"
+        >
             <h3>
-                Districts on alert <span>({rows.length})</span>
+                {title}
+                {rows.length > 0 && <span> ({rows.length})</span>}
             </h3>
-            <p className={style.districtAlertTableNote}>
-                Ranked by forecast cases above threshold.
-            </p>
-            <div className={style.districtForecastTableWrap}>
-                <table className={style.districtForecastTable}>
-                    <thead>
-                        <tr>
-                            <th>District</th>
-                            <th>Region</th>
-                            <th>Peak</th>
-                            <th>Median</th>
-                            <th>Threshold</th>
-                            <th>Excess</th>
-                            <th>Months</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row) => (
-                            <tr key={row.id}>
-                                <td>{row.name}</td>
-                                <td>{row.region || '—'}</td>
-                                <td>{row.peakPeriod ? peakLabel(row.peakPeriod) : '—'}</td>
-                                <td><ForecastValue value={row.peakMedian} /></td>
-                                <td><ForecastValue value={row.peakThreshold} /></td>
-                                <td>
-                                    {row.excess === null
-                                        ? '—'
-                                        : `${row.excess > 0 ? '+' : ''}${row.excess}%`}
-                                </td>
-                                <td>{row.monthsAbove}/{row.monthsTotal}</td>
+            <p className={style.districtAlertTableNote}>{note}</p>
+            {rows.length === 0 ? (
+                <p className={style.districtForecastEmpty}>
+                    {isConfigured
+                        ? i18n.t('No district-level forecast values are available for this bulletin period.')
+                        : i18n.t('Configure malaria threshold, prediction bounds, median prediction, or alarm indicators to display the district forecast table.')}
+                </p>
+            ) : (
+                <div className={style.districtForecastTableWrap}>
+                    <table className={style.districtForecastTable}>
+                        <thead>
+                            <tr>
+                                <th>District</th>
+                                <th>Region</th>
+                                <th>Peak</th>
+                                <th>Median</th>
+                                <th>Threshold</th>
+                                <th>Excess</th>
+                                <th>Months</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.id}>
+                                    <td>{row.name}</td>
+                                    <td>{row.region || '—'}</td>
+                                    <td>{row.peakPeriod ? peakLabel(row.peakPeriod) : '—'}</td>
+                                    <td><ForecastValue value={row.peakMedian} /></td>
+                                    <td><ForecastValue value={row.peakThreshold} /></td>
+                                    <td>
+                                        {row.excess === null
+                                            ? '—'
+                                            : `${row.excess > 0 ? '+' : ''}${row.excess}%`}
+                                    </td>
+                                    <td>{row.monthsAbove}/{row.monthsTotal}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </section>
     );
 };
@@ -574,26 +617,16 @@ const DistrictRiskSummary = ({
         [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId, highlightedDistricts]
     );
 
-    const alertRows = React.useMemo(
-        () => (isDistrictSelection
-            ? []
-            : buildDistrictAlertRows({
-                dataValues,
-                mapping,
-                periods: forecastPeriods,
-                orgUnits,
-                selectedOrgUnitId,
-                districts: highlightedDistricts,
-            })),
-        [
+    const riskTable = React.useMemo(
+        () => buildDistrictRiskTable({
             dataValues,
-            forecastPeriods,
             mapping,
+            periods: forecastPeriods,
             orgUnits,
             selectedOrgUnitId,
-            highlightedDistricts,
-            isDistrictSelection,
-        ]
+            districts: highlightedDistricts,
+        }),
+        [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId, highlightedDistricts]
     );
 
     const selectedDistrictForecast = React.useMemo(
@@ -630,10 +663,11 @@ const DistrictRiskSummary = ({
                     onChange={onHighlightChange}
                 />
             )}
-            {/* With no alerts there is no table to sit beside, so the map takes
-                the whole width. A DHO bulletin stacks the map over its monthly
-                table because the seven-column table needs the width. */}
-            <div className={`${style.districtRiskRow} ${(isDistrictSelection || alertRows.length === 0) ? style.districtRiskRowWide : ''}`}>
+            {/* The map always shows the whole country, with only the highlighted
+                districts coloured. The table is always beside it: alerts, then
+                watches, then the highest forecast medians. A DHO bulletin also
+                stacks its monthly forecast table in the same right-hand pane. */}
+            <div className={style.districtRiskRow}>
                 <DistrictRiskMap
                     style={style}
                     orgUnits={orgUnits}
@@ -641,16 +675,22 @@ const DistrictRiskSummary = ({
                     forecastRowsByDistrict={status.forecastRowsByDistrict}
                     isConfigured={status.isConfigured}
                 />
-                {isDistrictSelection ? (
-                    <SelectedDistrictForecastTable
+                <div className={style.districtRiskRightPane}>
+                    <DistrictRiskTable
                         style={style}
-                        district={selectedUnit}
-                        rows={selectedDistrictForecast.rows}
-                        isConfigured={selectedDistrictForecast.isConfigured}
+                        mode={riskTable.mode}
+                        rows={riskTable.rows}
+                        isConfigured={status.isConfigured}
                     />
-                ) : (
-                    <AlertDistrictTable style={style} rows={alertRows} />
-                )}
+                    {isDistrictSelection && (
+                        <SelectedDistrictForecastTable
+                            style={style}
+                            district={selectedUnit}
+                            rows={selectedDistrictForecast.rows}
+                            isConfigured={selectedDistrictForecast.isConfigured}
+                        />
+                    )}
+                </div>
             </div>
         </section>
     );
