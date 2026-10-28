@@ -1,17 +1,15 @@
 import React from 'react';
 import i18n from '@dhis2/d2-i18n';
 import {
-    MultiSelect,
-    MultiSelectOption,
+    Checkbox,
     SingleSelectField,
     SingleSelectOption,
 } from '@dhis2/ui';
 import {
     canonicalHighlightMode,
+    groupDistrictsByZone,
     resolveHighlightedDistricts,
 } from '../utils/mapHighlight';
-
-const getParentId = (unit) => unit?.parent?.id || unit?.parent || null;
 
 const MODE_LABELS = (level) => {
     if (level === 3) {
@@ -32,11 +30,56 @@ const MODE_LABELS = (level) => {
     return [['own', i18n.t('All districts in Malawi')]];
 };
 
+const DistrictChecklist = ({ style, groups, selectedIds, describedBy, onToggle }) => {
+    const groupId = React.useId();
+    const labelId = `${groupId}-label`;
+
+    return (
+        <div
+            className={style.mapHighlightChecklist}
+            role="group"
+            aria-labelledby={labelId}
+            aria-describedby={describedBy}
+        >
+            <p id={labelId} className={style.mapHighlightChecklistLabel}>
+                {i18n.t('Districts')}
+            </p>
+            {groups.map((group) => {
+                const headingId = `${groupId}-${group.id}`;
+
+                return (
+                    <div
+                        key={group.id}
+                        className={style.mapHighlightZone}
+                        role="group"
+                        aria-labelledby={headingId}
+                    >
+                        <p id={headingId} className={style.mapHighlightZoneHeading}>
+                            {group.name || i18n.t('Other')}
+                        </p>
+                        {group.districts.map((district) => (
+                            <Checkbox
+                                key={district.id}
+                                dense
+                                checked={selectedIds.has(district.id)}
+                                label={district.name}
+                                onChange={({ checked }) => onToggle(district.id, checked)}
+                            />
+                        ))}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 /**
  * The author's choice of which districts the map colours.
  *
  * It is rendered only by the editor: the preview and the PDF receive the saved
- * choice and no callback, so the control never appears in the document.
+ * choice and no callback, so the control never appears in the document. The
+ * checklist is visible while "Choose districts" is selected, so every DHO can be
+ * seen and an accidentally skipped one can be ticked back in.
  */
 const MapHighlightControl = ({
     style,
@@ -51,50 +94,81 @@ const MapHighlightControl = ({
     const districtIds = Array.isArray(highlight?.districtIds)
         ? highlight.districtIds
         : [];
+    const countId = React.useId();
 
-    const districts = React.useMemo(() => {
-        const zoneNames = new Map(
-            orgUnits
-                .filter((unit) => Number(unit.level) === 2)
-                .map((unit) => [unit.id, unit.displayName || unit.name || unit.id])
-        );
-
-        return orgUnits
-            .filter((unit) => Number(unit.level) === 3 && unit.id)
-            .map((unit) => ({
-                id: unit.id,
-                name: unit.displayName || unit.name || unit.id,
-                zone: zoneNames.get(getParentId(unit)) || '',
-            }))
-            .sort((left, right) => (
-                left.zone === right.zone
-                    ? left.name.localeCompare(right.name)
-                    : left.zone.localeCompare(right.zone)
-            ));
-    }, [orgUnits]);
+    const groups = React.useMemo(
+        () => groupDistrictsByZone(orgUnits),
+        [orgUnits]
+    );
+    const districts = React.useMemo(
+        () => groups.flatMap((group) => group.districts),
+        [groups]
+    );
 
     // A saved id for a district this user cannot see is inert to the map; it
-    // also has no option here, so it is left out of the selection count.
+    // also has no checkbox, so it is left out of the displayed selection.
     const visibleIds = React.useMemo(
         () => districtIds.filter((id) => districts.some((district) => district.id === id)),
         [districtIds, districts]
     );
 
+    // A manual list whose districts are no longer visible falls back to `own`
+    // in the resolver, so that is what the checklist must show. Otherwise the
+    // ticks and the colours on the map would disagree.
+    const resolvedIds = React.useMemo(() => {
+        if (mode !== 'manual' || visibleIds.length > 0) return visibleIds;
+
+        return resolveHighlightedDistricts({
+            orgUnits,
+            selectedOrgUnitId,
+            highlight: { mode: 'own', districtIds: [] },
+        })
+            .map((district) => district.id)
+            .filter((id) => districts.some((district) => district.id === id));
+    }, [mode, visibleIds, orgUnits, selectedOrgUnitId, districts]);
+
+    const selectedIds = React.useMemo(() => new Set(resolvedIds), [resolvedIds]);
+
     const changeMode = (nextMode) => {
         if (!onChange) return;
 
-        if (nextMode === 'manual' && districtIds.length === 0) {
-            const own = resolveHighlightedDistricts({
+        if (nextMode === 'manual') {
+            // Keep a manual list the author has already built; otherwise start
+            // from what the map currently shows, so a DHO missing from a
+            // zone/all highlight can simply be ticked back in.
+            if (visibleIds.length > 0) {
+                onChange({ mode: 'manual', districtIds });
+                return;
+            }
+
+            const current = resolveHighlightedDistricts({
                 orgUnits,
                 selectedOrgUnitId,
-                highlight: { mode: 'own', districtIds: [] },
+                highlight: { mode, districtIds },
             });
 
-            onChange({ mode: 'manual', districtIds: own.map((district) => district.id) });
+            onChange({
+                mode: 'manual',
+                districtIds: current.map((district) => district.id),
+            });
             return;
         }
 
         onChange({ mode: nextMode, districtIds });
+    };
+
+    const toggleDistrict = (id, checked) => {
+        if (!onChange) return;
+
+        // When the saved manual list has gone stale, the checklist is showing
+        // the resolver's `own` fallback; start the new list from that rather
+        // than from the stale ids, so unticking works.
+        const baseIds = visibleIds.length > 0 ? districtIds : resolvedIds;
+        const next = checked
+            ? Array.from(new Set([...baseIds, id]))
+            : baseIds.filter((districtId) => districtId !== id);
+
+        onChange({ mode: 'manual', districtIds: next });
     };
 
     return (
@@ -112,29 +186,26 @@ const MapHighlightControl = ({
 
             {mode === 'manual' && (
                 <>
-                    <MultiSelect
-                        filterable
-                        label={i18n.t('Districts')}
-                        selected={visibleIds}
-                        onChange={({ selected }) =>
-                            onChange({ mode: 'manual', districtIds: selected })
-                        }
-                    >
-                        {districts.map((district) => (
-                            <MultiSelectOption
-                                key={district.id}
-                                value={district.id}
-                                label={district.zone
-                                    ? `${district.name} — ${district.zone}`
-                                    : district.name}
+                    {districts.length === 0 ? (
+                        <p className={style.mapHighlightHint}>
+                            {i18n.t('No districts are available for this organisation unit.')}
+                        </p>
+                    ) : (
+                        <>
+                            <DistrictChecklist
+                                style={style}
+                                groups={groups}
+                                selectedIds={selectedIds}
+                                describedBy={countId}
+                                onToggle={toggleDistrict}
                             />
-                        ))}
-                    </MultiSelect>
-                    <p className={style.mapHighlightHint}>
-                        {visibleIds.length === 0
-                            ? i18n.t('No districts selected; the map shows the bulletin district.')
-                            : i18n.t('{{total}} district(s) highlighted', { total: visibleIds.length })}
-                    </p>
+                            <p id={countId} className={style.mapHighlightHint} aria-live="polite">
+                                {i18n.t('{{total}} district(s) highlighted', {
+                                    total: resolvedIds.length,
+                                })}
+                            </p>
+                        </>
+                    )}
                 </>
             )}
 

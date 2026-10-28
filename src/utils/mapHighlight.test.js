@@ -3,6 +3,7 @@ import {
     canonicalHighlightMode,
     findLevelThreeAncestor,
     getSameZoneDistricts,
+    groupDistrictsByZone,
     normaliseMapHighlight,
     resolveHighlightedDistricts,
 } from './mapHighlight';
@@ -66,6 +67,46 @@ describe('findLevelThreeAncestor', () => {
     it('walks up to the district a deeper unit belongs to', () => {
         expect(findLevelThreeAncestor(orgUnits, 'facility')?.id).toBe('north-a');
         expect(findLevelThreeAncestor(orgUnits, 'country')).toBeNull();
+    });
+});
+
+describe('groupDistrictsByZone', () => {
+    it('groups every level-3 unit under its zone, sorted by name', () => {
+        expect(groupDistrictsByZone(orgUnits)).toEqual([
+            {
+                id: 'central',
+                name: 'Central',
+                districts: [{ id: 'central-a', name: 'Central A' }],
+            },
+            {
+                id: 'north',
+                name: 'Northern',
+                districts: [
+                    { id: 'hospital', name: 'Hospital' },
+                    { id: 'north-a', name: 'North A' },
+                    { id: 'north-b', name: 'North B' },
+                ],
+            },
+        ]);
+    });
+
+    it('groups every unknown parent into one Other group and ignores other levels', () => {
+        const result = groupDistrictsByZone([
+            ...orgUnits,
+            { id: 'orphan', level: 3, displayName: 'Orphan' },
+            { id: 'orphan-2', level: 3, displayName: 'Second Orphan', parent: { id: 'missing' } },
+        ]);
+
+        expect(result.map(({ name }) => name)).toEqual(['Central', 'Northern', '']);
+        expect(result[1].districts).toHaveLength(3);
+        expect(result[2].districts).toEqual([
+            { id: 'orphan', name: 'Orphan' },
+            { id: 'orphan-2', name: 'Second Orphan' },
+        ]);
+    });
+
+    it('returns nothing for no units', () => {
+        expect(groupDistrictsByZone([])).toEqual([]);
     });
 });
 
