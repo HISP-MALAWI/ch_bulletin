@@ -131,55 +131,101 @@ describe('sanitiseFileName', () => {
 // implement, are stubbed. What is under test is the excluded sections: that they
 // are out of the page while the capture runs, and back in it afterwards however
 // the export ends.
+describe('inlineMapTiles', () => {
+    const makeMap = (hrefs) => {
+        document.body.innerHTML = `
+            <div id="root">
+                <svg>
+                    <g data-pdf-map-tiles>
+                        ${hrefs.map((href) => `<image data-pdf-map-tile="" href="${href}"></image>`).join('')}
+                    </g>
+                    <path id="boundary" d="M0 0Z"></path>
+                </svg>
+            </div>`
+
+        return document.getElementById('root')
+    }
+
+    it('rewrites every tile to a data URL and restores the originals', async () => {
+        const { inlineMapTiles } = require('./bulletinPdf')
+        const element = makeMap(['https://tiles/1.png', 'https://tiles/2.png'])
+
+        const result = await inlineMapTiles(element, {
+            load: async (href) => `data:image/png;base64,${href}`,
+        })
+
+        const tiles = element.querySelectorAll('[data-pdf-map-tile]')
+        expect(tiles[0].getAttribute('href')).toBe('data:image/png;base64,https://tiles/1.png')
+        expect(tiles[1].getAttribute('href')).toBe('data:image/png;base64,https://tiles/2.png')
+        expect(result).toMatchObject({ inlined: 2, failed: 0, hidden: false })
+
+        result.restore()
+        expect(tiles[0].getAttribute('href')).toBe('https://tiles/1.png')
+        expect(tiles[1].getAttribute('href')).toBe('https://tiles/2.png')
+    })
+
+    it('leaves tiles that are already data URLs alone', async () => {
+        const { inlineMapTiles } = require('./bulletinPdf')
+        const element = makeMap(['data:image/png;base64,already'])
+        const load = jest.fn()
+
+        const result = await inlineMapTiles(element, { load })
+
+        expect(load).not.toHaveBeenCalled()
+        expect(result).toMatchObject({ inlined: 0, failed: 0, hidden: false })
+    })
+
+    it('hides the whole basemap and reports it when one tile fails', async () => {
+        const { inlineMapTiles } = require('./bulletinPdf')
+        const element = makeMap(['https://tiles/1.png', 'https://tiles/2.png'])
+        jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+        const result = await inlineMapTiles(element, {
+            load: async (href) => {
+                if (href.endsWith('2.png')) throw new Error('offline')
+                return `data:image/png;base64,${href}`
+            },
+        })
+
+        expect(result).toMatchObject({ failed: 2, hidden: true })
+        // No partial inlining: the group goes and the hrefs are untouched.
+        expect(element.querySelector('[data-pdf-map-tiles]').style.display).toBe('none')
+        expect(element.querySelector('[data-pdf-map-tile]').getAttribute('href')).toBe(
+            'https://tiles/1.png'
+        )
+        // The boundary paths are siblings and stay.
+        expect(element.querySelector('#boundary')).not.toBeNull()
+
+        result.restore()
+        expect(element.querySelector('[data-pdf-map-tiles]').style.display).toBe('')
+    })
+})
+
 describe('exportBulletinPdf', () => {
     const canvasContext = { fillRect: jest.fn(), drawImage: jest.fn() }
     let displayDuringCapture = null
     let pendingDuringCapture = null
-    let mapDuringCapture = null
+    let tilesDuringCapture = null
     let captureError = null
 
-    const buildDocument = () => {
+    const buildDocument = ({ tiles = [] } = {}) => {
         document.body.innerHTML = `
             <div id="document">
                 <div data-pdf-block id="forecast"></div>
                 <div data-pdf-block data-pdf-exclude id="summary" style="display: block"></div>
+                <div data-pdf-block id="map">
+                    <svg>
+                        <g data-pdf-map-tiles>
+                            ${tiles.map((href) => `<image data-pdf-map-tile="" href="${href}"></image>`).join('')}
+                        </g>
+                        <path d="M0 0Z"></path>
+                    </svg>
+                </div>
                 <div data-pdf-block id="actions"></div>
             </div>`
 
         return document.getElementById('document')
     }
-
-    // An embedded DHIS2 map, as the export finds it: a host marked for the
-    // plugin, a frame inside it, and — when the frame is readable at all — the
-    // map's own canvas.
-    const addMapHost = (element, contentDocument) => {
-        const host = document.createElement('div')
-        const iframe = document.createElement('iframe')
-
-        host.setAttribute('data-pdf-plugin', '')
-        host.appendChild(iframe)
-
-        Object.defineProperty(iframe, 'contentDocument', {
-            configurable: true,
-            get:
-                contentDocument === 'cross-origin'
-                    ? () => {
-                          throw new Error('Blocked a frame with origin')
-                      }
-                    : () => contentDocument,
-        })
-
-        element.appendChild(host)
-
-        return host
-    }
-
-    const mapFrameDocument = () => ({
-        querySelector: (selector) =>
-            selector === 'canvas.maplibregl-canvas'
-                ? { toDataURL: () => 'data:image/png;base64,map' }
-                : null,
-    })
 
     beforeAll(() => {
         HTMLCanvasElement.prototype.getContext = () => canvasContext
@@ -190,7 +236,7 @@ describe('exportBulletinPdf', () => {
         jest.resetModules()
         displayDuringCapture = null
         pendingDuringCapture = null
-        mapDuringCapture = null
+        tilesDuringCapture = null
         captureError = null
 
         jest.doMock('html2canvas', () => ({
@@ -198,9 +244,9 @@ describe('exportBulletinPdf', () => {
             default: async (element) => {
                 displayDuringCapture = element.querySelector('#summary').style.display
                 pendingDuringCapture = element.querySelector('[data-pdf-pending]') !== null
-                mapDuringCapture = {
-                    image: element.querySelector('[data-pdf-map-image]'),
-                    frameDisplay: element.querySelector('[data-pdf-plugin] iframe')?.style.display,
+                tilesDuringCapture = {
+                    href: element.querySelector('[data-pdf-map-tile]')?.getAttribute('href') || null,
+                    groupDisplay: element.querySelector('[data-pdf-map-tiles]')?.style.display || '',
                 }
 
                 if (captureError) {
@@ -267,36 +313,55 @@ describe('exportBulletinPdf', () => {
         expect(element.querySelector('#summary').style.display).toBe('block')
     })
 
-    it('captures an embedded map as an image of its own canvas', async () => {
+    it('inlines the basemap before capturing it', async () => {
         const { exportBulletinPdf } = require('./bulletinPdf')
-        const element = buildDocument()
-        addMapHost(element, mapFrameDocument())
+        const element = buildDocument({ tiles: ['https://tiles/1.png'] })
 
-        const result = await exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
+        const result = await exportBulletinPdf(element, {
+            fileName: 'bulletin.pdf',
+            mapTileLoader: async (href) => `data:image/png;base64,${href}`,
+        })
 
-        // html2canvas re-renders the frame and reports nothing when the canvas
-        // inside it comes back empty, so the map is read here and drawn as an
-        // image, with the frame out of the way.
-        expect(mapDuringCapture.image.src).toBe('data:image/png;base64,map')
-        expect(mapDuringCapture.frameDisplay).toBe('none')
-        expect(result.mapFallbacks).toBe(0)
+        expect(tilesDuringCapture.href).toBe('data:image/png;base64,https://tiles/1.png')
+        expect(tilesDuringCapture.groupDisplay).toBe('')
+        expect(result.mapTilesHidden).toBe(false)
 
-        expect(element.querySelector('[data-pdf-map-image]')).toBeNull()
-        expect(element.querySelector('[data-pdf-plugin] iframe').style.display).toBe('')
+        // Restored afterwards.
+        expect(element.querySelector('[data-pdf-map-tile]').getAttribute('href')).toBe(
+            'https://tiles/1.png'
+        )
     })
 
-    it('uncovers the drawing under a map frame it cannot read, and says how many', async () => {
+    it('hides the basemap when a tile cannot be loaded and says so', async () => {
         const { exportBulletinPdf } = require('./bulletinPdf')
-        const element = buildDocument()
-        addMapHost(element, 'cross-origin')
+        const element = buildDocument({ tiles: ['https://tiles/1.png'] })
+        jest.spyOn(console, 'warn').mockImplementation(() => {})
 
-        const result = await exportBulletinPdf(element, { fileName: 'bulletin.pdf' })
+        const result = await exportBulletinPdf(element, {
+            fileName: 'bulletin.pdf',
+            mapTileLoader: async () => {
+                throw new Error('offline')
+            },
+        })
 
-        // This is the dev server, where the plugin is another origin: the map
-        // cannot be captured, so the bulletin's own drawing is what is on the
-        // page — and the export reports it rather than shipping the difference.
-        expect(mapDuringCapture.image).toBeNull()
-        expect(mapDuringCapture.frameDisplay).toBe('none')
-        expect(result.mapFallbacks).toBe(1)
+        expect(tilesDuringCapture.groupDisplay).toBe('none')
+        expect(result.mapTilesHidden).toBe(true)
+        // The boundary paths are still in the capture.
+        expect(element.querySelector('path')).not.toBeNull()
+    })
+
+    it('restores the tiles when the capture fails', async () => {
+        const { exportBulletinPdf } = require('./bulletinPdf')
+        const element = buildDocument({ tiles: ['https://tiles/1.png'] })
+        captureError = new Error('capture failed')
+
+        await expect(exportBulletinPdf(element, {
+            fileName: 'bulletin.pdf',
+            mapTileLoader: async (href) => `data:image/png;base64,${href}`,
+        })).rejects.toThrow('capture failed')
+
+        expect(element.querySelector('[data-pdf-map-tile]').getAttribute('href')).toBe(
+            'https://tiles/1.png'
+        )
     })
 })

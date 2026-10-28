@@ -4,18 +4,36 @@ import {
     buildDistrictAlertRows,
     buildDistrictForecastStatuses,
     buildSelectedDistrictForecastRows,
-    shortDistrictName,
+    getDistrictRiskFromRows,
 } from '../utils/districtForecasts';
-import { getDistrictBoundaries, readLocalBoundaries } from '../utils/districtBoundaries';
-import { getDistrictMap } from '../utils/districtMap';
-import { buildDistrictMap } from '../utils/districtMapGeometry';
+import {
+    getNationalDistrictBoundaries,
+    readNationalBoundaries,
+} from '../utils/districtBoundaries';
+import {
+    MAX_MAP_ZOOM,
+    MIN_MAP_ZOOM,
+    buildMapLayout,
+} from '../utils/districtMapTiles';
 import { getMonthlyPeriods } from '../utils/getDataValues';
-import DistrictRiskMapEmbed from './districtRiskMapEmbed';
+import { resolveHighlightedDistricts } from '../utils/mapHighlight';
+import MapHighlightControl from './mapHighlightControl';
 
 const numberFormat = new Intl.NumberFormat('en', { maximumFractionDigits: 0 });
 
-/** The map's height in the bulletin when the author has not set one. */
-export const DEFAULT_MAP_HEIGHT = 520;
+const TOOLTIP_WIDTH = 190;
+const TOOLTIP_HEIGHT = 120;
+const TOOLTIP_MARGIN = 8;
+
+// The same three colours the CSS publishes as `--risk-*`, repeated as SVG
+// presentation attributes: html2canvas clones SVG nodes into the PDF, and the
+// attributes make the export independent of whether the cloned styles survived.
+const RISK_COLOURS = {
+    alert: '#c51627',
+    watch: '#e3a400',
+    normal: '#27813c',
+    outside: '#cbd5e1',
+};
 
 const periodLabel = (period) => {
     const date = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(4, 6)) - 1, 1));
@@ -42,362 +60,426 @@ const ForecastValue = ({ value }) => (
     value === null || value === undefined ? '—' : numberFormat.format(value)
 );
 
-const SelectedDistrictForecastTable = ({ style, district, rows, isConfigured }) => (
-    <section className={`${style.sectionCard} ${style.districtRiskSummary}`}>
-        <div className={style.sectionHeader}>
-            <h2 className={style.casesChartTitle}>District forecast risk</h2>
-        </div>
-        <p className={style.casesChartSubtitle}>
-            Monthly malaria predictions and risk status for {district.displayName || district.name || district.id}.
-        </p>
-        {!isConfigured ? (
-            <p className={style.districtForecastEmpty}>
-                Configure malaria threshold, prediction bounds, median prediction, or alarm indicators to display the forecast.
+const SelectedDistrictForecastTable = ({ style, district, rows, isConfigured }) => {
+    const name = district.displayName || district.name || district.id;
+
+    return (
+        <section className={style.districtAlertTable} aria-label={`Monthly forecast for ${name}`}>
+            <h3>Monthly forecast — {name}</h3>
+            <p className={style.districtAlertTableNote}>
+                Monthly malaria predictions and risk status for this district.
             </p>
-        ) : rows.length > 0 ? (
-            <div className={style.districtForecastTableWrap}>
-                <table className={style.districtForecastTable}>
-                    <thead>
-                        <tr>
-                            <th>Forecast month</th>
-                            <th>Threshold</th>
-                            <th>Lower limit</th>
-                            <th>Median prediction</th>
-                            <th>Upper limit</th>
-                            <th>Alarm indication</th>
-                            <th>Risk category</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row) => (
-                            <tr key={row.period}>
-                                <td>{periodLabel(row.period)}</td>
-                                <td><ForecastValue value={row.threshold} /></td>
-                                <td><ForecastValue value={row.predictionLowerBound} /></td>
-                                <td><ForecastValue value={row.predictionMedian} /></td>
-                                <td><ForecastValue value={row.predictionUpperBound} /></td>
-                                <td>
-                                    {row.alarm === 1 ? (
-                                        <span className={`${style.districtForecastBadge} ${style.districtForecastBadgeAlert}`}>
-                                            Alarm
-                                        </span>
-                                    ) : row.alarm === 0 ? 'No' : '—'}
-                                </td>
-                                <td>
-                                    <span className={`${style.districtForecastBadge} ${style[`districtForecastBadge${row.status[0].toUpperCase()}${row.status.slice(1)}`]}`}>
-                                        {row.status === 'unavailable'
-                                            ? 'No data'
-                                            : `${row.status[0].toUpperCase()}${row.status.slice(1)}`}
-                                    </span>
-                                </td>
+            {!isConfigured ? (
+                <p className={style.districtForecastEmpty}>
+                    Configure malaria threshold, prediction bounds, median prediction, or alarm indicators to display the forecast.
+                </p>
+            ) : rows.length > 0 ? (
+                <div className={style.districtForecastTableWrap}>
+                    <table className={style.districtForecastTable}>
+                        <thead>
+                            <tr>
+                                <th>Forecast month</th>
+                                <th>Threshold</th>
+                                <th>Lower limit</th>
+                                <th>Median prediction</th>
+                                <th>Upper limit</th>
+                                <th>Alarm indication</th>
+                                <th>Risk category</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        ) : (
-            <p className={style.districtForecastEmpty}>No forecast months are available for this bulletin period.</p>
-        )}
-        <p className={style.districtForecastTableNote}>
-            Alert is triggered by an alarm indication. Watch means the median prediction is at least 75% of, but below, the threshold.
-        </p>
-    </section>
-);
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.period}>
+                                    <td>{periodLabel(row.period)}</td>
+                                    <td><ForecastValue value={row.threshold} /></td>
+                                    <td><ForecastValue value={row.predictionLowerBound} /></td>
+                                    <td><ForecastValue value={row.predictionMedian} /></td>
+                                    <td><ForecastValue value={row.predictionUpperBound} /></td>
+                                    <td>
+                                        {row.alarm === 1 ? (
+                                            <span className={`${style.districtForecastBadge} ${style.districtForecastBadgeAlert}`}>
+                                                Alarm
+                                            </span>
+                                        ) : row.alarm === 0 ? 'No' : '—'}
+                                    </td>
+                                    <td>
+                                        <span className={`${style.districtForecastBadge} ${style[`districtForecastBadge${row.status[0].toUpperCase()}${row.status.slice(1)}`]}`}>
+                                            {row.status === 'unavailable'
+                                                ? 'No data'
+                                                : `${row.status[0].toUpperCase()}${row.status.slice(1)}`}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <p className={style.districtForecastEmpty}>No forecast months are available for this bulletin period.</p>
+            )}
+            <p className={style.districtForecastTableNote}>
+                Alert is triggered by an alarm indication. Watch means the median prediction is at least 75% of, but below, the threshold.
+            </p>
+        </section>
+    );
+};
 
 const capitalise = (value) => `${value[0].toUpperCase()}${value.slice(1)}`;
 
-const districtName = (district) => district.displayName || district.name || district.id;
+const riskLabel = (risk) =>
+    risk === 'outside' ? 'Not highlighted / unavailable' : capitalise(risk);
 
 /**
- * The districts coloured by forecast risk, drawn from their real boundaries —
- * or a saved DHIS2 map, when the author has chosen one for this bulletin.
+ * The whole country's districts, coloured by the forecast risk of the selection
+ * and greyed everywhere else, on top of OpenStreetMap tiles.
  *
- * The boundaries are the organisation units' own geometry, so the editor — whose
- * unit query already asks for `geometry` — draws from what it has and makes no
- * request at all. The preview loads its units without geometry, so it is the
- * preview that fetches, once for the session.
+ * The editor's organisation-unit query already asks for `geometry`, so its map
+ * draws on the first pass and makes no request. The preview loads its units
+ * without geometry, so the widget fetches the national level-3 list once for
+ * the session; `getNationalDistrictBoundaries` caches it.
  *
- * Until they arrive the box is already the height the map will be. That is not a
- * style choice: the PDF export measures its page breaks from this layout, so a
- * section that grew when the drawing landed would push every cut below it out of
- * step.
- *
- * A district with no boundary is not quietly dropped — it is counted under the
- * map — and if nothing can be drawn at all the tiles return in its place.
- *
- * With a DHIS2 map configured, this drawing is still built and still mounted,
- * underneath it. That is what makes a map the section cannot show harmless: a map
- * deleted since the author chose it, one they cannot read, a plugin that never
- * paints and a frame the PDF export cannot capture all uncover the drawing
- * instead of leaving a blank box or a spinner that never stops. The legend and
- * the caption do change with it, because the two maps classify districts
- * differently and the section must not imply they agree.
+ * The box keeps the height the map will have before the boundaries arrive. That
+ * is not a style choice: the PDF export measures its page breaks from this
+ * layout, so a section that grew when the map landed would push every cut below
+ * it out of step. For the same reason the SVG is only rendered once the
+ * viewport has been measured — the export inlines the tile elements, and React
+ * must not replace them afterwards.
  */
 const DistrictRiskMap = ({
     style,
+    orgUnits,
     districts,
-    alerts,
-    watches,
-    districtMap,
-    deferMap = false,
+    forecastRowsByDistrict,
+    isConfigured,
 }) => {
     const engine = useDataEngine();
-    const uid = districtMap?.uid || null;
-    const mapHeight =
-        Number(districtMap?.height) > 0 ? Math.round(Number(districtMap.height)) : DEFAULT_MAP_HEIGHT;
+    const viewportRef = React.useRef(null);
+    const tooltipId = React.useId();
+    const [viewportSize, setViewportSize] = React.useState(null);
+    const [zoomLevel, setZoomLevel] = React.useState(0);
+    const [hovered, setHovered] = React.useState(null);
+    const [fetched, setFetched] = React.useState(null);
 
-    // Districts the editor already has geometry for are drawn from it on the
-    // first render, so no loading state is shown where none is needed.
-    const localBoundaries = React.useMemo(() => readLocalBoundaries(districts), [districts]);
-    const [fetchedBoundaries, setFetchedBoundaries] = React.useState(null);
+    const localBoundaries = React.useMemo(
+        () => readNationalBoundaries(orgUnits),
+        [orgUnits]
+    );
 
     React.useEffect(() => {
         if (localBoundaries) return undefined;
+        // The header query may still be in flight; fetching before it answers
+        // would pull the whole 2 MB list for an editor that already has it.
+        if (orgUnits.length === 0) return undefined;
 
         let cancelled = false;
 
-        getDistrictBoundaries(districts, engine).then((boundaries) => {
-            if (!cancelled) setFetchedBoundaries(boundaries);
+        getNationalDistrictBoundaries(engine).then((result) => {
+            if (!cancelled) setFetched(result);
         });
 
         return () => {
             cancelled = true;
         };
-    }, [districts, engine, localBoundaries]);
+    }, [localBoundaries, orgUnits.length, engine]);
 
-    // Null until the boundaries have been resolved one way or the other, which
-    // is what tells the loading box from the fallback.
-    const boundaries = localBoundaries || fetchedBoundaries;
+    const boundaries = localBoundaries || fetched?.boundaries || null;
+    const boundaryError = fetched?.error || null;
 
-    // The chosen map, read back before it is embedded — and null for good when
-    // it cannot be read, which is what tells this section to show the drawing.
-    const [chosenMap, setChosenMap] = React.useState(null);
-    const [mapState, setMapState] = React.useState(uid ? 'loading' : 'drawing');
+    React.useLayoutEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return undefined;
 
-    React.useEffect(() => {
-        if (!uid) {
-            setChosenMap(null);
-            setMapState('drawing');
-            return undefined;
-        }
-
-        let cancelled = false;
-
-        setChosenMap(null);
-        setMapState('loading');
-
-        getDistrictMap(uid, engine).then((found) => {
-            if (cancelled) return;
-
-            setChosenMap(found);
-
-            // Nothing to wait on: the plugin spins for ever on a map it cannot
-            // read, so the drawing is what the section shows.
-            if (!found) setMapState('drawing');
-        });
-
-        return () => {
-            cancelled = true;
+        const measure = () => {
+            const rect = viewport.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                setViewportSize({ width: rect.width, height: rect.height });
+            }
         };
-    }, [uid, engine]);
 
-    const showingMap = mapState === 'shown' && Boolean(chosenMap);
+        measure();
 
-    const riskByDistrict = React.useMemo(
-        () => new Map([
-            ...alerts.map((district) => [district.id, 'alert']),
-            ...watches.map((district) => [district.id, 'watch']),
-        ]),
-        [alerts, watches]
+        if (typeof ResizeObserver === 'undefined') return undefined;
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(viewport);
+        return () => observer.disconnect();
+    }, []);
+
+    const mapLayout = React.useMemo(
+        () => (boundaries && viewportSize
+            ? buildMapLayout(boundaries, {
+                width: viewportSize.width,
+                height: viewportSize.height,
+                zoomLevel,
+            })
+            : null),
+        [boundaries, viewportSize, zoomLevel]
     );
 
-    const namesById = React.useMemo(
-        () => new Map(districts.map((district) => [district.id, districtName(district)])),
+    const selectedIds = React.useMemo(
+        () => new Set(districts.map((district) => district.id)),
         [districts]
     );
-
-    const map = React.useMemo(
-        () => buildDistrictMap({ features: boundaries || [], districts }),
-        [boundaries, districts]
+    const namesById = React.useMemo(
+        () => new Map((boundaries || []).map((feature) => [
+            feature.id,
+            feature.displayName || feature.id,
+        ])),
+        [boundaries]
+    );
+    const featureIds = React.useMemo(
+        () => new Set((boundaries || []).map((feature) => feature.id)),
+        [boundaries]
+    );
+    const unmappedUnits = React.useMemo(
+        () => districts.filter((district) => !featureIds.has(district.id)),
+        [districts, featureIds]
     );
 
-    const riskOf = (id) => riskByDistrict.get(id) || 'normal';
-    const riskClass = (id) => style[`districtRiskMap${capitalise(riskOf(id))}`];
     const nameOf = (id) => namesById.get(id) || id;
+    const riskOf = (id) => {
+        if (!isConfigured || !selectedIds.has(id)) return 'outside';
+        return getDistrictRiskFromRows(forecastRowsByDistrict?.get(id)) || 'outside';
+    };
 
-    // Every district that was drawn is named on the map, not only the ones on
-    // alert: a map that has to be read against the table beside it to be
-    // understood is half a map. The names are the short form — the "-DHO" every
-    // unit carries is on twenty-nine labels and says nothing — and the alerts
-    // keep a larger, heavier one, so the eye still lands on them first in a
-    // drawing this crowded. The full name stays in the hover title above.
-    const labelled = map.areas.filter((area) => area.anchor);
+    const changeZoom = (delta) => {
+        setZoomLevel((current) => Math.max(
+            MIN_MAP_ZOOM,
+            Math.min(MAX_MAP_ZOOM, current + delta)
+        ));
+        setHovered(null);
+    };
 
-    // No count beside "hospitals": a zone can hold exactly one and "the 1
-    // hospitals" is worse than saying nothing. Which ones they are is in the
-    // hover title on the marker.
-    // A saved DHIS2 map carries its own indicators, periods and class breaks,
-    // which are not the alert/watch/normal classification the table beside it
-    // computes. When one is shown the caption says where its colours come from
-    // rather than describing a classification it does not follow, and it carries
-    // the basemap credit, which on screen comes from the plugin's own attribution
-    // control and does not survive into the PDF.
-    const caption = showingMap
-        ? [
-            `${chosenMap.name}, as saved in the DHIS2 Maps app.`,
-            "Its indicators, periods and class breaks are the map's own, not the forecast classification used in this bulletin.",
-            chosenMap.attribution,
-        ].filter(Boolean).join(' ')
-        : map.viewBox
-            ? [
-                'District boundaries from the DHIS2 registry, coloured by forecast risk.',
-                map.points.length > 0
-                    ? 'Hospitals are drawn as points rather than areas.'
-                    : null,
-            ].filter(Boolean).join(' ')
-            : `Schematic representation of the ${districts.length} monitored districts coloured by forecast risk.`;
+    // React registers `wheel` passively at the root, so `onWheel` cannot stop
+    // the page scrolling while the map zooms. A native listener can.
+    React.useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return undefined;
 
-    const renderTiles = () => (
-        <div className={style.districtRiskTiles}>
-            {districts.map((district) => {
-                const risk = riskOf(district.id);
-                const name = nameOf(district.id);
-                return (
-                    <span
-                        key={district.id}
-                        className={`${style.districtRiskTile} ${style[`districtRiskTile${capitalise(risk)}`]}`}
-                        title={`${name}: ${risk}`}
-                        aria-label={`${name}: ${risk}`}
-                    >
-                        {name}
-                    </span>
-                );
-            })}
-        </div>
-    );
+        let frame = null;
+        const onWheel = (event) => {
+            if (!mapLayout) return;
+            event.preventDefault();
+            if (frame !== null) return;
+            frame = requestAnimationFrame(() => {
+                frame = null;
+                changeZoom(event.deltaY < 0 ? 1 : -1);
+            });
+        };
 
-    // What stands in the viewport when the DHIS2 map is not — or is not yet —
-    // the thing being shown.
-    const drawing =
-        boundaries === null ? (
-            // `data-pdf-pending` holds a download back until the boundaries have
-            // arrived, so the document never captures the loading box.
-            <p className={style.districtRiskMapEmpty} data-pdf-pending>
-                Loading district boundaries…
-            </p>
-        ) : map.viewBox ? (
-            <svg
-                className={style.districtRiskMapSvg}
-                viewBox={map.viewBox}
-                width={map.width}
-                height={map.height}
-                preserveAspectRatio="xMidYMid meet"
-                role="img"
-                aria-label={`Map of ${districts.length} monitored districts coloured by forecast risk`}
-            >
-                {map.areas.map((area) => (
-                    <path
-                        key={area.id}
-                        className={`${style.districtRiskMapArea} ${riskClass(area.id)}`}
-                        d={area.d}
-                        fillRule="evenodd"
-                    >
-                        <title>{`${nameOf(area.id)}: ${riskOf(area.id)}`}</title>
-                    </path>
-                ))}
-                {map.points.map((point) => (
-                    <circle
-                        key={point.id}
-                        className={`${style.districtRiskMapPoint} ${riskClass(point.id)}`}
-                        cx={point.x}
-                        cy={point.y}
-                        r={3.5}
-                    >
-                        <title>{`${nameOf(point.id)}: ${riskOf(point.id)}`}</title>
-                    </circle>
-                ))}
-                {labelled.map((area) => (
-                    <text
-                        key={area.id}
-                        className={`${style.districtRiskMapLabel} ${
-                            riskByDistrict.get(area.id) === 'alert'
-                                ? style.districtRiskMapLabelAlert
-                                : ''
-                        }`}
-                        x={area.anchor.x}
-                        y={area.anchor.y}
-                        textAnchor="middle"
-                        dy="0.32em"
-                    >
-                        {shortDistrictName(nameOf(area.id))}
-                    </text>
-                ))}
-            </svg>
-        ) : (
-            renderTiles()
-        );
+        viewport.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            viewport.removeEventListener('wheel', onWheel);
+            if (frame !== null) cancelAnimationFrame(frame);
+        };
+    }, [mapLayout]);
+
+    const placeTooltip = (id, point) => {
+        const viewport = viewportRef.current?.getBoundingClientRect();
+        if (!viewport) return;
+
+        const maxX = Math.max(TOOLTIP_MARGIN, viewport.width - TOOLTIP_WIDTH - TOOLTIP_MARGIN);
+        const maxY = Math.max(TOOLTIP_MARGIN, viewport.height - TOOLTIP_HEIGHT - TOOLTIP_MARGIN);
+
+        setHovered({
+            id,
+            x: Math.max(TOOLTIP_MARGIN, Math.min(point.x, maxX)),
+            y: Math.max(TOOLTIP_MARGIN, Math.min(point.y, maxY)),
+        });
+    };
+
+    const showTooltipFromMouse = (event, id) => {
+        const viewport = viewportRef.current?.getBoundingClientRect();
+        if (!viewport) return;
+
+        placeTooltip(id, {
+            x: event.clientX - viewport.left + 12,
+            y: event.clientY - viewport.top + 12,
+        });
+    };
+
+    // A FocusEvent carries no client coordinates; the path's own box does.
+    const showTooltipFromFocus = (event, id) => {
+        const viewport = viewportRef.current?.getBoundingClientRect();
+        const target = event.currentTarget.getBoundingClientRect();
+        if (!viewport) return;
+
+        placeTooltip(id, {
+            x: target.left - viewport.left + target.width / 2,
+            y: target.top - viewport.top + target.height / 2,
+        });
+    };
+
+    const hoveredRows = (forecastRowsByDistrict?.get(hovered?.id) || [])
+        .filter((row) => row.status !== 'unavailable');
+    const hoveredRisk = hovered ? riskOf(hovered.id) : 'outside';
+
+    const featureClass = (risk) => style[`districtRiskMapFeature${capitalise(risk)}`];
+
+    const shapeProps = (id) => ({
+        tabIndex: 0,
+        'aria-label': `${nameOf(id)}: ${riskLabel(riskOf(id))}`,
+        'aria-describedby': hovered?.id === id ? tooltipId : undefined,
+        onMouseEnter: (event) => showTooltipFromMouse(event, id),
+        onMouseMove: (event) => showTooltipFromMouse(event, id),
+        onMouseLeave: () => setHovered(null),
+        onFocus: (event) => showTooltipFromFocus(event, id),
+        onBlur: () => setHovered(null),
+    });
 
     return (
-        <section className={style.districtRiskMap} aria-label="District alert risk map">
-            {/* The map's own name goes under it; the heading says which map this
-                half of the section is, since the two classify districts by
-                different rules. */}
-            <h3>{showingMap ? 'Districts on alert — DHIS2 map' : 'Districts on alert — risk map'}</h3>
-            {/* The legend belongs to the computed classification, so it goes when
-                a DHIS2 map — which breaks its classes its own way — stands in for
-                it. */}
-            {showingMap ? null : (
-                <div className={style.districtRiskLegend} aria-label="Risk categories">
-                    <span><i className={style.districtRiskLegendAlert} />Alert</span>
-                    <span><i className={style.districtRiskLegendWatch} />Watch</span>
-                    <span><i className={style.districtRiskLegendNormal} />Normal</span>
-                </div>
-            )}
-            {districts.length === 0 ? (
+        <section className={style.districtRiskMap} aria-label="District forecast risk map">
+            <h3>District forecast risk map</h3>
+            <div className={style.districtRiskLegend} aria-label="Risk categories">
+                <span><i className={style.districtRiskLegendAlert} />Alert</span>
+                <span><i className={style.districtRiskLegendWatch} />Watch</span>
+                <span><i className={style.districtRiskLegendNormal} />Normal</span>
+                <span><i className={style.districtRiskLegendOutside} />Not highlighted / unavailable</span>
+            </div>
+            <div className={style.districtRiskMapViewport} ref={viewportRef}>
+                {boundaryError ? (
+                    <p className={style.districtRiskMapEmpty}>
+                        Could not load district boundaries: {boundaryError.message || 'DHIS2 request failed.'}
+                    </p>
+                ) : boundaries === null || viewportSize === null ? (
+                    <p className={style.districtRiskMapEmpty} data-pdf-pending>
+                        Loading district boundaries from DHIS2…
+                    </p>
+                ) : mapLayout ? (
+                    <svg
+                        className={style.districtRiskSvg}
+                        viewBox={mapLayout.viewBox}
+                        width={mapLayout.width}
+                        height={mapLayout.height}
+                        role="group"
+                        aria-label="District boundaries from DHIS2 over OpenStreetMap"
+                    >
+                        <g data-pdf-map-tiles aria-hidden="true">
+                            {mapLayout.tiles.map((tile) => (
+                                <image
+                                    key={tile.key}
+                                    data-pdf-map-tile=""
+                                    className={style.districtRiskMapTile}
+                                    href={tile.href}
+                                    x={tile.x}
+                                    y={tile.y}
+                                    width={tile.size}
+                                    height={tile.size}
+                                />
+                            ))}
+                        </g>
+                        {mapLayout.areas.map((area) => {
+                            const risk = riskOf(area.id);
+                            return (
+                                <path
+                                    key={area.id}
+                                    className={`${style.districtRiskMapFeature} ${featureClass(risk)}`}
+                                    d={area.d}
+                                    fill={RISK_COLOURS[risk]}
+                                    fillOpacity={0.52}
+                                    stroke="#ffffff"
+                                    strokeWidth={1.2}
+                                    strokeLinejoin="round"
+                                    fillRule="evenodd"
+                                    {...shapeProps(area.id)}
+                                >
+                                    <title>{`${nameOf(area.id)}: ${riskLabel(risk)}`}</title>
+                                </path>
+                            );
+                        })}
+                        {mapLayout.points.map((point) => {
+                            const risk = riskOf(point.id);
+                            return (
+                                <circle
+                                    key={point.id}
+                                    className={`${style.districtRiskMapPoint} ${featureClass(risk)}`}
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={3.5}
+                                    fill={RISK_COLOURS[risk]}
+                                    stroke="#ffffff"
+                                    strokeWidth={1}
+                                    {...shapeProps(point.id)}
+                                >
+                                    <title>{`${nameOf(point.id)}: ${riskLabel(risk)}`}</title>
+                                </circle>
+                            );
+                        })}
+                    </svg>
+                ) : (
+                    <p className={style.districtRiskMapEmpty}>
+                        No district boundary geometries are available from the DHIS2 instance.
+                    </p>
+                )}
+                {!boundaryError && mapLayout && (
+                    <div
+                        className={style.districtRiskMapZoomControls}
+                        data-pdf-exclude
+                        aria-label="Map zoom controls"
+                    >
+                        <button
+                            type="button"
+                            aria-label="Zoom in"
+                            disabled={zoomLevel >= MAX_MAP_ZOOM}
+                            onClick={() => changeZoom(1)}
+                        >
+                            +
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Zoom out"
+                            disabled={zoomLevel <= MIN_MAP_ZOOM}
+                            onClick={() => changeZoom(-1)}
+                        >
+                            −
+                        </button>
+                    </div>
+                )}
+                {hovered && mapLayout && (
+                    <div
+                        className={style.districtRiskTooltip}
+                        data-pdf-exclude
+                        id={tooltipId}
+                        role="tooltip"
+                        style={{ left: hovered.x, top: hovered.y }}
+                    >
+                        <strong>{nameOf(hovered.id)} · {riskLabel(hoveredRisk)}</strong>
+                        {hoveredRows.length > 0 ? hoveredRows.map((row) => (
+                            <div className={style.districtRiskTooltipRow} key={row.period}>
+                                <span>{periodLabel(row.period)}</span>
+                                <span>
+                                    Median <ForecastValue value={row.predictionMedian} />
+                                    {' · '}Lower <ForecastValue value={row.predictionLowerBound} />
+                                    {' · '}Upper <ForecastValue value={row.predictionUpperBound} />
+                                </span>
+                            </div>
+                        )) : (
+                            <span>No forecast values available.</span>
+                        )}
+                    </div>
+                )}
+            </div>
+            {districts.length === 0 && (
                 <p className={style.districtRiskMapEmpty}>
                     No district-level units are available under this selection.
                 </p>
-            ) : (
-                // The author's height when a map is configured, so the map is the
-                // size they asked for. The viewport's own height is fixed either
-                // way, and the layers inside it are absolutely positioned: the
-                // export measures its page breaks from this layout afterwards, so
-                // nothing here may resize when a map arrives.
-                <div
-                    className={style.districtRiskMapViewport}
-                    style={uid ? { height: mapHeight } : undefined}
-                >
-                    {/* Kept mounted whether or not it is the map on show: it is
-                        what a reader is left with when the plugin never paints,
-                        and what the export captures when it cannot read the
-                        plugin's frame. */}
-                    <div
-                        className={style.districtRiskMapDrawing}
-                        aria-hidden={showingMap ? 'true' : undefined}
-                    >
-                        {drawing}
-                    </div>
-                    {chosenMap ? (
-                        <DistrictRiskMapEmbed
-                            key={chosenMap.id}
-                            style={style}
-                            uid={chosenMap.id}
-                            height={mapHeight}
-                            deferMount={deferMap}
-                            onStateChange={setMapState}
-                        />
-                    ) : null}
-                </div>
             )}
-            <p className={style.districtRiskMapCaption}>{caption}</p>
-            {/* Only beside the drawing it is about: counting the districts a
-                DHIS2 map does not cover would be about the other map entirely. */}
-            {!showingMap && map.viewBox && map.missing.length > 0 ? (
-                <p className={style.districtRiskMapEmpty}>
-                    No boundary is available for {map.missing.length}{' '}
-                    {map.missing.length === 1 ? 'district' : 'districts'} under this selection.
+            <p className={style.districtRiskMapCaption}>
+                Hover over a district for its forecast median and prediction bounds. District
+                boundaries are from this DHIS2 instance. Map tiles ©{' '}
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+                    OpenStreetMap contributors
+                </a>.
+            </p>
+            {mapLayout && unmappedUnits.length > 0 && (
+                <p className={style.districtRiskMapCaption}>
+                    {unmappedUnits.length} organisation unit
+                    {unmappedUnits.length === 1 ? '' : 's'} in this selection
+                    {unmappedUnits.length === 1 ? ' has' : ' have'} no boundary and
+                    {unmappedUnits.length === 1 ? ' is' : ' are'} not drawn.
                 </p>
-            ) : null}
+            )}
         </section>
     );
 };
@@ -462,13 +544,24 @@ const DistrictRiskSummary = ({
     period,
     orgUnits = [],
     selectedOrgUnitId,
-    districtMap,
-    deferMap = false,
+    highlight,
+    onHighlightChange,
 }) => {
     const forecastPeriods = React.useMemo(
         () => period ? getMonthlyPeriods(period, 0, 3) : [],
         [period]
     );
+
+    const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
+    const level = Number(selectedUnit?.level);
+    const isDistrictSelection = level === 3;
+
+    // The map colours this set; everything else in the country stays grey.
+    const highlightedDistricts = React.useMemo(
+        () => resolveHighlightedDistricts({ orgUnits, selectedOrgUnitId, highlight }),
+        [orgUnits, selectedOrgUnitId, highlight]
+    );
+
     const status = React.useMemo(
         () => buildDistrictForecastStatuses({
             dataValues,
@@ -476,22 +569,33 @@ const DistrictRiskSummary = ({
             periods: forecastPeriods,
             orgUnits,
             selectedOrgUnitId,
+            districts: highlightedDistricts,
         }),
-        [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId]
+        [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId, highlightedDistricts]
     );
 
     const alertRows = React.useMemo(
-        () => buildDistrictAlertRows({
+        () => (isDistrictSelection
+            ? []
+            : buildDistrictAlertRows({
+                dataValues,
+                mapping,
+                periods: forecastPeriods,
+                orgUnits,
+                selectedOrgUnitId,
+                districts: highlightedDistricts,
+            })),
+        [
             dataValues,
+            forecastPeriods,
             mapping,
-            periods: forecastPeriods,
             orgUnits,
             selectedOrgUnitId,
-        }),
-        [dataValues, forecastPeriods, mapping, orgUnits, selectedOrgUnitId]
+            highlightedDistricts,
+            isDistrictSelection,
+        ]
     );
 
-    const selectedUnit = orgUnits.find((unit) => unit.id === selectedOrgUnitId);
     const selectedDistrictForecast = React.useMemo(
         () => buildSelectedDistrictForecastRows({
             dataValues,
@@ -502,17 +606,9 @@ const DistrictRiskSummary = ({
         [dataValues, forecastPeriods, mapping, selectedOrgUnitId]
     );
 
-    if (Number(selectedUnit?.level) === 3) {
-        return (
-            <SelectedDistrictForecastTable
-                style={style}
-                district={selectedUnit}
-                rows={selectedDistrictForecast.rows}
-                isConfigured={selectedDistrictForecast.isConfigured}
-            />
-        );
-    }
-
+    // A bulletin is for a country, a zone or a DHO. A deeper unit has no map of
+    // its own in this section, as before.
+    if (!selectedUnit || !Number.isFinite(level) || level > 3) return null;
     if (!status) return null;
 
     return (
@@ -521,20 +617,40 @@ const DistrictRiskSummary = ({
                 <h2 className={style.casesChartTitle}>District forecast risk</h2>
             </div>
             <p className={style.casesChartSubtitle}>
-                Alerts are based on configured alarm indicators. Watch districts have a predicted median at least 75% of, but below, the configured threshold.
+                {isDistrictSelection
+                    ? "The highlighted district's monthly forecast is below. Districts outside the highlight are grey."
+                    : 'Alerts are based on configured alarm indicators. Watch districts have a predicted median at least 75% of, but below, the configured threshold.'}
             </p>
+            {onHighlightChange && (
+                <MapHighlightControl
+                    style={style}
+                    orgUnits={orgUnits}
+                    selectedOrgUnitId={selectedOrgUnitId}
+                    highlight={highlight}
+                    onChange={onHighlightChange}
+                />
+            )}
             {/* With no alerts there is no table to sit beside, so the map takes
-                the whole width rather than leaving two thirds of the row empty. */}
-            <div className={`${style.districtRiskRow} ${alertRows.length === 0 ? style.districtRiskRowWide : ''}`}>
+                the whole width. A DHO bulletin stacks the map over its monthly
+                table because the seven-column table needs the width. */}
+            <div className={`${style.districtRiskRow} ${(isDistrictSelection || alertRows.length === 0) ? style.districtRiskRowWide : ''}`}>
                 <DistrictRiskMap
                     style={style}
-                    districts={status.districts}
-                    alerts={status.alerts}
-                    watches={status.watches}
-                    districtMap={districtMap}
-                    deferMap={deferMap}
+                    orgUnits={orgUnits}
+                    districts={highlightedDistricts}
+                    forecastRowsByDistrict={status.forecastRowsByDistrict}
+                    isConfigured={status.isConfigured}
                 />
-                <AlertDistrictTable style={style} rows={alertRows} />
+                {isDistrictSelection ? (
+                    <SelectedDistrictForecastTable
+                        style={style}
+                        district={selectedUnit}
+                        rows={selectedDistrictForecast.rows}
+                        isConfigured={selectedDistrictForecast.isConfigured}
+                    />
+                ) : (
+                    <AlertDistrictTable style={style} rows={alertRows} />
+                )}
             </div>
         </section>
     );

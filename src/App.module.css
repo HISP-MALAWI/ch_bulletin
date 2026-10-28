@@ -646,10 +646,10 @@
   height: 260px;
 }
 
-/* The map needs less room on the page than on the screen: the document column
-   is roughly 50mm wide, so the screen height would spend about 120mm of the A4
-   page on it. The drawing scales to whatever box it is given. */
-.bulletinDocumentPanel .districtRiskMapViewport {
+/* The map needs less room on the page than on the screen: the document would
+   otherwise spend about 120mm of an A4 page on it. Fixed, so the PDF's page
+   breaks stay where they were measured. */
+.bulletinDocument .districtRiskMapViewport {
   height: 300px;
 }
 
@@ -721,12 +721,15 @@
 }
 
 .districtRiskSummary {
-  /* One definition of each risk colour for the legend swatches, the tiles and
-     the map, so a district cannot come out amber in one and red in another.
-     The legend and the tiles read `background`, the map reads `fill`. */
+  /* One definition of each risk colour for the legend swatches, the map paths
+     and the point markers, so a district cannot come out amber in one and red
+     in another. The legend reads `background`, the map reads `fill`. The SVG
+     also carries the same colours as presentation attributes, because
+     html2canvas clones SVG nodes for the PDF. */
   --risk-alert: #c51627;
   --risk-watch: #e3a400;
   --risk-normal: #27813c;
+  --risk-outside: #cbd5e1;
   margin: 0;
   padding: 14px;
 }
@@ -808,18 +811,18 @@
 
 /* The map and the alert table answer the same question from two directions —
    the map says where, the table says which and by how much — so they sit side
-   by side. The gap between them is the margin the two carried when they were
-   stacked, moved onto the row that now separates them from the subtitle. */
+   by side. The map needs room for the tiles, the zoom controls and a tooltip,
+   which is why its column is wider than the drawing it replaced. */
 .districtRiskRow {
   display: grid;
-  grid-template-columns: minmax(170px, 250px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 1.15fr) minmax(0, 0.85fr);
   gap: 12px;
   margin-top: 12px;
   align-items: start;
 }
 
 /* No district is on alert, so there is no table and the map has the row to
-   itself. `preserveAspectRatio` centres the drawing in the wider box. */
+   itself. */
 .districtRiskRowWide {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -855,6 +858,28 @@
   line-height: 1.4;
 }
 
+/* The author's highlight choice: editor only, above the map. The fields and
+   the hint wrap on a narrow form rather than squeezing the select. */
+.mapHighlightControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 10px 0 2px;
+}
+
+.mapHighlightControl > * {
+  min-width: 220px;
+  flex: 1 1 260px;
+}
+
+.mapHighlightHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .districtRiskLegend {
   display: flex;
   flex-wrap: wrap;
@@ -877,144 +902,156 @@
   border-radius: 2px;
 }
 
-.districtRiskLegendAlert,
-.districtRiskTileAlert,
-.districtRiskMapAlert {
+.districtRiskLegendAlert {
   background: var(--risk-alert);
-  fill: var(--risk-alert);
 }
 
-.districtRiskLegendWatch,
-.districtRiskTileWatch,
-.districtRiskMapWatch {
+.districtRiskLegendWatch {
   background: var(--risk-watch);
-  fill: var(--risk-watch);
 }
 
-.districtRiskLegendNormal,
-.districtRiskTileNormal,
-.districtRiskMapNormal {
+.districtRiskLegendNormal {
   background: var(--risk-normal);
-  fill: var(--risk-normal);
 }
 
-/* Where the districts go when no boundary can be drawn for them — a failed
-   request, or geometry the instance does not have. `auto-fill` keeps the tiles
-   a readable size as the column widens, and it leaves the unused tracks in
-   place, so a short last row stays the same size as the rest rather than
-   stretching to fill. */
-.districtRiskTiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 4px;
-}
-
-.districtRiskTile {
-  display: flex;
-  min-height: 25px;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 5px;
-  overflow-wrap: anywhere;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.districtRiskTileWatch {
-  /* Amber is too light to carry white text. */
-  color: #16233a;
+.districtRiskLegendOutside {
+  background: var(--risk-outside);
 }
 
 /* A fixed height, following `.casesChart`. The PDF export measures its page
-   breaks off the live layout, so a box that resized when the boundaries landed
-   would put every cut below it out of step. The loading state is the same
-   height, for the same reason, and the height an embedded DHIS2 map is given is
-   set inline from the bulletin.
-
-   The two layers inside it are stacked and out of flow. The drawing sits
-   underneath, the plugin frame over it, so a frame that never loads uncovers the
-   drawing instead of leaving an empty box — and neither layer can change the
-   height the page breaks are measured from. */
+   breaks off the live layout, so a box that resized when the boundaries or the
+   tiles landed would put every cut below it out of step. The loading and error
+   states are the same height, for the same reason. */
 .districtRiskMapViewport {
   position: relative;
   height: 520px;
   overflow: hidden;
 }
 
-/* The computed map, centred in the viewport. It stays mounted under an embedded
-   DHIS2 map, which is what makes a plugin that fails harmless. */
-.districtRiskMapDrawing {
-  position: absolute;
-  display: grid;
-  inset: 0;
-  place-items: center;
-}
-
-/* The Maps plugin over the drawing, transparent until its map has painted, so
-   the box shows the drawing rather than a blank frame while the plugin loads. */
-.districtRiskEmbed {
-  position: absolute;
-  background: #fff;
-  inset: 0;
-  opacity: 0;
-}
-
-.districtRiskEmbedShown {
-  opacity: 1;
-}
-
-/* Sized by the numeric width and height it is given, which the PDF export needs
-   and which leaves no reason for the frame to be inline. */
-.districtRiskEmbed iframe {
-  display: block;
-}
-
-.districtRiskMapSvg {
+/* The Mercator drawing fills the measured box; its viewBox is the same number
+   of units, so one SVG unit is one screen pixel until the PDF scales it. */
+.districtRiskSvg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-/* A white hairline between neighbours. Each ring is thinned on its own, so two
-   adjacent districts can leave a sliver of background showing between them. */
-.districtRiskMapArea {
-  stroke: #ffffff;
-  stroke-width: 0.5;
+.districtRiskMapTile {
+  pointer-events: none;
 }
 
-.districtRiskMapArea:hover {
+/* A white hairline between neighbours. Each ring is thinned on its own, so two
+   adjacent districts can leave a sliver of background showing between them.
+   The fill colour is also written on the element as a presentation attribute;
+   these classes are what hover and the keyboard cursor read. */
+.districtRiskMapFeature {
+  stroke: #ffffff;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  fill-opacity: 0.52;
+  cursor: help;
+}
+
+.districtRiskMapFeature:hover {
   opacity: 0.82;
 }
 
+.districtRiskMapFeatureAlert {
+  fill: var(--risk-alert);
+}
+
+.districtRiskMapFeatureWatch {
+  fill: var(--risk-watch);
+}
+
+.districtRiskMapFeatureNormal {
+  fill: var(--risk-normal);
+}
+
+.districtRiskMapFeatureOutside {
+  fill: var(--risk-outside);
+}
+
+/* A hospital is a point on the ground rather than an area. Its risk fill comes
+   from the same feature class it shares with the districts. */
 .districtRiskMapPoint {
   stroke: #ffffff;
   stroke-width: 1;
+  cursor: help;
 }
 
-/* Outlined rather than filled, so a name stays readable over whichever colour
-   its district happens to carry — and over the neighbour's label, since twenty
-   nine names in a drawing this size cannot all have clear space. The halo is
-   what keeps the one on top legible. */
-.districtRiskMapLabel {
-  fill: #102b42;
-  font-size: 7px;
-  font-weight: 600;
-  paint-order: stroke;
+/* Zoom controls sit above the tiles, out of the document's flow. `data-pdf-exclude`
+   keeps them out of the PDF. */
+.districtRiskMapZoomControls {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 20%);
+}
+
+.districtRiskMapZoomControls button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.districtRiskMapZoomControls button + button {
+  border-top: 1px solid #cbd5e1;
+}
+
+.districtRiskMapZoomControls button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.districtRiskMapZoomControls button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* The hover/focus tooltip. Absolutely positioned so it cannot change the box
+   the page breaks are measured from, and excluded from the PDF. */
+.districtRiskTooltip {
+  position: absolute;
+  z-index: 1;
+  width: 190px;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(15 23 42 / 18%);
+  color: #334155;
+  font-size: 10px;
   pointer-events: none;
-  stroke: #ffffff;
-  stroke-linejoin: round;
-  stroke-width: 2px;
 }
 
-/* The districts the section is about get a step up in size and weight, so they
-   still lead the eye in a fully labelled map. */
-.districtRiskMapLabelAlert {
-  font-size: 8.5px;
-  font-weight: 800;
+.districtRiskTooltip > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #102b42;
+  font-size: 11px;
+}
+
+.districtRiskTooltipRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding-top: 4px;
+  border-top: 1px solid #edf0f4;
+}
+
+.districtRiskTooltipRow + .districtRiskTooltipRow {
+  margin-top: 4px;
 }
 
 .districtRiskMapEmpty,
@@ -1023,6 +1060,10 @@
   color: #64748b;
   font-size: 10px;
   line-height: 1.4;
+}
+
+.districtRiskMapCaption a {
+  color: #2563eb;
 }
 
 .districtActionsGrid {
