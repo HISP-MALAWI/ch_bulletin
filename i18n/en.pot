@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-28T11:24:09.327Z\n"
-"PO-Revision-Date: 2026-10-28T11:24:09.329Z\n"
+"POT-Creation-Date: 2026-10-28T11:55:10.209Z\n"
+"PO-Revision-Date: 2026-10-28T11:55:10.210Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -209,6 +209,52 @@ msgid ""
 msgstr ""
 "An image in this bulletin blocked the export. Check the disease icon URLs "
 "in Settings."
+
+msgid "Districts on alert"
+msgstr "Districts on alert"
+
+msgid "Ranked by forecast cases above threshold."
+msgstr "Ranked by forecast cases above threshold."
+
+msgid "Districts on watch"
+msgstr "Districts on watch"
+
+msgid ""
+"No district is on alert. Peak is the month closest to the threshold; ranked "
+"by how close the forecast median runs to it."
+msgstr ""
+"No district is on alert. Peak is the month closest to the threshold; ranked "
+"by how close the forecast median runs to it."
+
+msgid "Top districts by forecast cases"
+msgstr "Top districts by forecast cases"
+
+msgid ""
+"No district is on alert or watch. Ranked by the highest forecast median "
+"across the forecast months."
+msgstr ""
+"No district is on alert or watch. Ranked by the highest forecast median "
+"across the forecast months."
+
+msgid "District forecast table"
+msgstr "District forecast table"
+
+msgid ""
+"No district is on alert or watch, and no district has a forecast median for "
+"this bulletin period."
+msgstr ""
+"No district is on alert or watch, and no district has a forecast median for "
+"this bulletin period."
+
+msgid "No district-level forecast values are available for this bulletin period."
+msgstr "No district-level forecast values are available for this bulletin period."
+
+msgid ""
+"Configure malaria threshold, prediction bounds, median prediction, or alarm "
+"indicators to display the district forecast table."
+msgstr ""
+"Configure malaria threshold, prediction bounds, median prediction, or alarm "
+"indicators to display the district forecast table."
 
 msgid "High"
 msgstr "High"

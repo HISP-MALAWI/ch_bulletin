@@ -1,6 +1,7 @@
 import {
     buildDistrictAlertRows,
     buildDistrictForecastStatuses,
+    buildDistrictRiskTable,
     buildSelectedDistrictForecastRows,
     getDistrictDescendants,
     getDistrictRiskFromRows,
@@ -433,6 +434,145 @@ describe('buildDistrictAlertRows', () => {
 
         expect(rows.map(({ id }) => id)).toEqual(['a-district', 'b-district']);
         expect(rows.map(({ excess }) => excess)).toEqual([50, 20]);
+    });
+});
+
+describe('buildDistrictRiskTable', () => {
+    const riskUnits = [
+        { id: 'country', level: 1 },
+        { id: 'north', level: 2, displayName: 'Northern', parent: { id: 'country' } },
+        { id: 'centre', level: 2, displayName: 'Central', parent: { id: 'country' } },
+        { id: 'a-district', level: 3, displayName: 'Alpha', parent: { id: 'north' } },
+        { id: 'b-district', level: 3, displayName: 'Bravo', parent: { id: 'centre' } },
+        { id: 'c-district', level: 3, displayName: 'Charlie', parent: { id: 'centre' } },
+    ];
+    const riskPeriods = ['202610', '202611', '202612'];
+    const base = {
+        orgUnits: riskUnits,
+        selectedOrgUnitId: 'country',
+        mapping,
+        periods: riskPeriods,
+    };
+
+    it('shows the alerts when there are any, matching the alert rows', () => {
+        const dataValues = [
+            ['alarm', '202610', 'a-district', '1'],
+            ['threshold', '202610', 'a-district', '100'],
+            ['median', '202610', 'a-district', '150'],
+        ];
+        const result = buildDistrictRiskTable({ ...base, dataValues });
+
+        expect(result.mode).toBe('alert');
+        expect(result.rows).toEqual(buildDistrictAlertRows({ ...base, dataValues }));
+    });
+
+    it('falls back to watches, ranked by how close they run to threshold', () => {
+        const dataValues = [
+            ['threshold', '202610', 'a-district', '100'],
+            ['median', '202610', 'a-district', '90'],
+            ['alarm', '202610', 'a-district', '0'],
+            ['threshold', '202610', 'b-district', '100'],
+            ['median', '202610', 'b-district', '80'],
+            ['alarm', '202610', 'b-district', '0'],
+        ];
+        const result = buildDistrictRiskTable({ ...base, dataValues });
+
+        expect(result.mode).toBe('watch');
+        expect(result.rows.map(({ id }) => id)).toEqual(['a-district', 'b-district']);
+        expect(result.rows.map(({ excess }) => excess)).toEqual([-10, -20]);
+        expect(result.rows.map(({ peakPeriod }) => peakPeriod)).toEqual(['202610', '202610']);
+    });
+
+    it('uses the watch month closest to threshold rather than the highest median', () => {
+        const dataValues = [
+            ['median', '202610', 'a-district', '99'],
+            ['threshold', '202610', 'a-district', '100'],
+            ['alarm', '202610', 'a-district', '0'],
+            ['median', '202611', 'a-district', '150'],
+            ['threshold', '202611', 'a-district', '100'],
+            ['alarm', '202611', 'a-district', '0'],
+        ];
+        const result = buildDistrictRiskTable({ ...base, dataValues });
+
+        expect(result.mode).toBe('watch');
+        expect(result.rows[0]).toMatchObject({
+            id: 'a-district',
+            peakPeriod: '202610',
+            peakMedian: 99,
+            peakThreshold: 100,
+            excess: -1,
+        });
+    });
+
+    it('falls back to the highest forecast medians when there is no alert or watch', () => {
+        const dataValues = [
+            ['threshold', '202610', 'a-district', '100'],
+            ['median', '202610', 'a-district', '50'],
+            ['alarm', '202610', 'a-district', '0'],
+            ['threshold', '202610', 'b-district', '100'],
+            ['median', '202610', 'b-district', '150'],
+            ['alarm', '202610', 'b-district', '0'],
+            ['threshold', '202610', 'c-district', '100'],
+            ['median', '202610', 'c-district', '60'],
+            ['alarm', '202610', 'c-district', '0'],
+        ];
+        const result = buildDistrictRiskTable({ ...base, dataValues });
+
+        expect(result.mode).toBe('top');
+        expect(result.rows.map(({ id }) => id)).toEqual([
+            'b-district',
+            'c-district',
+            'a-district',
+        ]);
+        expect(result.rows.map(({ peakMedian }) => peakMedian)).toEqual([150, 60, 50]);
+    });
+
+    it('caps the fallback at the requested number of districts', () => {
+        const dataValues = [
+            ['median', '202610', 'a-district', '50'],
+            ['median', '202610', 'b-district', '150'],
+            ['median', '202610', 'c-district', '60'],
+        ];
+        const result = buildDistrictRiskTable({ ...base, dataValues, limit: 2 });
+
+        expect(result.mode).toBe('top');
+        expect(result.rows.map(({ id }) => id)).toEqual(['b-district', 'c-district']);
+    });
+
+    it('is empty when no district has a forecast median', () => {
+        const result = buildDistrictRiskTable({
+            ...base,
+            dataValues: [
+                ['threshold', '202610', 'a-district', '100'],
+                ['alarm', '202610', 'a-district', '0'],
+            ],
+        });
+
+        expect(result).toEqual({ mode: 'empty', rows: [] });
+    });
+
+    it('is empty when malaria is not mapped', () => {
+        expect(buildDistrictRiskTable({ ...base, mapping: [], dataValues: [] }))
+            .toEqual({ mode: 'empty', rows: [] });
+    });
+
+    it('builds a fallback from an explicit district set', () => {
+        const district = riskUnits.find((unit) => unit.id === 'a-district');
+        const result = buildDistrictRiskTable({
+            orgUnits: riskUnits,
+            selectedOrgUnitId: 'a-district',
+            districts: [district],
+            mapping,
+            periods: riskPeriods,
+            dataValues: [
+                ['median', '202610', 'a-district', '50'],
+                ['threshold', '202610', 'a-district', '100'],
+                ['alarm', '202610', 'a-district', '0'],
+            ],
+        });
+
+        expect(result.mode).toBe('top');
+        expect(result.rows.map(({ id }) => id)).toEqual(['a-district']);
     });
 });
 

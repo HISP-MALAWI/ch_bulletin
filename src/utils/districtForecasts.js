@@ -1,5 +1,9 @@
 const getParentId = (unit) => unit?.parent?.id || unit?.parent || null;
 
+// The Watch band: a forecast median at least this share of the threshold but
+// still below it.
+const WATCH_MIN_RATIO = 0.75;
+
 /**
  * Each district's alarm, threshold and prediction values, month by month. The
  * risk classification, the map tooltip and the alert table all read the same
@@ -54,7 +58,7 @@ const toForecastRow = (period, values = {}) => {
     const isAlert = values.alarm === 1;
     const isWatch = !isAlert &&
         values.threshold > 0 &&
-        values.predictionMedian >= values.threshold * 0.75 &&
+        values.predictionMedian >= values.threshold * WATCH_MIN_RATIO &&
         values.predictionMedian < values.threshold;
 
     return {
@@ -94,16 +98,16 @@ const isAboveThreshold = (values) =>
     values.predictionMedian >= values.threshold;
 
 /**
- * One row per district on alert, for the table under the risk map: the month
- * its median prediction peaks, that month's prediction and threshold, how far
- * the prediction runs above the threshold, and in how many of the forecast
- * months it does so.
+ * One row per district, with the month the risk table should describe and the
+ * values at that month. Fields: id, name, region, status, peakPeriod,
+ * peakMedian, peakThreshold, excess, monthsAbove, monthsTotal, ratio.
  *
- * Ranked by that excess, so the districts expected furthest above threshold
- * lead. A district whose peak month carries no threshold has no excess to rank
- * by and sorts last, after the ones that do.
+ * Alert: the first month holding the highest prediction, as the table has
+ * always shown. Watch: the watch-band month closest to the threshold (highest
+ * median/threshold ratio), because that is the month that explains the Watch
+ * classification. Normal: the first month holding the highest prediction.
  */
-export const buildDistrictAlertRows = ({
+const buildRiskCandidates = ({
     dataValues = [],
     mapping = [],
     periods = [],
@@ -132,12 +136,37 @@ export const buildDistrictAlertRows = ({
     });
     const unitsById = new Map(orgUnits.map((unit) => [unit.id, unit]));
 
-    const rows = districts.flatMap((district) => {
+    return districts.flatMap((district) => {
         const months = periods.map(
             (period) => rowsByDistrict.get(district.id).get(period) || {}
         );
 
-        if (!months.some((values) => values.alarm === 1)) return [];
+        const hasAlarm = months.some((values) => values.alarm === 1);
+        let watchIndex = -1;
+        let watchRatio = -Infinity;
+        months.forEach((values, index) => {
+            const ratio = values.threshold > 0 &&
+                values.predictionMedian >= values.threshold * WATCH_MIN_RATIO &&
+                values.predictionMedian < values.threshold
+                ? values.predictionMedian / values.threshold
+                : null;
+
+            if (ratio !== null && ratio > watchRatio) {
+                watchIndex = index;
+                watchRatio = ratio;
+            }
+        });
+
+        const hasValue = months.some((values) =>
+            Object.values(values).some((value) => value !== undefined)
+        );
+        const status = hasAlarm
+            ? 'alert'
+            : watchIndex !== -1
+                ? 'watch'
+                : hasValue
+                    ? 'normal'
+                    : 'unavailable';
 
         // The first month holding the highest prediction, so a plateau names
         // the month it starts in rather than the last month it reaches.
@@ -149,15 +178,17 @@ export const buildDistrictAlertRows = ({
                     : best,
             -1
         );
-        const peak = peakIndex === -1 ? {} : months[peakIndex];
-        const median = Number.isFinite(peak.predictionMedian) ? peak.predictionMedian : null;
-        const threshold = Number.isFinite(peak.threshold) ? peak.threshold : null;
+        const displayIndex = status === 'watch' ? watchIndex : peakIndex;
+        const display = displayIndex === -1 ? {} : months[displayIndex];
+        const median = Number.isFinite(display.predictionMedian) ? display.predictionMedian : null;
+        const threshold = Number.isFinite(display.threshold) ? display.threshold : null;
 
         return [{
             id: district.id,
             name: district.displayName || district.name || district.id,
             region: unitsById.get(getParentId(district))?.displayName || null,
-            peakPeriod: peakIndex === -1 ? null : periods[peakIndex],
+            status,
+            peakPeriod: displayIndex === -1 ? null : periods[displayIndex],
             peakMedian: median,
             peakThreshold: threshold,
             excess: median !== null && threshold > 0
@@ -165,16 +196,81 @@ export const buildDistrictAlertRows = ({
                 : null,
             monthsAbove: months.filter(isAboveThreshold).length,
             monthsTotal: periods.length,
+            ratio: status === 'watch'
+                ? watchRatio
+                : median !== null && threshold > 0
+                    ? median / threshold
+                    : null,
         }];
     });
+};
 
+const sortByExcess = (rows) => {
     const rank = (row) => (row.excess === null ? Number.NEGATIVE_INFINITY : row.excess);
 
-    return rows.sort((left, right) =>
+    return [...rows].sort((left, right) =>
         rank(left) === rank(right)
             ? left.name.localeCompare(right.name)
             : rank(right) - rank(left)
     );
+};
+
+const toTableRow = ({ status, ratio, ...row }) => row;
+
+/**
+ * The alerted districts, ranked by how far their peak forecast runs above
+ * threshold. Kept as the public alert-row builder; the risk table below uses
+ * the same candidates to fall back to watches and then to the highest medians.
+ */
+export const buildDistrictAlertRows = (options) =>
+    sortByExcess(
+        buildRiskCandidates(options).filter((row) => row.status === 'alert')
+    ).map(toTableRow);
+
+/**
+ * The rows for the risk table beside the map.
+ *
+ * The table is always shown, so this always returns a mode:
+ * - `alert` when any highlighted district has an alarm;
+ * - `watch` when none does but some district is in the Watch band;
+ * - `top` with up to `limit` districts by peak forecast median when neither;
+ * - `empty` when there is no forecast median at all.
+ */
+export const buildDistrictRiskTable = ({ limit = 10, ...options }) => {
+    const candidates = buildRiskCandidates(options);
+
+    const alerts = sortByExcess(
+        candidates.filter((row) => row.status === 'alert')
+    );
+    if (alerts.length > 0) {
+        return { mode: 'alert', rows: alerts.map(toTableRow) };
+    }
+
+    const watches = candidates
+        .filter((row) => row.status === 'watch')
+        .sort((left, right) => {
+            if (left.ratio !== right.ratio) return right.ratio - left.ratio;
+            if (left.peakMedian !== right.peakMedian) {
+                return right.peakMedian - left.peakMedian;
+            }
+            return left.name.localeCompare(right.name);
+        });
+    if (watches.length > 0) {
+        return { mode: 'watch', rows: watches.map(toTableRow) };
+    }
+
+    const ranked = candidates
+        .filter((row) => Number.isFinite(row.peakMedian))
+        .sort((left, right) =>
+            left.peakMedian === right.peakMedian
+                ? left.name.localeCompare(right.name)
+                : right.peakMedian - left.peakMedian
+        )
+        .slice(0, limit);
+
+    if (ranked.length === 0) return { mode: 'empty', rows: [] };
+
+    return { mode: 'top', rows: ranked.map(toTableRow) };
 };
 
 export const buildSelectedDistrictForecastRows = ({
@@ -213,7 +309,7 @@ export const buildSelectedDistrictForecastRows = ({
         const hasAlarm = values.alarm === 1;
         const isWatch = !hasAlarm &&
             values.threshold > 0 &&
-            values.predictionMedian >= values.threshold * 0.75 &&
+            values.predictionMedian >= values.threshold * WATCH_MIN_RATIO &&
             values.predictionMedian < values.threshold;
 
         return {
@@ -372,7 +468,7 @@ export const buildDistrictForecastStatuses = ({
         const watchPeriod = periods.find((period) => {
             const values = districtPeriods.get(period);
             return values?.threshold > 0 &&
-                values.predictionMedian >= values.threshold * 0.75 &&
+                values.predictionMedian >= values.threshold * WATCH_MIN_RATIO &&
                 values.predictionMedian < values.threshold;
         });
 
