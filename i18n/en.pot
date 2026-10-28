@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-23T05:57:01.167Z\n"
-"PO-Revision-Date: 2026-10-23T05:57:01.167Z\n"
+"POT-Creation-Date: 2026-10-28T11:24:09.327Z\n"
+"PO-Revision-Date: 2026-10-28T11:24:09.329Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -245,17 +245,20 @@ msgstr "All districts in Malawi"
 msgid "Districts in this zone"
 msgstr "Districts in this zone"
 
+msgid "Districts"
+msgstr "Districts"
+
+msgid "Other"
+msgstr "Other"
+
 msgid "Highlight districts"
 msgstr "Highlight districts"
 
 msgid "Choose districts"
 msgstr "Choose districts"
 
-msgid "Districts"
-msgstr "Districts"
-
-msgid "No districts selected; the map shows the bulletin district."
-msgstr "No districts selected; the map shows the bulletin district."
+msgid "No districts are available for this organisation unit."
+msgstr "No districts are available for this organisation unit."
 
 msgid "{{total}} district(s) highlighted"
 msgstr "{{total}} district(s) highlighted"

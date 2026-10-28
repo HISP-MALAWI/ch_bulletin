@@ -84,6 +84,58 @@ export const findLevelThreeAncestor = (orgUnits = [], unitId) => {
     return null;
 };
 
+/**
+ * The level-3 units grouped by their level-2 parent, for the editor's checklist.
+ *
+ * Every level-3 unit is kept — the map draws the hospital Point units too — and
+ * a unit without a parent lands in an "Other" group rather than vanishing.
+ * Groups and their districts are sorted by name so the list is stable as the
+ * author ticks and unticks.
+ */
+export const groupDistrictsByZone = (orgUnits = []) => {
+    const zoneNames = new Map(
+        orgUnits
+            .filter((unit) => Number(unit?.level) === 2 && unit?.id)
+            .map((unit) => [unit.id, unit.displayName || unit.name || unit.id])
+    );
+    const groups = new Map();
+
+    orgUnits.filter(isLevelThree).forEach((unit) => {
+        const parentId = getParentId(unit);
+        // Unknown parents all share one "Other" group; using the raw parent id
+        // would produce several groups with the same heading.
+        const groupId = zoneNames.has(parentId) ? parentId : 'ungrouped';
+
+        if (!groups.has(groupId)) {
+            groups.set(groupId, {
+                id: groupId,
+                name: zoneNames.get(groupId) || '',
+                districts: [],
+            });
+        }
+
+        groups.get(groupId).districts.push({
+            id: unit.id,
+            name: unit.displayName || unit.name || unit.id,
+        });
+    });
+
+    return Array.from(groups.values())
+        .map((group) => ({
+            ...group,
+            districts: group.districts.sort(
+                (left, right) => left.name.localeCompare(right.name)
+            ),
+        }))
+        // A district without a zone is drawn last, under the control's "Other"
+        // heading, rather than before every named zone.
+        .sort((left, right) => {
+            if (!left.name) return right.name ? 1 : 0;
+            if (!right.name) return -1;
+            return left.name.localeCompare(right.name);
+        });
+};
+
 const ownDistricts = ({ orgUnits, selectedOrgUnitId, selectedUnit, level }) => {
     if (!selectedUnit) return [];
 
