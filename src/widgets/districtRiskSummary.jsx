@@ -156,6 +156,9 @@ const DistrictRiskMap = ({
     const engine = useDataEngine();
     const viewportRef = React.useRef(null);
     const tooltipId = React.useId();
+    // A unique, CSS-safe id for the clip path that keeps the basemap inside
+    // Malawi. `useId` can contain colons, which are awkward in `url(#…)`.
+    const mapClipId = `district-map-clip-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
     const [viewportSize, setViewportSize] = React.useState(null);
     const [zoomLevel, setZoomLevel] = React.useState(0);
     const [hovered, setHovered] = React.useState(null);
@@ -356,7 +359,26 @@ const DistrictRiskMap = ({
                         role="group"
                         aria-label="District boundaries from DHIS2 over OpenStreetMap"
                     >
-                        <g data-pdf-map-tiles aria-hidden="true">
+                        {/* The tiles are clipped to the districts, so the
+                            basemap shows Malawi and none of the place names
+                            around it. The district paths below still draw the
+                            full country. */}
+                        {mapLayout.areas.length > 0 && (
+                            <defs>
+                                <clipPath id={mapClipId} clipRule="evenodd">
+                                    {mapLayout.areas.map((area) => (
+                                        <path key={area.id} d={area.d} />
+                                    ))}
+                                </clipPath>
+                            </defs>
+                        )}
+                        <g
+                            data-pdf-map-tiles
+                            aria-hidden="true"
+                            clipPath={mapLayout.areas.length > 0
+                                ? `url(#${mapClipId})`
+                                : undefined}
+                        >
                             {mapLayout.tiles.map((tile) => (
                                 <image
                                     key={tile.key}
@@ -407,6 +429,29 @@ const DistrictRiskMap = ({
                                 </circle>
                             );
                         })}
+                        {/* The tile licence requires visible attribution. It is
+                            kept as a small corner credit rather than the old
+                            caption line, and lives inside the SVG so it is
+                            captured into the PDF too. */}
+                        <a
+                            href="https://www.openstreetmap.org/copyright"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <text
+                                className={style.districtRiskMapAttribution}
+                                x={mapLayout.width - 6}
+                                y={mapLayout.height - 6}
+                                textAnchor="end"
+                                fontSize={8}
+                                fill="#475569"
+                                stroke="#ffffff"
+                                strokeWidth={2}
+                                paintOrder="stroke"
+                            >
+                                © OpenStreetMap contributors
+                            </text>
+                        </a>
                     </svg>
                 ) : (
                     <p className={style.districtRiskMapEmpty}>
@@ -466,13 +511,6 @@ const DistrictRiskMap = ({
                     No district-level units are available under this selection.
                 </p>
             )}
-            <p className={style.districtRiskMapCaption}>
-                Hover over a district for its forecast median and prediction bounds. District
-                boundaries are from this DHIS2 instance. Map tiles ©{' '}
-                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-                    OpenStreetMap contributors
-                </a>.
-            </p>
             {mapLayout && unmappedUnits.length > 0 && (
                 <p className={style.districtRiskMapCaption}>
                     {unmappedUnits.length} organisation unit

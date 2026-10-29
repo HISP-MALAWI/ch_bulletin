@@ -650,7 +650,7 @@
    otherwise spend about 120mm of an A4 page on it. Fixed, so the PDF's page
    breaks stay where they were measured. */
 .bulletinDocument .districtRiskMapViewport {
-  height: 300px;
+  height: 480px;
 }
 
 .currentMalariaPanel {
@@ -985,11 +985,13 @@
 /* A fixed height, following `.casesChart`. The PDF export measures its page
    breaks off the live layout, so a box that resized when the boundaries or the
    tiles landed would put every cut below it out of step. The loading and error
-   states are the same height, for the same reason. */
+   states are the same height, for the same reason. The document gets a shorter
+   box (480px) because its width is scaled to A4. */
 .districtRiskMapViewport {
   position: relative;
-  height: 520px;
+  height: 832px;
   overflow: hidden;
+  background: #f8fafc;
 }
 
 /* The Mercator drawing fills the measured box; its viewBox is the same number
@@ -1042,6 +1044,13 @@
   stroke: #ffffff;
   stroke-width: 1;
   cursor: help;
+}
+
+/* The tile licence's tiny corner credit. It sits inside the SVG so the PDF
+   capture keeps it; the link is clickable on screen. */
+.districtRiskMapAttribution {
+  cursor: pointer;
+  font-size: 8px;
 }
 
 /* Zoom controls sit above the tiles, out of the document's flow. `data-pdf-exclude`
@@ -1126,8 +1135,18 @@
   line-height: 1.4;
 }
 
-.districtRiskMapCaption a {
-  color: #2563eb;
+/* The loading and error messages sit in the middle of the tall map box rather
+   than at its top-left corner. Only the direct children of the viewport are
+   affected; the caption below the map keeps its normal flow. */
+.districtRiskMapViewport > .districtRiskMapEmpty {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
 }
 
 .districtActionsGrid {
@@ -1194,6 +1213,17 @@
 
   .districtRiskRow {
     grid-template-columns: 1fr;
+  }
+
+  /* The map no longer has a narrow column to balance, so a phone does not need
+     the full desktop height. The document keeps a shorter box so it still fits
+     an A4 page when the window is narrow. */
+  .districtRiskMapViewport {
+    height: 420px;
+  }
+
+  .bulletinDocument .districtRiskMapViewport {
+    height: 320px;
   }
 
   .currentMalariaChart {
