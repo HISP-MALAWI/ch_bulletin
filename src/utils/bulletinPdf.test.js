@@ -201,6 +201,24 @@ describe('inlineMapTiles', () => {
     })
 })
 
+describe('restoreClipPaths', () => {
+    it('drops the copied absolute clip-path style and keeps the internal attribute', () => {
+        const { restoreClipPaths } = require('./bulletinPdf')
+        document.body.innerHTML = `
+            <svg>
+                <g data-pdf-map-tiles
+                   clip-path="url(#clip)"
+                   style="clip-path: url(http://example.test/#clip)"></g>
+            </svg>`
+
+        const group = document.querySelector('[data-pdf-map-tiles]')
+        restoreClipPaths(document)
+
+        expect(group.style.clipPath).toBe('')
+        expect(group.getAttribute('clip-path')).toBe('url(#clip)')
+    })
+})
+
 describe('exportBulletinPdf', () => {
     const canvasContext = { fillRect: jest.fn(), drawImage: jest.fn() }
     let displayDuringCapture = null

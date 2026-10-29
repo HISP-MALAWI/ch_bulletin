@@ -243,6 +243,23 @@ export const inlineMapTiles = async (element, { load = toDataUrl } = {}) => {
 }
 
 /**
+ * html2canvas copies every SVG node's computed styles onto its clone. A
+ * `clip-path` that comes from a presentation attribute is computed and copied
+ * as an absolute document URL, and the serialized SVG — loaded as a standalone
+ * image for the capture — cannot resolve that URL, so the clipped map tiles
+ * would silently disappear from the PDF. Dropping the copied style leaves the
+ * original `clip-path="url(#…)"` attribute, which resolves inside the SVG
+ * document itself.
+ */
+export const restoreClipPaths = (clonedDocument) => {
+    clonedDocument
+        .querySelectorAll('[data-pdf-map-tiles]')
+        .forEach((group) => group.style.removeProperty('clip-path'));
+
+    return clonedDocument
+}
+
+/**
  * Rewrites every `<img>` to point at an inlined data URL, returning a restore
  * function and the number of images left out.
  *
@@ -609,6 +626,9 @@ export const exportBulletinPdf = async (
             ignoreElements: (node) =>
                 typeof node?.hasAttribute === 'function' &&
                 node.hasAttribute('data-pdf-exclude'),
+            // Runs before html2canvas parses the clone, so the map's clip
+            // reference is internal again by the time the SVG is serialized.
+            onclone: restoreClipPaths,
         })
 
         const pxPerMm = source.width / contentWidthMm
