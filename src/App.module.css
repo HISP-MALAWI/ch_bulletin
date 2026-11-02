@@ -617,6 +617,13 @@
   break-inside: avoid;
 }
 
+/* A panel whose widget rendered nothing — the seasonal chart with no readings
+   for this unit — would otherwise keep its card padding and a page-break edge
+   around an empty box. */
+.bulletinDocumentPanel:empty {
+  display: none;
+}
+
 .bulletinDocumentPanel .sectionCard {
   margin: 0;
   padding: 0;
@@ -699,6 +706,23 @@
 
 .bulletinTwoColumnGrid > .sectionCard {
   margin: 0;
+}
+
+/* A lone child — the weather forecast when the seasonal chart hides itself for
+   want of data — takes the whole row instead of leaving half of it empty. */
+.bulletinTwoColumnGrid > :only-child {
+  grid-column: 1 / -1;
+}
+
+/* In the document the panels are wrapped, so a widget that renders nothing
+   leaves an empty wrapper rather than no child. Hide that cell and let the
+   panel beside it take the row. */
+.bulletinTwoColumnGrid > :empty {
+  display: none;
+}
+
+.bulletinTwoColumnGrid:has(> :empty) > :not(:empty) {
+  grid-column: 1 / -1;
 }
 
 .bulletinGuidanceGrid > :only-child {
