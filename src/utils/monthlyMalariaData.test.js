@@ -52,6 +52,7 @@ describe('buildSelectedUnitMalariaData', () => {
                 predictionQuartileHigh: 160,
                 predictionRange: [110, 180],
                 quartileRange: [125, 160],
+                medianTrend: 140,
             },
             {
                 period: '202602',
@@ -64,8 +65,145 @@ describe('buildSelectedUnitMalariaData', () => {
                 predictionQuartileHigh: 70,
                 predictionRange: [40, 80],
                 quartileRange: [50, 70],
+                medianTrend: 60,
             },
         ]);
+    });
+
+    it('starts the forecast after the bulletin month and anchors the median trend at the last case', () => {
+        const mapping = [{
+            displayName: 'Malaria Cases',
+            dataElement: 'malaria',
+            threshold: 'threshold',
+            predictionLowerBound: 'lower',
+            predictionMedian: 'median',
+            predictionUpperBound: 'upper',
+        }];
+        const periods = ['202610', '202611', '202612', '202701'];
+        const dataValues = [
+            ['malaria', '202610', 'district', '10'],
+            ['malaria', '202611', 'district', '20'],
+            ['threshold', '202610', 'district', '100'],
+            ['lower', '202610', 'district', '20'],
+            ['median', '202610', 'district', '30'],
+            ['upper', '202610', 'district', '40'],
+            ['threshold', '202611', 'district', '100'],
+            ['lower', '202611', 'district', '30'],
+            ['median', '202611', 'district', '40'],
+            ['upper', '202611', 'district', '50'],
+            ['threshold', '202612', 'district', '100'],
+            ['lower', '202612', 'district', '40'],
+            ['median', '202612', 'district', '50'],
+            ['upper', '202612', 'district', '60'],
+            ['threshold', '202701', 'district', '100'],
+            ['lower', '202701', 'district', '50'],
+            ['median', '202701', 'district', '60'],
+            ['upper', '202701', 'district', '70'],
+        ];
+
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping,
+            periods,
+            selectedOrgUnit: 'district',
+            currentPeriod: '202611',
+            dataValues,
+        });
+
+        expect(rows.map((row) => row.period)).toEqual(periods);
+        expect(rows.map((row) => row.medianTrend)).toEqual([null, 20, 50, 60]);
+        expect(rows.map((row) => row.cases)).toEqual([10, 20, null, null]);
+        expect(rows.map((row) => row.predictionMedian)).toEqual([null, null, 50, 60]);
+        expect(rows.map((row) => row.threshold)).toEqual([null, null, 100, 100]);
+        expect(rows[0].predictionRange).toBeUndefined();
+        expect(rows[1].predictionRange).toBeUndefined();
+        expect(rows[2].predictionRange).toEqual([40, 60]);
+    });
+
+    it('does not anchor the median trend when no forecast follows the bulletin month', () => {
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping: [{
+                displayName: 'Malaria Cases',
+                dataElement: 'malaria',
+                predictionMedian: 'median',
+            }],
+            periods: ['202610', '202611', '202612'],
+            selectedOrgUnit: 'district',
+            currentPeriod: '202611',
+            dataValues: [
+                ['malaria', '202610', 'district', '10'],
+                ['malaria', '202611', 'district', '20'],
+                ['median', '202610', 'district', '30'],
+                ['median', '202611', 'district', '40'],
+            ],
+        });
+
+        expect(rows.map((row) => row.medianTrend)).toEqual([null, null, null]);
+        expect(rows.map((row) => row.cases)).toEqual([10, 20, null]);
+    });
+
+    it('does not anchor on a bulletin month that reported no cases', () => {
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping: [{
+                displayName: 'Malaria Cases',
+                dataElement: 'malaria',
+                predictionMedian: 'median',
+            }],
+            periods: ['202610', '202611', '202612'],
+            selectedOrgUnit: 'district',
+            currentPeriod: '202611',
+            dataValues: [
+                ['malaria', '202610', 'district', '10'],
+                // No confirmed-case value for 202611.
+                ['median', '202612', 'district', '50'],
+            ],
+        });
+
+        // A missing reading is seeded to 0; anchoring there would draw the
+        // forecast out of a fabricated zero.
+        expect(rows.map((row) => row.cases)).toEqual([10, 0, null]);
+        expect(rows.map((row) => row.medianTrend)).toEqual([null, null, 50]);
+    });
+
+    it('treats a blank cell as no reading, not a reported zero', () => {
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping: [{
+                displayName: 'Malaria Cases',
+                dataElement: 'malaria',
+                predictionMedian: 'median',
+            }],
+            periods: ['202610', '202611', '202612'],
+            selectedOrgUnit: 'district',
+            currentPeriod: '202611',
+            dataValues: [
+                ['malaria', '202610', 'district', '10'],
+                ['malaria', '202611', 'district', ''],
+                ['median', '202612', 'district', '   '],
+            ],
+        });
+
+        // `Number('')` is 0, so blanks must be dropped before the anchor test.
+        expect(rows.map((row) => row.cases)).toEqual([10, 0, null]);
+        expect(rows.map((row) => row.predictionMedian)).toEqual([null, null, null]);
+        expect(rows.map((row) => row.medianTrend)).toEqual([null, null, null]);
+    });
+
+    it('anchors on a genuine zero reported in the bulletin month', () => {
+        const { rows } = buildSelectedUnitMalariaData({
+            mapping: [{
+                displayName: 'Malaria Cases',
+                dataElement: 'malaria',
+                predictionMedian: 'median',
+            }],
+            periods: ['202610', '202611', '202612'],
+            selectedOrgUnit: 'district',
+            currentPeriod: '202611',
+            dataValues: [
+                ['malaria', '202611', 'district', '0'],
+                ['median', '202612', 'district', '50'],
+            ],
+        });
+
+        expect(rows.map((row) => row.medianTrend)).toEqual([null, 0, 50]);
     });
 
     it('draws no band when only one of a pair is present', () => {
