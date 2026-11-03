@@ -4,11 +4,17 @@ import AddIcon from "@mui/icons-material/Add"
 import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
 import { homeDataQuery } from './services/getHomeData'
+import {
+    bulletinStatus,
+    isPublished,
+    selectDraftBulletins,
+    selectPublishedBulletins,
+} from '../utils/bulletinList'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAccess } from '../context/AccessContext'
 
 const HomePage = ({ style }) => {
-    const { loading, error, data } = dataQuery(homeDataQuery)
+    const { loading, error, data, refetch } = dataQuery(homeDataQuery)
     const { canDraft } = useAccess()
 
     const location = useLocation()
@@ -16,31 +22,46 @@ const HomePage = ({ style }) => {
 
     const [organisationUnit, setOrganisationUnit] = React.useState(null)
     const [bulletins, setBulletins] = React.useState([])
-    const [user, setUser] = React.useState(null)
+
+    // The two lists are the same records split by whether they have been
+    // published: Home holds the drafts, Archived Bulletins the published ones.
+    // The two routes render this same component, so which list it is comes from
+    // the route rather than from two code paths.
+    const isArchive = location.pathname === '/archived-bulletins'
 
     React.useEffect(() => {
         if (data) {
             console.log('Fetched Data:', data)
-            const status = location.pathname === '/archived-bulletins' ? 'published' : 'draft'
-            const userOrgUnitIds = new Set(
-                data?.me?.organisationUnits?.flatMap(orgUnit => [
-                    orgUnit.id,
-                    ...(orgUnit.children?.map(child => child.id) || [])
-                ]) || []
-            )
+            const stored = Array.isArray(data?.dataStore) ? data.dataStore : []
+            // The bulletin the editor has just written, handed over with the
+            // navigation. The query behind this list is cached and re-fetched in
+            // the background, so the list paints from what is already in hand —
+            // and on a slow link that can be long enough for a fresh save to
+            // look lost. Merging the record in makes the list right on arrival,
+            // and the background fetch takes over as soon as it carries the
+            // record itself, which is what drops the copy below.
+            const saved = location.state?.saved
+            const records =
+                saved && !stored.some((bulletin) => bulletin.id === saved.id)
+                    ? [...stored, saved]
+                    : stored
 
-            const filteredBulletins = data?.dataStore?.filter(
-                bulletin => bulletin.status === status && userOrgUnitIds.has(bulletin.organisationUnit)
-            )
-
-            setBulletins(data?.dataStore)
+            setBulletins(isArchive
+                ? selectPublishedBulletins(records)
+                : selectDraftBulletins(records))
             setOrganisationUnit(data?.organisationUnits)
-            setUser(data?.me)
         }
-        // `location.pathname` decides which of the two lists this is, and the two
-        // routes render this same component, so navigating between them reuses
-        // this instance rather than remounting it and the effect has to re-run.
-    }, [data, location.pathname])
+        // Navigating between the two routes reuses this instance rather than
+        // remounting it, so the effect has to re-run on the route as well — and
+        // on the handed-over record, which arrives with the navigation.
+    }, [data, isArchive, location.state])
+
+    // A save in the editor lands here, and what was just saved is what the
+    // officer came back to look at, so the list is fetched again on arrival
+    // rather than left to whatever the query returned on mount.
+    React.useEffect(() => {
+        if (location.state?.refresh) refetch()
+    }, [location.state, refetch])
 
     // Helper to find Organisation Unit name by ID
     const getOrgUnitName = (ouId) => {
@@ -65,7 +86,10 @@ const HomePage = ({ style }) => {
         return pe
     }
 
-    if (loading) {
+    // The loader is for having nothing to show, not for fetching: arriving from
+    // a save fetches the list again, and replacing the page with a spinner hides
+    // the bulletin that was just added for as long as that takes.
+    if (loading && !data) {
         return (
             <Layer translucent>
                 <Center>
@@ -79,10 +103,10 @@ const HomePage = ({ style }) => {
         <main className={style.main}>
             <header className={style.header}>
                 <div className={style.titleSection}>
-                    <h1>{location.pathname === '/archived-bulletins' ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
+                    <h1>{isArchive ? i18n.t('Archived Bulletins') : i18n.t('Home')}</h1>
                     <p>{i18n.t('Welcome to your bulletin management dashboard.')}</p>
                 </div>
-                {canDraft && location.pathname !== '/archived-bulletins' && (
+                {canDraft && !isArchive && (
                     <button
                         className={style.buttonPrimary}
                         onClick={() => window.location.hash = '/new-bulletin'}
@@ -124,7 +148,7 @@ const HomePage = ({ style }) => {
                                 <th className={style.th}>{i18n.t('Organisation Unit')}</th>
                                 <th className={style.th}>{i18n.t('Period')}</th>
                                 <th className={style.th}>{i18n.t('Status')}</th>
-                                {location.pathname !== '/archived-bulletins' && (
+                                {!isArchive && (
                                     <th className={style.th}>{i18n.t('Actions')}</th>
                                 )}
                             </tr>
@@ -136,7 +160,7 @@ const HomePage = ({ style }) => {
                                     const rawPeriod = bulletin.cases?.[0]?.[0]?.[1]
                                     const periodDisplay = formatPeriod(rawPeriod)
                                     const orgUnitName = getOrgUnitName(bulletin.organisationUnit)
-                                    const status = bulletin.status || 'draft'
+                                    const status = bulletinStatus(bulletin)
 
                                     return (
                                         <tr 
@@ -153,9 +177,9 @@ const HomePage = ({ style }) => {
                                                     {status.charAt(0).toUpperCase() + status.slice(1)}
                                                 </span>
                                             </td>
-                                            {location.pathname !== '/archived-bulletins' && (
+                                            {!isArchive && (
                                                 <td className={style.td}>
-                                                    {status === 'draft' && canDraft && (
+                                                    {canDraft && !isPublished(bulletin) && (
                                                         <button
                                                             className={style.buttonSecondary}
                                                             onClick={(event) => {

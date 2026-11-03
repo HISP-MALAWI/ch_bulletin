@@ -1,10 +1,15 @@
 import i18n from '@dhis2/d2-i18n'
 
-const A4_WIDTH_MM = 297
-const A4_HEIGHT_MM = 210
+const A4_WIDTH_MM = 210
+const A4_HEIGHT_MM = 297
 const DEFAULT_MARGIN_MM = 10
 const IMAGE_TIMEOUT_MS = 8000
+const MAP_TILE_TIMEOUT_MS = 10000
 const MAX_FILE_NAME_LENGTH = 120
+
+// Space between the repeated masthead and the content beneath it on pages after
+// the first.
+const REPEAT_HEADER_GAP_MM = 6
 
 // A 1x1 transparent GIF, used to stand in for images that cannot be captured.
 const TRANSPARENT_PIXEL =
@@ -42,10 +47,21 @@ export const sanitiseFileName = (parts, { maxLength = MAX_FILE_NAME_LENGTH } = {
  * driven by `start < totalHeightMm` and every slice has a positive height, a
  * trailing empty page is impossible.
  *
+ * `options.restHeightMm` narrows every page after the first, which is how a
+ * running header is paid for: the masthead is already part of the flow on page
+ * one, so only the later pages need the room reserved.
+ *
  * @returns {Array<{start: number, height: number}>} slices in page order
  */
-export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = []) => {
+export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [], options = {}) => {
     if (!(totalHeightMm > 0) || !(contentHeightMm > 0)) {
+        return []
+    }
+
+    const restHeightMm = options.restHeightMm ?? contentHeightMm
+
+    if (!(restHeightMm > 0)) {
+        // Nothing could be laid out, and the loop below would never advance.
         return []
     }
 
@@ -55,9 +71,10 @@ export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [
 
     const slices = []
     let start = 0
+    let pageIndex = 0
 
     while (start < totalHeightMm) {
-        const limit = start + contentHeightMm
+        const limit = start + (pageIndex === 0 ? contentHeightMm : restHeightMm)
 
         if (limit >= totalHeightMm) {
             slices.push({ start, height: totalHeightMm - start })
@@ -69,6 +86,7 @@ export const computePageSlices = (totalHeightMm, contentHeightMm, boundaries = [
 
         slices.push({ start, height: end - start })
         start = end
+        pageIndex += 1
     }
 
     return slices
@@ -142,6 +160,103 @@ const toDataUrl = async (src) => {
         // retry at a URL the cache has never seen before giving up.
         return await loadAsDataUrl(withCacheBuster(src))
     }
+}
+
+/**
+ * Rewrites the OpenStreetMap tiles inside the map SVG to data URLs, returning a
+ * restore function and whether the basemap had to be left out.
+ *
+ * html2canvas serialises an inline `<svg>` to a `data:image/svg+xml` URL and
+ * loads that as an image. Browsers do not fetch external `<image href>`
+ * resources in that mode, so without this step the PDF silently loses its
+ * basemap while the screen keeps it. `useCORS` does not help: it applies to
+ * `<img>` elements, not to resources inside an SVG-as-image.
+ *
+ * The tile group is all-or-nothing. A partly inlined basemap would show a
+ * patchwork of tiles and gaps, so if any tile cannot be fetched the whole group
+ * is hidden for the capture and the district boundaries are what lands on the
+ * page. The caller reports the omission rather than shipping the difference
+ * silently.
+ */
+export const inlineMapTiles = async (element, { load = toDataUrl } = {}) => {
+    const groups = Array.from(element.querySelectorAll('[data-pdf-map-tiles]'))
+    const restores = []
+    let inlined = 0
+    let failed = 0
+
+    for (const group of groups) {
+        const tiles = Array.from(group.querySelectorAll('[data-pdf-map-tile]'))
+            .map((tile) => ({ tile, href: tile.getAttribute('href') }))
+            .filter(({ href }) => href && !href.startsWith('data:'))
+
+        if (tiles.length === 0) continue
+
+        // One request per distinct URL, however many times the grid repeats it.
+        const cache = new Map()
+        const loadOnce = (href) => {
+            if (!cache.has(href)) cache.set(href, load(href))
+            return cache.get(href)
+        }
+
+        let timer = null
+        const deadline = new Promise((resolve, reject) => {
+            timer = setTimeout(
+                () => reject(new Error('Timed out loading map tiles')),
+                MAP_TILE_TIMEOUT_MS
+            )
+        })
+
+        try {
+            const dataUrls = await Promise.race([
+                Promise.all(tiles.map(({ href }) => loadOnce(href))),
+                deadline,
+            ])
+
+            tiles.forEach(({ tile, href }, index) => {
+                restores.push(() => tile.setAttribute('href', href))
+                tile.setAttribute('href', dataUrls[index])
+            })
+            inlined += tiles.length
+        } catch (error) {
+            failed += tiles.length
+            const previousDisplay = group.style.display
+            group.style.display = 'none'
+            restores.push(() => {
+                group.style.display = previousDisplay
+            })
+            console.warn('Omitting the map basemap from the PDF:', error?.message || error)
+        } finally {
+            clearTimeout(timer)
+        }
+    }
+
+    return {
+        inlined,
+        failed,
+        hidden: failed > 0,
+        // Idempotent: the callbacks are drained, so a second call has nothing
+        // left to do.
+        restore: () => {
+            restores.splice(0).forEach((restore) => restore())
+        },
+    }
+}
+
+/**
+ * html2canvas copies every SVG node's computed styles onto its clone. A
+ * `clip-path` that comes from a presentation attribute is computed and copied
+ * as an absolute document URL, and the serialized SVG — loaded as a standalone
+ * image for the capture — cannot resolve that URL, so the clipped map tiles
+ * would silently disappear from the PDF. Dropping the copied style leaves the
+ * original `clip-path="url(#…)"` attribute, which resolves inside the SVG
+ * document itself.
+ */
+export const restoreClipPaths = (clonedDocument) => {
+    clonedDocument
+        .querySelectorAll('[data-pdf-map-tiles]')
+        .forEach((group) => group.style.removeProperty('clip-path'));
+
+    return clonedDocument
 }
 
 /**
@@ -226,6 +341,39 @@ const waitForFonts = async () => {
     }
 }
 
+/**
+ * Takes every `[data-pdf-exclude]` node out of the page for the duration of the
+ * export, returning a function that puts them back.
+ *
+ * They are hidden here rather than left to html2canvas' `ignoreElements`, which
+ * drops the node from the clone and so closes the gap it left. The block
+ * boundaries are measured on the live document, which still has the node in it,
+ * so the clone and the measurements would describe two different layouts and
+ * every boundary below an excluded block would be read too low — a page could
+ * cut through a card. Collapsing the live document by the same amount keeps the
+ * two in step. `ignoreElements` is still passed as a backstop for a node that
+ * something else keeps visible.
+ */
+const hideExcluded = (element) => {
+    const nodes = Array.from(element.querySelectorAll('[data-pdf-exclude]'))
+
+    if (nodes.length === 0) {
+        return () => {}
+    }
+
+    const previous = nodes.map((node) => node.style.display)
+
+    nodes.forEach((node) => {
+        node.style.display = 'none'
+    })
+
+    return () => {
+        nodes.forEach((node, index) => {
+            node.style.display = previous[index]
+        })
+    }
+}
+
 const waitForImages = async (element) => {
     const pending = Array.from(element.querySelectorAll('img'))
         .filter((img) => !img.complete)
@@ -248,12 +396,48 @@ const waitForImages = async (element) => {
 }
 
 /**
- * Reads the bottom edge of every `[data-pdf-block]` element as a distance in
- * millimetres from the top of the captured area.
+ * Waits out anything the page says it is still working on, so the capture does
+ * not rasterise a placeholder.
+ *
+ * The district risk map fetches its boundaries from DHIS2 and paints them when
+ * they arrive. Its box is already the height the drawing will be, so nothing
+ * moves when they land — but the section would be exported still saying
+ * "Loading district boundaries…". `data-pdf-pending` marks a node whose content
+ * is on its way; it is cleared when there is nothing left to wait for.
+ *
+ * Gives up after the same timeout as an image, so a request that never comes
+ * back costs the reader a placeholder rather than the whole export.
+ */
+const waitForPending = async (element) => {
+    const deadline = Date.now() + IMAGE_TIMEOUT_MS
+
+    while (element.querySelector('[data-pdf-pending]')) {
+        if (Date.now() > deadline) {
+            return
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+}
+
+/**
+ * Reads the bottom edge of every outermost `[data-pdf-block]` element as a
+ * distance in millimetres from the top of the captured area.
  *
  * Positions are taken as a fraction of the element's rendered height and scaled
  * by the captured height, so the result stays correct whatever pixel ratio
  * html2canvas used.
+ *
+ * Only outermost blocks count. A marker nested inside another one is ignored,
+ * because cutting at a nested block's edge breaks its parent. That is not
+ * hypothetical: the two-column grids put a marker on each column, and since the
+ * columns differ in height, a cut at the shorter column's edge sliced through
+ * the taller one mid-chart. Marking the grid instead fixes that particular case;
+ * ignoring nested markers means the next one cannot recur.
+ *
+ * A block that is also `[data-pdf-exclude]` is hidden by the time this runs, so
+ * it measures as zero and drops out below — which is what an excluded block
+ * should contribute, since there is nothing of it left to cut at.
  */
 const readBlockBoundaries = (element, totalHeightMm) => {
     const rect = element.getBoundingClientRect()
@@ -262,9 +446,89 @@ const readBlockBoundaries = (element, totalHeightMm) => {
         return []
     }
 
-    return Array.from(element.querySelectorAll('[data-pdf-block]')).map(
-        (node) => ((node.getBoundingClientRect().bottom - rect.top) / rect.height) * totalHeightMm
+    return Array.from(element.querySelectorAll('[data-pdf-block]'))
+        .filter((node) => !node.parentElement?.closest('[data-pdf-block]'))
+        .map(
+            (node) => ((node.getBoundingClientRect().bottom - rect.top) / rect.height) * totalHeightMm
+        )
+}
+
+/**
+ * Locates one element within the captured area, in both millimetres and source
+ * pixels, using the same fraction-of-the-render maths as the block boundaries so
+ * the two stay consistent whatever pixel ratio html2canvas chose.
+ */
+const readRegion = (element, node, totalHeightMm, pxPerMm) => {
+    const root = element.getBoundingClientRect()
+    const rect = node.getBoundingClientRect()
+
+    if (!root.height || !rect.height) {
+        return null
+    }
+
+    const topMm = ((rect.top - root.top) / root.height) * totalHeightMm
+    const heightMm = (rect.height / root.height) * totalHeightMm
+
+    return {
+        topMm,
+        heightMm,
+        topPx: Math.max(0, Math.round(topMm * pxPerMm)),
+        heightPx: Math.max(1, Math.round(heightMm * pxPerMm)),
+    }
+}
+
+/**
+ * Cuts the running header out of the captured canvas so it can be drawn again on
+ * every page. Taken from the existing capture rather than a second html2canvas
+ * pass, so it is never out of step with the page it came from and costs nothing
+ * extra to render.
+ */
+const captureRepeatedHeader = (element, source, totalHeightMm, pxPerMm, contentHeightMm) => {
+    const node = element.querySelector('[data-pdf-masthead]')
+
+    if (!node) {
+        return null
+    }
+
+    const region = readRegion(element, node, totalHeightMm, pxPerMm)
+
+    if (!region || !(region.heightMm > 0)) {
+        return null
+    }
+
+    const repeatHeightMm = region.heightMm + REPEAT_HEADER_GAP_MM
+
+    // A header that would leave no room for content is not worth repeating.
+    if (repeatHeightMm >= contentHeightMm) {
+        return null
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = source.width
+    canvas.height = region.heightPx
+
+    const context = canvas.getContext('2d')
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(
+        source,
+        0,
+        region.topPx,
+        source.width,
+        region.heightPx,
+        0,
+        0,
+        source.width,
+        region.heightPx
     )
+
+    const dataUrl = canvas.toDataURL('image/png')
+
+    // Release the backing store; a full-width strip is still megabytes.
+    canvas.width = 0
+    canvas.height = 0
+
+    return { dataUrl, heightMm: region.heightMm, repeatHeightMm }
 }
 
 /**
@@ -302,9 +566,14 @@ const renderSlice = (source, slice, pxPerMm) => {
 /**
  * Renders `element` to a paginated A4 PDF and saves it.
  *
- * @returns {Promise<{droppedImages: number}>} how many images were left out
+ * @returns {Promise<{droppedImages: number, mapTilesHidden: boolean}>} how many
+ * images were left out, and whether the district map's basemap had to be
+ * omitted from the PDF
  */
-export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
+export const exportBulletinPdf = async (
+    element,
+    { fileName, title, mapTileLoader = toDataUrl } = {}
+) => {
     if (!element) {
         throw new Error(
             i18n.t('Nothing to export — the bulletin preview could not be found')
@@ -324,10 +593,29 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     const contentHeightMm = A4_HEIGHT_MM - marginMm * 2
 
     const { dropped, restore } = await inlineImages(element)
+    // Declared out here so the `finally` below can put the document back even
+    // if the capture throws before the nodes have been hidden.
+    let restoreExcluded = () => {}
+    let restoreTiles = () => {}
+    let mapTilesHidden = false
 
     try {
         await waitForFonts()
         await waitForImages(element)
+        await waitForPending(element)
+
+        // After the wait, so the map's own loading state has settled; before the
+        // capture, because an SVG rasterised as a standalone image does not load
+        // its external tile references. A failed basemap is hidden whole and
+        // reported rather than leaving a patchwork behind.
+        const tiles = await inlineMapTiles(element, { load: mapTileLoader })
+        restoreTiles = tiles.restore
+        mapTilesHidden = tiles.hidden
+
+        // After the images, so that nothing the reader never sees is left
+        // waiting to load; before the capture, so that the layout it renders and
+        // the layout the boundaries are measured against are the same one.
+        restoreExcluded = hideExcluded(element)
 
         const source = await html2canvas(element, {
             scale: 2,
@@ -338,14 +626,23 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
             ignoreElements: (node) =>
                 typeof node?.hasAttribute === 'function' &&
                 node.hasAttribute('data-pdf-exclude'),
+            // Runs before html2canvas parses the clone, so the map's clip
+            // reference is internal again by the time the SVG is serialized.
+            onclone: restoreClipPaths,
         })
 
         const pxPerMm = source.width / contentWidthMm
         const totalHeightMm = (source.height * contentWidthMm) / source.width
         const boundaries = readBlockBoundaries(element, totalHeightMm)
-        const slices = computePageSlices(totalHeightMm, contentHeightMm, boundaries)
+        const header = captureRepeatedHeader(element, source, totalHeightMm, pxPerMm, contentHeightMm)
+        const slices = computePageSlices(
+            totalHeightMm,
+            contentHeightMm,
+            boundaries,
+            header ? { restHeightMm: contentHeightMm - header.repeatHeightMm } : {}
+        )
 
-        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
         if (title) {
             pdf.setProperties({ title, creator: 'Climate & Health Bulletin' })
@@ -357,6 +654,22 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
             }
 
             const { dataUrl, heightMm } = renderSlice(source, slice, pxPerMm)
+
+            // Page one already carries the masthead, because it is part of the
+            // flow there; later pages get the copy cut out of the same capture.
+            if (index > 0 && header) {
+                pdf.addImage(header.dataUrl, 'PNG', marginMm, marginMm, contentWidthMm, header.heightMm)
+                pdf.addImage(
+                    dataUrl,
+                    'PNG',
+                    marginMm,
+                    marginMm + header.repeatHeightMm,
+                    contentWidthMm,
+                    heightMm
+                )
+                return
+            }
+
             pdf.addImage(dataUrl, 'PNG', marginMm, marginMm, contentWidthMm, heightMm)
         })
 
@@ -372,8 +685,10 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
 
         throw err
     } finally {
+        restoreExcluded()
+        restoreTiles()
         restore()
     }
 
-    return { droppedImages: dropped }
+    return { droppedImages: dropped, mapTilesHidden }
 }

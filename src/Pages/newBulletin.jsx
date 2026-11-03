@@ -2,12 +2,13 @@ import React from "react";
 import i18n from "@dhis2/d2-i18n";
 import { Button, Center, CircularLoader, IconError24, Layer, AlertBar } from "@dhis2/ui";
 import SaveIcon from "@mui/icons-material/Save";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import HighlightsInput from "../widgets/highlightsInput";
 import ForecastSummaryWidget from "../widgets/forecastSummaryWidget";
 import SeasonalClimateChart from "../widgets/seasonalClimateChart";
 import HealthCasesWidget from "../widgets/surveilanceHighlights";
 import CurrentMalariaSituation from "../widgets/currentMalariaSituation";
+import MalariaRiskOverview from "../widgets/malariaRiskOverview";
 import HistoricalClimateCasesChart from "../widgets/historicalClimateCasesChart";
 import ForecastWidget from "../widgets/forecastWidget";
 import DistrictRiskSummary from "../widgets/districtRiskSummary";
@@ -17,13 +18,15 @@ import dataQuery from "./services/engines/dataQuery";
 import { homeDataQuery } from "./services/getHomeData";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
-import getDataValues, { getMonthlyPeriods } from "../utils/getDataValues";
+import getDataValues, { getMonthlyPeriods, mergeDataValues } from "../utils/getDataValues";
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from "../utils/seasonalClimateData";
-import { getDistrictDescendants, getZoneDescendants } from "../utils/districtForecasts";
+import { getDistrictDescendants, getZoneDescendants, hasRegionalRiskView } from "../utils/districtForecasts";
+import { DEFAULT_MAP_HIGHLIGHT, normaliseMapHighlight } from "../utils/mapHighlight";
 import getOrgUnitCentroid from "../utils/getCentroid";
 import savebulletinToDataStore from "../utils/saveBulletin";
 import { generateDhis2Uid } from "../utils/idGenerator";
 import { normaliseHighlightsHtml, hasHighlightsContent } from "../utils/highlightsHtml";
+import { resolveSections } from "../utils/bulletinSections";
 import { useAccess } from "../context/AccessContext";
 
 const ALERT_AUTO_HIDE_MS = 5000;
@@ -37,13 +40,17 @@ const BulletinForm = ({ style }) => {
   const [datavalues, setDatavalues] = React.useState([]);
   const [seasonalClimate, setSeasonalClimate] = React.useState([]);
   const [historicalClimate, setHistoricalClimate] = React.useState([]);
+  // Which districts the map colours. Saved with the bulletin; `own` reproduces
+  // the old selection-derived behaviour.
+  const [mapHighlight, setMapHighlight] = React.useState(DEFAULT_MAP_HIGHLIGHT);
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveMessage, setSaveMessage] = React.useState("");
-  const [saveStatus, setSaveStatus] = React.useState(null); // 'success' | 'error' | null
+  const [saveStatus, setSaveStatus] = React.useState(null); // 'error' | null
   const [existingBulletin, setExistingBulletin] = React.useState(null);
 
   const { id } = useParams();
+  const navigate = useNavigate();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
   const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
@@ -98,6 +105,7 @@ const BulletinForm = ({ style }) => {
     if (!id) {
       setExistingBulletin(null);
       setHistoricalClimate([]);
+      setMapHighlight(DEFAULT_MAP_HIGHLIGHT);
       return;
     }
 
@@ -107,6 +115,7 @@ const BulletinForm = ({ style }) => {
     if (!foundBulletin) {
       setExistingBulletin(null);
       setHistoricalClimate([]);
+      setMapHighlight(DEFAULT_MAP_HIGHLIGHT);
       return;
     }
 
@@ -118,6 +127,7 @@ const BulletinForm = ({ style }) => {
     setDatavalues(Array.isArray(foundBulletin.cases?.[0]) ? foundBulletin.cases[0] : []);
     setSeasonalClimate(Array.isArray(foundBulletin.seasonalClimate) ? foundBulletin.seasonalClimate : []);
     setHistoricalClimate(Array.isArray(foundBulletin.historicalClimate) ? foundBulletin.historicalClimate : []);
+    setMapHighlight(normaliseMapHighlight(foundBulletin.mapHighlight));
   }, [id, homeData]);
 
   // Fetch recorded case data values for the selected period/org unit
@@ -131,21 +141,72 @@ const BulletinForm = ({ style }) => {
 
     const fetchDataValues = async () => {
       try {
-        const periods = getMonthlyPeriods(period, 12, 3);
+        // Thirteen months back rather than twelve: the historical climate chart
+        // draws from thirteen months before the period, and the case values it
+        // plots come from this one fetch. At twelve the chart's oldest month
+        // would have rainfall and no confirmed cases.
+        const periods = getMonthlyPeriods(period, 13, 3);
+        const forecastPeriods = getMonthlyPeriods(period, 0, 3);
         const zoneIds = getZoneDescendants(orgUnits, organisationUnit)
           .map((unit) => unit.id);
-        console.log(data.dataStore)
         const districtIds = getDistrictDescendants(orgUnits, organisationUnit)
           .map((unit) => unit.id);
-        const values = await getDataValues(
-          data.dataStore.mapping,
-          periods,
-          [organisationUnit, ...zoneIds, ...districtIds],
-          engine
+        const mapped = data.dataStore.mapping;
+
+        // The map may highlight districts outside the bulletin's own selection,
+        // so it needs their forecast values too. Fetch only what the scoped
+        // request does not already cover: the 4 forecast months, for a level-2
+        // or level-3 bulletin, using just the five malaria elements the map
+        // reads.
+        const selectedLevel = Number(
+          orgUnits.find((unit) => unit.id === organisationUnit)?.level
         );
-        console.log(data.dataStore.mapping);
-        console.log(values)
-        if (!cancelled) setDatavalues(values);
+        const allDistricts = orgUnits.filter(
+          (unit) => Number(unit.level) === 3 && unit.id
+        );
+        const scopedDistrictIds = new Set([organisationUnit, ...districtIds]);
+        const missingDistrictIds = allDistricts
+          .map((unit) => unit.id)
+          .filter((id) => !scopedDistrictIds.has(id));
+        const malariaMapping = mapped.find((item) =>
+          /malaria/i.test(item?.displayName || '')
+        );
+        const needsWiderForecast = Boolean(
+          (selectedLevel === 2 || selectedLevel === 3) &&
+          malariaMapping &&
+          forecastPeriods.length > 0 &&
+          missingDistrictIds.length > 0
+        );
+        const forecastMapping = needsWiderForecast
+          ? [{
+              displayName: malariaMapping.displayName,
+              alarmElement: malariaMapping.alarmElement,
+              threshold: malariaMapping.threshold,
+              predictionMedian: malariaMapping.predictionMedian,
+              predictionLowerBound: malariaMapping.predictionLowerBound,
+              predictionUpperBound: malariaMapping.predictionUpperBound,
+            }]
+          : null;
+
+        const [values, widerValues] = await Promise.all([
+          getDataValues(
+            mapped,
+            periods,
+            [organisationUnit, ...zoneIds, ...districtIds],
+            engine
+          ),
+          needsWiderForecast
+            ? getDataValues(forecastMapping, forecastPeriods, missingDistrictIds, engine)
+            : Promise.resolve([]),
+        ]);
+
+        if (needsWiderForecast && widerValues.length === 0) {
+          console.warn(
+            'No forecast values returned for the other districts; the map will leave them grey.'
+          );
+        }
+
+        if (!cancelled) setDatavalues(mergeDataValues(values, widerValues));
       } catch (err) {
         console.error("Error fetching data values:", err);
         if (!cancelled) setDatavalues([]);
@@ -166,7 +227,7 @@ const BulletinForm = ({ style }) => {
     // An untouched editor holds `<p><br></p>`, which is a non-empty string, so
     // the check is on whether it would put anything on the page.
     if (!hasHighlightsContent(highlights)) {
-      showTransientMessage("error", i18n.t("Please add highlights before saving"));
+      showTransientMessage("error", i18n.t("Please add an executive summary before saving"));
       return;
     }
 
@@ -174,27 +235,36 @@ const BulletinForm = ({ style }) => {
     setSaveStatus(null);
     setSaveMessage("");
 
+    // Built before the write so that the same record can be handed to the list
+    // below: what was written is known here, whatever the list's own query
+    // happens to be holding.
+    const bulletin = {
+      id: existingBulletin?.id || generateDhis2Uid(),
+      // Stored cleaned, so the preview can be styled by the app rather than
+      // by Quill, and so the string handed to dangerouslySetInnerHTML has
+      // been through an allowlist. The editor still holds raw Quill markup.
+      highlights: normaliseHighlightsHtml(highlights),
+      organisationUnit,
+      cases: [datavalues],
+      historicalClimate,
+      forecast,
+      seasonalClimate,
+      status: existingBulletin?.status || "draft",
+      period,
+      mapHighlight: normaliseMapHighlight(mapHighlight),
+    };
+
     try {
-      await savebulletinToDataStore(
-        {
-          id: existingBulletin?.id || generateDhis2Uid(),
-          // Stored cleaned, so the preview can be styled by the app rather than
-          // by Quill, and so the string handed to dangerouslySetInnerHTML has
-          // been through an allowlist. The editor still holds raw Quill markup.
-          highlights: normaliseHighlightsHtml(highlights),
-          organisationUnit,
-          cases: [datavalues],
-          historicalClimate,
-          forecast,
-          seasonalClimate,
-          advisories: [],
-          recommendations: [],
-          status: existingBulletin?.status || "draft",
-          period,
-        },
-        engine
-      );
-      showTransientMessage("success", existingBulletin ? i18n.t("Bulletin updated successfully!") : i18n.t("Bulletin saved to draft successfully!"));
+      await savebulletinToDataStore(bulletin, engine);
+      // Straight back to the list. There is no success message to show here: it
+      // would go with the page a moment later, and the list holding the bulletin
+      // is the better confirmation that the save worked.
+      //
+      // The record travels with the navigation because the list's query is
+      // cached and re-fetched in the background, so on a slow link the list can
+      // paint without it for long enough to look like the save was lost. Home
+      // merges it in and lets the refetch reconcile.
+      navigate("/", { state: { refresh: true, saved: bulletin } });
     } catch (err) {
       console.error("Save bulletin error:", err);
       showTransientMessage(
@@ -206,6 +276,21 @@ const BulletinForm = ({ style }) => {
     }
   };
 
+  // The editor keeps every section, whatever the document is configured to show:
+  // a hidden section still has to be fillable, and the executive summary is
+  // required to save a bulletin at all. This count is only so that a section
+  // being filled in does not silently go nowhere.
+  const hiddenSectionCount = resolveSections(data?.dataStore?.sections)
+    .filter((section) => !section.visible).length;
+
+  // The map highlight is relative to the bulletin's unit, so a new unit starts
+  // it again from "this district". Hydration sets the unit directly, so loading
+  // a saved bulletin keeps its highlight.
+  const setOrganisationUnit = (id) => {
+    setOrganisation(id);
+    setMapHighlight(DEFAULT_MAP_HIGHLIGHT);
+  };
+
   return (
     <div className={style.main}>
       <DashboardHeader
@@ -214,12 +299,42 @@ const BulletinForm = ({ style }) => {
         setOrgUnits={setOrgUnits}
         setPeriod={setPeriod}
         organisationUnit={organisationUnit}
-        setOrganisation={setOrganisation}
+        setOrganisation={setOrganisationUnit}
       />
 
       {period && organisationUnit ? (
         <>
           <div className={style.formGrid}>
+            {/* Which sections reach the document is a Settings decision and is
+                made once for every issue, so it is a note here rather than a
+                control: filling a section in that the document does not carry
+                would otherwise be silent. */}
+            {hiddenSectionCount > 0 && (
+              <p className={`${style.sectionSub} ${style.fullWidth}`}>
+                {i18n.t(
+                  "The document does not show {{total}} of its sections. Change this in Settings.",
+                  { total: hiddenSectionCount }
+                )}
+              </p>
+            )}
+
+            {/* Mirrors where the band sits in the document: above the cards.
+                The card goes with the band, so a district bulletin — where the
+                band does not render at all — does not leave an empty frame
+                behind. */}
+            {hasRegionalRiskView(orgUnits, organisationUnit) && (
+              <section className={`${style.sectionCard} ${style.fullWidth}`}>
+                <MalariaRiskOverview
+                  style={style}
+                  dataValues={datavalues}
+                  mapping={data?.dataStore?.mapping || []}
+                  period={period}
+                  orgUnits={orgUnits}
+                  selectedOrgUnit={organisationUnit}
+                />
+              </section>
+            )}
+
             <section className={`${style.sectionCard} ${style.fullWidth}`}>
               <ForecastSummaryWidget
                 style={style}
@@ -229,15 +344,19 @@ const BulletinForm = ({ style }) => {
                 organisationUnit={organisationUnit}
                 orgUnits={orgUnits}
               />
-              <HighlightsInput
-                style={style}
-                step="1"
-                title="Highlights"
-                description="Key takeaways for the bulletin."
-                highlights={highlights}
-                setHighlights={setHighlights}
-              />
             </section>
+
+            {/* Leads the document, so it leads the form. The section is the
+                document's executive summary; the field behind it is still the
+                record's `highlights`. */}
+            <HighlightsInput
+              style={style}
+              fullWidth
+              title="Executive Summary"
+              description="The bulletin's key takeaways, in the author's own words."
+              highlights={highlights}
+              setHighlights={setHighlights}
+            />
 
             <div className={`${style.fullWidth} ${style.bulletinTwoColumnGrid}`}>
               <CurrentMalariaSituation
@@ -256,7 +375,6 @@ const BulletinForm = ({ style }) => {
                   selectedOrgUnit={organisationUnit}
                   period={period}
                   style={style}
-                  step="2"
                   title="Malaria Forecast"
                 />
               </section>
@@ -288,7 +406,6 @@ const BulletinForm = ({ style }) => {
               <div className={style.sectionCard}>
               <ForecastWidget
                 style={style}
-                step="3"
                 organisationUnit={organisationUnit}
                 period={period}
                 forecast={forecast}
@@ -315,6 +432,8 @@ const BulletinForm = ({ style }) => {
                 period={period}
                 orgUnits={orgUnits}
                 selectedOrgUnitId={organisationUnit}
+                highlight={mapHighlight}
+                onHighlightChange={setMapHighlight}
               />
             </div>
 
@@ -341,12 +460,8 @@ const BulletinForm = ({ style }) => {
             </Layer>
           )}
 
-          {saveStatus === "success" && (
-            <AlertBar success permanent={false} onHidden={() => setSaveStatus(null)}>
-              {saveMessage}
-            </AlertBar>
-          )}
-
+          {/* Errors only. A save leaves for the list of bulletins, so a success
+              bar here would be gone before it could be read. */}
           {saveStatus === "error" && (
             <AlertBar critical permanent={false} onHidden={() => setSaveStatus(null)}>
               {saveMessage}

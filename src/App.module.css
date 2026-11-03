@@ -236,6 +236,74 @@
   grid-column: 1 / span 2;
 }
 
+/* The band that opens the document, above the scenario cards: the disease, one
+   line on what it does, and the risk level for each region. */
+.malariaRiskOverview {
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: #12374e;
+  color: #fff;
+}
+
+.malariaRiskEyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.malariaRiskTitle {
+  margin: 4px 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.malariaRiskDescription {
+  max-width: 780px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.malariaRiskRegions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.malariaRiskRegion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 5px 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12.5px;
+}
+
+.malariaRiskLevel {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.malariaRiskNote {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12.5px;
+}
+
 .forecastSummary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -334,6 +402,12 @@
   font-size: 16px;
 }
 
+/* The chart's own heading, centred over the plot it names. The section heading
+   above it stays left-aligned, so only this block moves. */
+.casesChartHeader {
+  text-align: center;
+}
+
 .casesChartTitle {
   margin: 0 0 4px;
   color: #102b42;
@@ -361,6 +435,23 @@
   color: #64748b;
   font-size: 14px;
   text-align: center;
+}
+
+/* The chart and the reading that goes with it, stacked: the plot across the
+   full width, its reading beneath. */
+.casesChartLayout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.casesChartNotes {
+  min-width: 0;
+}
+
+.casesChartNotes .bulletinList {
+  margin-top: 0;
 }
 
 .historicalClimateCasesChart {
@@ -507,16 +598,10 @@
     border-radius: 8px;
 }
 
-.bulletinDocument {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
-  color: #16233a;
-}
+/* `.bulletinDocument` itself is defined with the design system further down:
+   it is the document's scope, not a card. Master's container box is dropped
+   here so the document is not a white card wrapped around white cards; the
+   panels below carry the card treatment instead. */
 
 .bulletinDocumentHeader {
   padding: 18px;
@@ -526,12 +611,17 @@
 }
 
 .bulletinDocumentPanel {
+  /* The card treatment is shared with `.bulletinCard` below, so a panel and a
+     section are the same object rather than two nested kinds of card. */
   min-width: 0;
-  padding: 14px;
-  border: 1px solid #dbe2ea;
-  border-radius: 8px;
-  background: #fff;
   break-inside: avoid;
+}
+
+/* A panel whose widget rendered nothing — the seasonal chart with no readings
+   for this unit — would otherwise keep its card padding and a page-break edge
+   around an empty box. */
+.bulletinDocumentPanel:empty {
+  display: none;
 }
 
 .bulletinDocumentPanel .sectionCard {
@@ -561,6 +651,13 @@
 
 .bulletinDocumentPanel .historicalClimateCasesChart {
   height: 260px;
+}
+
+/* The map needs less room on the page than on the screen: the document would
+   otherwise spend about 120mm of an A4 page on it. Fixed, so the PDF's page
+   breaks stay where they were measured. */
+.bulletinDocument .districtRiskMapViewport {
+  height: 480px;
 }
 
 .currentMalariaPanel {
@@ -596,8 +693,7 @@
 }
 
 .bulletinTwoColumnGrid,
-.bulletinGuidanceGrid,
-.districtRiskGrid {
+.bulletinGuidanceGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -612,8 +708,21 @@
   margin: 0;
 }
 
-.districtRiskGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* A lone child — the weather forecast when the seasonal chart hides itself for
+   want of data — takes the whole row instead of leaving half of it empty. */
+.bulletinTwoColumnGrid > :only-child {
+  grid-column: 1 / -1;
+}
+
+/* In the document the panels are wrapped, so a widget that renders nothing
+   leaves an empty wrapper rather than no child. Hide that cell and let the
+   panel beside it take the row. */
+.bulletinTwoColumnGrid > :empty {
+  display: none;
+}
+
+.bulletinTwoColumnGrid:has(> :empty) > :not(:empty) {
+  grid-column: 1 / -1;
 }
 
 .bulletinGuidanceGrid > :only-child {
@@ -636,6 +745,15 @@
 }
 
 .districtRiskSummary {
+  /* One definition of each risk colour for the legend swatches, the map paths
+     and the point markers, so a district cannot come out amber in one and red
+     in another. The legend reads `background`, the map reads `fill`. The SVG
+     also carries the same colours as presentation attributes, because
+     html2canvas clones SVG nodes for the PDF. */
+  --risk-alert: #c51627;
+  --risk-watch: #e3a400;
+  --risk-normal: #27813c;
+  --risk-outside: #cbd5e1;
   margin: 0;
   padding: 14px;
 }
@@ -677,6 +795,21 @@
   background: #f8fafc;
 }
 
+/* In the document the risk and monthly tables share the narrower right-hand
+   pane. Left to `nowrap` their seven columns overflow, and the PDF capture
+   clips whatever is off-screen — the table must fit the page. */
+.bulletinDocument .districtForecastTable {
+  table-layout: fixed;
+}
+
+.bulletinDocument .districtForecastTable th,
+.bulletinDocument .districtForecastTable td {
+  padding: 6px 3px;
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .districtForecastBadge {
   display: inline-flex;
   align-items: center;
@@ -715,24 +848,31 @@
   line-height: 1.5;
 }
 
-.districtRiskGrid {
-  margin-top: 12px;
-}
-
-.districtForecastLayout {
+/* The map and the risk table answer the same question from two directions —
+   the map says where, the table says which and by how much — so they sit side
+   by side. The map takes about 30% of the row and the table the rest; the
+   table's seven columns need the width more than the map does. */
+.districtRiskRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
   gap: 12px;
-  align-items: stretch;
   margin-top: 12px;
+  align-items: start;
 }
 
-.districtForecastLayout .districtRiskGrid {
+/* The table (and, for a DHO, the monthly forecast) stacked in the right-hand
+   column. `min-width: 0` lets the table's scroll wrapper work rather than
+   forcing the grid track wider. */
+.districtRiskRightPane {
+  display: flex;
   min-width: 0;
-  margin-top: 0;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.districtRiskMap {
+/* The two share their card treatment rather than each carrying its own copy. */
+.districtRiskMap,
+.districtAlertTable {
   min-width: 0;
   padding: 12px;
   border: 1px solid #e2e8f0;
@@ -740,11 +880,91 @@
   background: #fff;
 }
 
-.districtRiskMap h3 {
+/* The risk table keeps its own class so the document can target it separately
+   from the DHO monthly table. */
+.districtRiskTable {
+  min-width: 0;
+}
+
+.districtRiskMap h3,
+.districtAlertTable h3 {
   margin: 0 0 8px;
   color: #102b42;
   font-size: 12px;
   line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.districtAlertTable h3 span {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.districtAlertTableNote {
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* The author's highlight choice: editor only, above the map. The fields and
+   the hint wrap on a narrow form rather than squeezing the select. */
+.mapHighlightControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin: 10px 0 2px;
+}
+
+.mapHighlightControl > * {
+  min-width: 220px;
+  flex: 1 1 260px;
+}
+
+.mapHighlightHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* The tick list shown while "Choose districts" is selected. A fixed-height
+   scroll box keeps the long district list from pushing the map down, and the
+   zone headings stay visible while it scrolls. These classes are reachable only
+   from the editor-rendered control, so the PDF is untouched. */
+.mapHighlightChecklist {
+  flex-basis: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px 12px 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.mapHighlightChecklistLabel {
+  margin: 0 0 6px;
+  color: #102b42;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mapHighlightZone {
+  margin-bottom: 8px;
+}
+
+.mapHighlightZoneHeading {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  margin: 0 0 2px;
+  padding: 2px 0;
+  background: #fff;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -771,49 +991,164 @@
 }
 
 .districtRiskLegendAlert {
-  background: #c51627;
+  background: var(--risk-alert);
 }
 
 .districtRiskLegendWatch {
-  background: #e3a400;
+  background: var(--risk-watch);
 }
 
 .districtRiskLegendNormal {
-  background: #27813c;
+  background: var(--risk-normal);
 }
 
-.districtRiskTiles {
+.districtRiskLegendOutside {
+  background: var(--risk-outside);
+}
+
+/* A fixed height, following `.casesChart`. The PDF export measures its page
+   breaks off the live layout, so a box that resized when the boundaries or the
+   tiles landed would put every cut below it out of step. The loading and error
+   states are the same height, for the same reason. The document gets a shorter
+   box (480px) because its width is scaled to A4. */
+.districtRiskMapViewport {
+  position: relative;
+  height: 832px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+/* The Mercator drawing fills the measured box; its viewBox is the same number
+   of units, so one SVG unit is one screen pixel until the PDF scales it. */
+.districtRiskSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.districtRiskMapTile {
+  pointer-events: none;
+}
+
+/* A white hairline between neighbours. Each ring is thinned on its own, so two
+   adjacent districts can leave a sliver of background showing between them.
+   The fill colour is also written on the element as a presentation attribute;
+   these classes are what hover and the keyboard cursor read. */
+.districtRiskMapFeature {
+  stroke: #ffffff;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  fill-opacity: 0.52;
+  cursor: help;
+}
+
+.districtRiskMapFeature:hover {
+  opacity: 0.82;
+}
+
+.districtRiskMapFeatureAlert {
+  fill: var(--risk-alert);
+}
+
+.districtRiskMapFeatureWatch {
+  fill: var(--risk-watch);
+}
+
+.districtRiskMapFeatureNormal {
+  fill: var(--risk-normal);
+}
+
+.districtRiskMapFeatureOutside {
+  fill: var(--risk-outside);
+}
+
+/* A hospital is a point on the ground rather than an area. Its risk fill comes
+   from the same feature class it shares with the districts. */
+.districtRiskMapPoint {
+  stroke: #ffffff;
+  stroke-width: 1;
+  cursor: help;
+}
+
+/* The tile licence's tiny corner credit. It sits inside the SVG so the PDF
+   capture keeps it; the link is clickable on screen. */
+.districtRiskMapAttribution {
+  cursor: pointer;
+  font-size: 8px;
+}
+
+/* Zoom controls sit above the tiles, out of the document's flow. `data-pdf-exclude`
+   keeps them out of the PDF. */
+.districtRiskMapZoomControls {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  overflow: hidden;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 20%);
 }
 
-.districtRiskTile {
-  display: flex;
-  min-height: 25px;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 5px;
-  overflow-wrap: anywhere;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: center;
+.districtRiskMapZoomControls button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
 }
 
-.districtRiskTileAlert {
-  background: #c51627;
+.districtRiskMapZoomControls button + button {
+  border-top: 1px solid #cbd5e1;
 }
 
-.districtRiskTileWatch {
-  background: #e3a400;
-  color: #16233a;
+.districtRiskMapZoomControls button:hover:not(:disabled) {
+  background: #f1f5f9;
 }
 
-.districtRiskTileNormal {
-  background: #27813c;
+.districtRiskMapZoomControls button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* The hover/focus tooltip. Absolutely positioned so it cannot change the box
+   the page breaks are measured from, and excluded from the PDF. */
+.districtRiskTooltip {
+  position: absolute;
+  z-index: 1;
+  width: 190px;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(15 23 42 / 18%);
+  color: #334155;
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.districtRiskTooltip > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #102b42;
+  font-size: 11px;
+}
+
+.districtRiskTooltipRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding-top: 4px;
+  border-top: 1px solid #edf0f4;
+}
+
+.districtRiskTooltipRow + .districtRiskTooltipRow {
+  margin-top: 4px;
 }
 
 .districtRiskMapEmpty,
@@ -822,6 +1157,20 @@
   color: #64748b;
   font-size: 10px;
   line-height: 1.4;
+}
+
+/* The loading and error messages sit in the middle of the tall map box rather
+   than at its top-left corner. Only the direct children of the viewport are
+   affected; the caption below the map keeps its normal flow. */
+.districtRiskMapViewport > .districtRiskMapEmpty {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
 }
 
 .districtActionsGrid {
@@ -872,72 +1221,6 @@
   margin-top: 3px;
 }
 
-.districtRiskList {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #fff;
-}
-
-.districtRiskList h3 {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0;
-  padding: 9px 12px;
-  color: #fff;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.districtRiskAlert h3 {
-  background: #c51627;
-}
-
-.districtRiskWatch h3 {
-  background: #e3a400;
-  color: #16233a;
-}
-
-.districtRiskNormal h3 {
-  background: #27813c;
-}
-
-.districtRiskList h3 span {
-  font-variant-numeric: tabular-nums;
-}
-
-.districtRiskList ul {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.districtRiskList li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 8px 12px;
-  border-top: 1px solid #edf0f4;
-  font-size: 11px;
-}
-
-.districtRiskList li span {
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
-}
-
-.districtRiskList > p {
-  margin: 0;
-  padding: 12px;
-  color: #64748b;
-  font-size: 12px;
-}
-
 @media (max-width: 700px) {
   .bulletinDocument {
     padding: 8px;
@@ -948,20 +1231,23 @@
     grid-template-columns: 1fr;
   }
 
-  .districtRiskGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .districtForecastLayout {
-    grid-template-columns: 1fr;
-  }
-
-  .districtRiskTiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .districtActionsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .districtRiskRow {
+    grid-template-columns: 1fr;
+  }
+
+  /* The map no longer has a narrow column to balance, so a phone does not need
+     the full desktop height. The document keeps a shorter box so it still fits
+     an A4 page when the window is narrow. */
+  .districtRiskMapViewport {
+    height: 420px;
+  }
+
+  .bulletinDocument .districtRiskMapViewport {
+    height: 320px;
   }
 
   .currentMalariaChart {
@@ -1051,3 +1337,335 @@
 .outbreak-row td {
     border-color: #fecaca;
 }
+
+/* =====================================================================
+   Bulletin document design system
+
+   Scoped to `.bulletinDocument`, which wraps only the captured subtree of the
+   preview page. The same widgets also render in the editor form, which has no
+   such wrapper and so keeps the app's own look. Colours and font stacks come
+   from src/theme/tokens.js, published as custom properties at runtime.
+   ===================================================================== */
+
+.bulletinDocument {
+  background: var(--bz-paper);
+  color: var(--bz-ink);
+  font-family: var(--bz-font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- the heading ladder ------------------------------------------------
+   Two levels, one size each. A section heading was 16px while a block heading
+   inside it could be 22px, so a chart's own title outranked the section it
+   belonged to. */
+
+.bulletinDocument .sectionHeader {
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.bulletinDocument .sectionTitle {
+  font-family: var(--bz-font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--bz-ink);
+}
+
+/* Level two: the heading of a chart or block inside a section. */
+.bulletinDocument .casesChartTitle,
+.bulletinDocument :global(.fw-chart-head__title) {
+  font-family: var(--bz-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  color: var(--bz-ink);
+}
+
+/* A block heading follows the section's description, so it carries its own
+   top margin; the forecast chart's heading is already spaced by its frame. */
+.bulletinDocument .casesChartTitle {
+  margin: 16px 0 0;
+}
+
+.bulletinDocument :global(.fw-chart-head__title) {
+  margin: 0;
+}
+
+.bulletinDocument .sectionSub,
+.bulletinDocument .casesChartSubtitle,
+.bulletinDocument :global(.fw-chart-head__range) {
+  margin: 2px 0 0;
+  font-family: var(--bz-font-mono);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--bz-mute);
+}
+
+/* --- cards ------------------------------------------------------------- */
+
+/* One card treatment for the document. Master's panels and our sections are the
+   same object, so they share these rules rather than each carrying a copy —
+   which is what would otherwise put white cards inside a white card. */
+
+.bulletinDocument .sectionCard,
+.bulletinCard,
+.bulletinDocumentPanel {
+  margin: 0;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--bz-line);
+  border-radius: 10px;
+}
+
+.bulletinCard,
+.bulletinDocumentPanel {
+  margin-bottom: 20px;
+}
+
+/* --- scenario cards ---------------------------------------------------- */
+
+.bulletinDocument .forecastSummary {
+  /* Pinned to four across rather than left responsive. The export clones this
+     document into an iframe sized to the browser window, so the base rules'
+     width media queries would restack the cards on paper at widths that have
+     nothing to do with the page. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.bulletinDocument .forecastSummaryCard {
+  min-height: 132px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  background: var(--bz-lake);
+}
+
+.bulletinDocument .forecastSummaryAlert {
+  background: var(--bz-alert);
+}
+
+.bulletinDocument .forecastSummaryLabel {
+  margin: 0 0 8px;
+  font-family: var(--bz-font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.bulletinDocument .forecastSummaryValue {
+  margin: 0 0 6px;
+  font-family: var(--bz-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bulletinDocument .forecastSummaryDetail {
+  font-family: var(--bz-font-mono);
+  font-size: 11.5px;
+}
+
+/* --- the hazard band --------------------------------------------------- */
+
+.bulletinDocument .malariaRiskOverview {
+  background: var(--bz-lake);
+  margin: 0 0 18px;
+}
+
+.bulletinDocument .malariaRiskEyebrow {
+  font-family: var(--bz-font-mono);
+}
+
+.bulletinDocument .malariaRiskDescription,
+.bulletinDocument .malariaRiskRegion,
+.bulletinDocument .malariaRiskNote {
+  font-family: var(--bz-font-body);
+}
+
+.bulletinDocument .malariaRiskTitle {
+  font-family: var(--bz-font-display);
+  font-size: 28px;
+}
+
+/* --- charts ------------------------------------------------------------ */
+
+.bulletinDocument .casesChart {
+  height: 340px;
+  margin-top: 0;
+}
+
+/* Chart across the full width, its reading beneath it. The side-by-side split
+   this replaces squeezed the plot into the left column and left the status list
+   too narrow to scan. The base rule is already a single column, so dropping the
+   override here is the whole change. */
+.bulletinDocument .casesChartLayout {
+  margin-top: 14px;
+}
+
+.bulletinDocument .highlightsBody {
+  font-family: var(--bz-font-body);
+  color: var(--bz-ink);
+}
+
+/* --- masthead ---------------------------------------------------------- */
+
+.bulletinMasthead {
+  margin-bottom: 20px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--bz-line);
+  border-radius: 10px;
+}
+
+.bulletinMastheadHead {
+  text-align: center;
+}
+
+.bulletinMastheadTitle {
+  margin: 0 0 6px;
+  font-family: var(--bz-font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--bz-ink);
+}
+
+.bulletinMastheadTagline {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--bz-mute);
+}
+
+.bulletinLetterhead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bz-line);
+}
+
+.bulletinLetterheadFacts {
+  display: flex;
+  gap: 32px;
+}
+
+.bulletinFactLabel {
+  font-family: var(--bz-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bz-mute);
+}
+
+.bulletinFactValue {
+  margin: 4px 0 0;
+  font-family: var(--bz-font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bz-ink);
+}
+
+.bulletinLetterheadStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.bulletinGeneratedOn {
+  font-family: var(--bz-font-mono);
+  font-size: 11px;
+  color: var(--bz-mute);
+}
+
+.bulletinDocument .statusDraft,
+.bulletinDocument .statusSubmitted {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--bz-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bulletinDocument .statusDraft {
+  background: #e8eef2;
+  color: var(--bz-lake);
+}
+
+.bulletinDocument .statusSubmitted {
+  background: #ddefe3;
+  color: var(--bz-leaf);
+}
+
+/* --- the document's lists ---------------------------------------------- */
+
+.bulletinList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.bulletinListItem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: var(--bz-paper);
+  border-left: 3px solid var(--bz-lake);
+  border-radius: 0 6px 6px 0;
+}
+
+.bulletinListItemText {
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--bz-ink);
+}
+
+/* One alert/watch/normal vocabulary, shared by the forecast status list and
+   anything else that reports a month's standing. */
+.bulletinTag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--bz-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bulletinTagAlert {
+  background: #f8dedc;
+  color: var(--bz-alert);
+}
+
+.bulletinTagWatch {
+  background: #f6e9cc;
+  color: #8a5e12;
+}
+
+.bulletinTagNormal {
+  background: #ddefe3;
+  color: var(--bz-leaf);
+}
+
+.bulletinInterpretation {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bz-ink);
+}
+
