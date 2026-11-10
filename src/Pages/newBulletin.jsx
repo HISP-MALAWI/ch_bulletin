@@ -15,10 +15,13 @@ import DistrictRiskSummary from "../widgets/districtRiskSummary";
 import DistrictActionsWidget from "../widgets/districtActionsWidget";
 import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
+import useSessionCachedQuery from "./services/engines/sessionCachedQuery";
 import { homeDataQuery } from "./services/getHomeData";
 import { getOrganisationUnitQuery } from "./services/getOrganisationUnit";
+import { organisationUnitsQuery, readOrganisationUnits } from "./services/getOrganisationUnits";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
+import { getSessionCachedResource } from "../utils/sessionResourceCache";
 import getDataValues, { getMonthlyPeriods, mergeDataValues } from "../utils/getDataValues";
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from "../utils/seasonalClimateData";
 import { getDistrictDescendants, getZoneDescendants, hasRegionalRiskView } from "../utils/districtForecasts";
@@ -53,7 +56,12 @@ const BulletinForm = ({ style }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
-  const { loading: homeLoading, error: homeError, data: homeData } = dataQuery(homeDataQuery);
+  const { data: homeData } = dataQuery(homeDataQuery);
+  const {
+    loading: orgUnitsLoading,
+    error: orgUnitsError,
+    data: orgUnitsData,
+  } = useSessionCachedQuery(organisationUnitsQuery, "organisation-units");
   const engine = useDataEngine();
   const { canDraft } = useAccess();
   const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
@@ -65,8 +73,8 @@ const BulletinForm = ({ style }) => {
   }), [data, organisationUnit, period, seasonalClimate]);
 
   React.useEffect(() => {
-    setOrgUnits(Array.isArray(homeData?.organisationUnits) ? homeData.organisationUnits : []);
-  }, [homeData]);
+    setOrgUnits(readOrganisationUnits(orgUnitsData));
+  }, [orgUnitsData]);
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -88,9 +96,12 @@ const BulletinForm = ({ style }) => {
 
     const fetchForecast = async () => {
       try {
-        const organisationUnitResponse = await engine.query(
-          getOrganisationUnitQuery,
-          { orgUnitId: organisationUnit }
+        const organisationUnitResponse = await getSessionCachedResource(
+          `metadata:organisation-unit:${organisationUnit}`,
+          () => engine.query(
+            getOrganisationUnitQuery,
+            { orgUnitId: organisationUnit }
+          )
         );
         if (cancelled) return;
         const geometry = organisationUnitResponse?.organisationUnits?.geometry;
@@ -319,8 +330,8 @@ const BulletinForm = ({ style }) => {
         organisationUnit={organisationUnit}
         setOrganisation={setOrganisationUnit}
         orgUnits={orgUnits}
-        orgUnitsLoading={homeLoading}
-        orgUnitsError={homeError}
+        orgUnitsLoading={orgUnitsLoading}
+        orgUnitsError={orgUnitsError}
       />
 
       {period && organisationUnit ? (

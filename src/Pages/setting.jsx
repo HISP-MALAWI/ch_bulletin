@@ -16,6 +16,7 @@ import { RolesQuery } from './services/getRoles';
 import { dataSettingsStoreQuery } from './services/getSettingsStore';
 import { dataStoreQuery } from './services/getDataSoreItem';
 import dataQuery from '../Pages/services/engines/dataQuery';
+import useSessionCachedQuery from './services/engines/sessionCachedQuery';
 import saveSettings from '../utils/saveSettings';
 import { useDataEngine } from '@dhis2/app-runtime';
 import { useAccess } from '../context/AccessContext';
@@ -48,7 +49,7 @@ const SettingsPage = ({styles}) => {
     const [saveMessage, setSaveMessage] = useState('');
     const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
 
-    const {error,loading,data} = dataQuery(RolesQuery);
+    const {error,loading,data} = useSessionCachedQuery(RolesQuery, 'user-roles');
     const {loading: dataStoreLoading, data: dataStore, error: dataStoreError} = dataQuery(dataStoreQuery);
     const {loading: settingsLoading, data: settingsData, error: settingsError} = dataQuery(dataSettingsStoreQuery);
     const engine = useDataEngine();

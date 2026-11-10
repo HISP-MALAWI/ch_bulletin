@@ -17,6 +17,8 @@ import DistrictRiskSummary from '../widgets/districtRiskSummary'
 import DistrictActionsWidget from '../widgets/districtActionsWidget'
 import { buildSeasonalClimateRows, getSeasonalForecastPeriods } from '../utils/seasonalClimateData'
 import { homeDataQuery } from './services/getHomeData'
+import useSessionCachedQuery from './services/engines/sessionCachedQuery'
+import { organisationUnitsQuery, readOrganisationUnits } from './services/getOrganisationUnits'
 import { dataSettingsStoreQuery } from './services/getSettingsStore'
 import { useDataEngine } from '@dhis2/app-runtime'
 import { NearMe } from '@mui/icons-material'
@@ -47,7 +49,6 @@ const BulletinPreview = ({ style }) => {
     const [loading, setLoading] = React.useState(true)
     const [error, setError] = React.useState(null)
     const [orgUnits, setOrgUnits] = React.useState([])
-    const [user, setUser] = React.useState(null)
     const [isPublishing, setIsPublishing] = React.useState(false)
     const [isDownloading, setIsDownloading] = React.useState(false)
     const [publishMessage, setPublishMessage] = React.useState('')
@@ -56,6 +57,10 @@ const BulletinPreview = ({ style }) => {
     const [downloadStatus, setDownloadStatus] = React.useState(null)
 
     const { loading: dataLoading, error: dataError, data } = dataQuery(homeDataQuery)
+    const { data: organisationUnitsData } = useSessionCachedQuery(
+        organisationUnitsQuery,
+        'organisation-units'
+    )
     // Mapping config lives in a separate datastore key from the bulletins list,
     // same query BulletinForm uses to build HealthCasesWidget's mapping.
     const { loading: settingsLoading, error: settingsError, data: settingsData } = dataQuery(dataSettingsStoreQuery)
@@ -113,12 +118,6 @@ const BulletinPreview = ({ style }) => {
             }
 
             setBulletin(foundBulletin)
-            const organisationUnitResponse = data?.organisationUnits
-            const organisationUnitList = Array.isArray(organisationUnitResponse)
-                ? organisationUnitResponse
-                : organisationUnitResponse?.organisationUnits
-            setOrgUnits(Array.isArray(organisationUnitList) ? organisationUnitList : [])
-            setUser(data?.me)
             setError(null)
             setLoading(false)
         } catch (err) {
@@ -127,6 +126,10 @@ const BulletinPreview = ({ style }) => {
             setLoading(false)
         }
     }, [id, data, dataLoading])
+
+    React.useEffect(() => {
+        setOrgUnits(readOrganisationUnits(organisationUnitsData))
+    }, [organisationUnitsData])
 
     const handlePublish = async () => {
         if (!canPublish) {
