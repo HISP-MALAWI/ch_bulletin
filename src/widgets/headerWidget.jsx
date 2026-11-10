@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import OrgUnitTreeWidget from './orgunitTreeWidget';
 import { MapPin, Calendar, RefreshCw, ChevronDown } from 'lucide-react';
-import dataQuery from '../Pages/services/engines/dataQuery';
-import { OrganisationUnitQuery } from '../Pages/services/getOrganisationUnits';
 
-const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisation,setOrgUnits}) => {
+const DashboardHeader = ({
+  style,
+  period,
+  setPeriod,
+  organisationUnit,
+  setOrganisation,
+  orgUnits = [],
+  orgUnitsLoading,
+  orgUnitsError,
+}) => {
   const [showModal, setShowModal] = useState(false);
 
-  const { loading, error, data } = dataQuery(OrganisationUnitQuery);
   const [selectedOrgUnit, setSelectedOrgUnit] = useState(null);
   
   const getLast12Months = () => {
@@ -34,18 +40,11 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
   return months;
   };
 
-  React.useEffect(() => {
-    if (data?.results?.organisationUnits) {
-      setOrgUnits(data?.results?.organisationUnits);
-    }
-  }, [data, loading, error]);
-
   React.useEffect(()=>{
     setPeriod(getLast12Months()[0].value)
   },[])
 
   const getOrgUnitNameById = (id) => {
-    const orgUnits = data?.results?.organisationUnits || [];
     const orgUnit = orgUnits.find(unit => unit.id === id);
     return orgUnit ? orgUnit.displayName : 'Select Region';
   }
@@ -86,7 +85,12 @@ const DashboardHeader = ({style, period,setPeriod,organisationUnit,setOrganisati
           <div className={style.modalContent} onClick={e => e.stopPropagation()}>
             <h2 className={style.sectionTitle}>Select Region</h2>
             <p className={style.sectionSub}>Choose a specific region for data filtering.</p>
-              <OrgUnitTreeWidget loading={loading} error={error} data={data} setSelectedOrgUnit={setSelectedOrgUnit} />
+              <OrgUnitTreeWidget
+                loading={orgUnitsLoading}
+                error={orgUnitsError}
+                orgUnits={orgUnits}
+                setSelectedOrgUnit={setSelectedOrgUnit}
+              />
             <button className={style.buttonPrimary} style={{width: '100%', justifyContent: 'center', marginTop: '16px'}} onClick={() => {
               setOrganisation(selectedOrgUnit);
               setShowModal(false);

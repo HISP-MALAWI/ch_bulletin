@@ -171,8 +171,7 @@ const DistrictRiskMap = ({
 
     React.useEffect(() => {
         if (localBoundaries) return undefined;
-        // The header query may still be in flight; fetching before it answers
-        // would pull the whole 2 MB list for an editor that already has it.
+        // Wait for the hierarchy query before loading the 2 MB boundary list.
         if (orgUnits.length === 0) return undefined;
 
         let cancelled = false;

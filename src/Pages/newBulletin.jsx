@@ -16,6 +16,7 @@ import DistrictActionsWidget from "../widgets/districtActionsWidget";
 import DashboardHeader from "../widgets/headerWidget";
 import dataQuery from "./services/engines/dataQuery";
 import { homeDataQuery } from "./services/getHomeData";
+import { getOrganisationUnitQuery } from "./services/getOrganisationUnit";
 import { dataSettingsStoreQuery } from "./services/getSettingsStore";
 import { useDataEngine } from "@dhis2/app-runtime";
 import getDataValues, { getMonthlyPeriods, mergeDataValues } from "../utils/getDataValues";
@@ -52,7 +53,7 @@ const BulletinForm = ({ style }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { loading, error, data } = dataQuery(dataSettingsStoreQuery);
-  const { loading: homeLoading, data: homeData } = dataQuery(homeDataQuery);
+  const { loading: homeLoading, error: homeError, data: homeData } = dataQuery(homeDataQuery);
   const engine = useDataEngine();
   const { canDraft } = useAccess();
   const seasonalClimateRows = React.useMemo(() => buildSeasonalClimateRows({
@@ -62,6 +63,10 @@ const BulletinForm = ({ style }) => {
     temperatureDataElement: data?.dataStore?.temperatureForecast,
     selectedOrgUnit: organisationUnit,
   }), [data, organisationUnit, period, seasonalClimate]);
+
+  React.useEffect(() => {
+    setOrgUnits(Array.isArray(homeData?.organisationUnits) ? homeData.organisationUnits : []);
+  }, [homeData]);
 
   const showTransientMessage = (status, message) => {
     setSaveStatus(status);
@@ -74,14 +79,28 @@ const BulletinForm = ({ style }) => {
 
   // Fetch weather forecast for the selected org unit
   React.useEffect(() => {
-    const orgUnitForecast = orgUnits?.find((unit) => unit.id === organisationUnit);
-    if (!orgUnitForecast?.geometry) return;
+    if (!organisationUnit) {
+      setForecast([]);
+      return;
+    }
 
-    const { lat, lon } = getOrgUnitCentroid(orgUnitForecast.geometry);
     let cancelled = false;
 
     const fetchForecast = async () => {
       try {
+        const organisationUnitResponse = await engine.query(
+          getOrganisationUnitQuery,
+          { orgUnitId: organisationUnit }
+        );
+        if (cancelled) return;
+        const geometry = organisationUnitResponse?.organisationUnits?.geometry;
+        const centroid = getOrgUnitCentroid(geometry);
+        if (!centroid) {
+          if (!cancelled) setForecast([]);
+          return;
+        }
+
+        const { lat, lon } = centroid;
         const res = await fetch(
           `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`,
           { headers: { "User-Agent": "ch_bulletin/1.0 contact@yourdomain" } }
@@ -99,7 +118,7 @@ const BulletinForm = ({ style }) => {
     return () => {
       cancelled = true;
     };
-  }, [organisationUnit, orgUnits]);
+  }, [organisationUnit, engine]);
 
   React.useEffect(() => {
     if (!id) {
@@ -296,10 +315,12 @@ const BulletinForm = ({ style }) => {
       <DashboardHeader
         style={style}
         period={period}
-        setOrgUnits={setOrgUnits}
         setPeriod={setPeriod}
         organisationUnit={organisationUnit}
         setOrganisation={setOrganisationUnit}
+        orgUnits={orgUnits}
+        orgUnitsLoading={homeLoading}
+        orgUnitsError={homeError}
       />
 
       {period && organisationUnit ? (

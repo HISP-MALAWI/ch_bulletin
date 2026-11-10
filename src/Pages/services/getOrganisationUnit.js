@@ -3,7 +3,7 @@ export const getOrganisationUnitQuery = {
     resource: "organisationUnits",
     id: ({ orgUnitId }) => orgUnitId,
     params: {
-      paging: false,
+      fields: 'id,geometry',
     },
   },
 };

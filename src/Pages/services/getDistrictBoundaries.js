@@ -4,8 +4,8 @@
  * Level 3 is where Malawi's districts live and is the level the district risk
  * section reports on. `geometry` is about 2 MB across the 34 units, which is
  * why this is its own query rather than another field on `homeDataQuery`: the
- * Home page, the editor and the preview all run that one, and only the preview
- * has a map to draw.
+ * Home page, the editor and the preview load the organisation-unit hierarchy
+ * without geometry, and the map requests these boundaries only when needed.
  *
  * The five level-3 units whose geometry is a Point are hospitals, not
  * districts. They are drawn as markers rather than areas by
