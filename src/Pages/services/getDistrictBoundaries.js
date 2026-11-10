@@ -9,7 +9,7 @@
  *
  * The five level-3 units whose geometry is a Point are hospitals, not
  * districts. They are drawn as markers rather than areas by
- * `buildDistrictMap`, so they are deliberately not filtered out here — the
+ * `buildMapLayout`, so they are deliberately not filtered out here — the
  * counts around them have always included them.
  */
 export const districtBoundariesQuery = {

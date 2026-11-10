@@ -1,10 +1,10 @@
 import i18n from '@dhis2/d2-i18n'
-import { swapMapCanvases } from './districtMapCanvas'
 
 const A4_WIDTH_MM = 210
 const A4_HEIGHT_MM = 297
 const DEFAULT_MARGIN_MM = 10
 const IMAGE_TIMEOUT_MS = 8000
+const MAP_TILE_TIMEOUT_MS = 10000
 const MAX_FILE_NAME_LENGTH = 120
 
 // Space between the repeated masthead and the content beneath it on pages after
@@ -160,6 +160,103 @@ const toDataUrl = async (src) => {
         // retry at a URL the cache has never seen before giving up.
         return await loadAsDataUrl(withCacheBuster(src))
     }
+}
+
+/**
+ * Rewrites the OpenStreetMap tiles inside the map SVG to data URLs, returning a
+ * restore function and whether the basemap had to be left out.
+ *
+ * html2canvas serialises an inline `<svg>` to a `data:image/svg+xml` URL and
+ * loads that as an image. Browsers do not fetch external `<image href>`
+ * resources in that mode, so without this step the PDF silently loses its
+ * basemap while the screen keeps it. `useCORS` does not help: it applies to
+ * `<img>` elements, not to resources inside an SVG-as-image.
+ *
+ * The tile group is all-or-nothing. A partly inlined basemap would show a
+ * patchwork of tiles and gaps, so if any tile cannot be fetched the whole group
+ * is hidden for the capture and the district boundaries are what lands on the
+ * page. The caller reports the omission rather than shipping the difference
+ * silently.
+ */
+export const inlineMapTiles = async (element, { load = toDataUrl } = {}) => {
+    const groups = Array.from(element.querySelectorAll('[data-pdf-map-tiles]'))
+    const restores = []
+    let inlined = 0
+    let failed = 0
+
+    for (const group of groups) {
+        const tiles = Array.from(group.querySelectorAll('[data-pdf-map-tile]'))
+            .map((tile) => ({ tile, href: tile.getAttribute('href') }))
+            .filter(({ href }) => href && !href.startsWith('data:'))
+
+        if (tiles.length === 0) continue
+
+        // One request per distinct URL, however many times the grid repeats it.
+        const cache = new Map()
+        const loadOnce = (href) => {
+            if (!cache.has(href)) cache.set(href, load(href))
+            return cache.get(href)
+        }
+
+        let timer = null
+        const deadline = new Promise((resolve, reject) => {
+            timer = setTimeout(
+                () => reject(new Error('Timed out loading map tiles')),
+                MAP_TILE_TIMEOUT_MS
+            )
+        })
+
+        try {
+            const dataUrls = await Promise.race([
+                Promise.all(tiles.map(({ href }) => loadOnce(href))),
+                deadline,
+            ])
+
+            tiles.forEach(({ tile, href }, index) => {
+                restores.push(() => tile.setAttribute('href', href))
+                tile.setAttribute('href', dataUrls[index])
+            })
+            inlined += tiles.length
+        } catch (error) {
+            failed += tiles.length
+            const previousDisplay = group.style.display
+            group.style.display = 'none'
+            restores.push(() => {
+                group.style.display = previousDisplay
+            })
+            console.warn('Omitting the map basemap from the PDF:', error?.message || error)
+        } finally {
+            clearTimeout(timer)
+        }
+    }
+
+    return {
+        inlined,
+        failed,
+        hidden: failed > 0,
+        // Idempotent: the callbacks are drained, so a second call has nothing
+        // left to do.
+        restore: () => {
+            restores.splice(0).forEach((restore) => restore())
+        },
+    }
+}
+
+/**
+ * html2canvas copies every SVG node's computed styles onto its clone. A
+ * `clip-path` that comes from a presentation attribute is computed and copied
+ * as an absolute document URL, and the serialized SVG — loaded as a standalone
+ * image for the capture — cannot resolve that URL, so the clipped map tiles
+ * would silently disappear from the PDF. Dropping the copied style leaves the
+ * original `clip-path="url(#…)"` attribute, which resolves inside the SVG
+ * document itself.
+ */
+export const restoreClipPaths = (clonedDocument) => {
+    clonedDocument
+        .querySelectorAll('[data-pdf-map-tiles]')
+        .forEach((group) => group.style.removeProperty('clip-path'));
+
+    return clonedDocument
 }
 
 /**
@@ -469,11 +566,14 @@ const renderSlice = (source, slice, pxPerMm) => {
 /**
  * Renders `element` to a paginated A4 PDF and saves it.
  *
- * @returns {Promise<{droppedImages: number, mapFallbacks: number}>} how many
- * images were left out, and how many embedded DHIS2 maps could not be captured
- * and were drawn from the bulletin's own data instead
+ * @returns {Promise<{droppedImages: number, mapTilesHidden: boolean}>} how many
+ * images were left out, and whether the district map's basemap had to be
+ * omitted from the PDF
  */
-export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
+export const exportBulletinPdf = async (
+    element,
+    { fileName, title, mapTileLoader = toDataUrl } = {}
+) => {
     if (!element) {
         throw new Error(
             i18n.t('Nothing to export — the bulletin preview could not be found')
@@ -496,23 +596,21 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
     // Declared out here so the `finally` below can put the document back even
     // if the capture throws before the nodes have been hidden.
     let restoreExcluded = () => {}
-    let restoreMaps = () => {}
-    let mapFallbacks = 0
+    let restoreTiles = () => {}
+    let mapTilesHidden = false
 
     try {
         await waitForFonts()
         await waitForImages(element)
         await waitForPending(element)
 
-        // After the wait, so the map that is captured is the one that has
-        // finished painting, and before the capture, because html2canvas
-        // re-renders an iframe without reporting a failure when the canvas
-        // inside it clones empty — which would put a blank map box in the
-        // document. Whatever cannot be read is uncovered instead, so the map the
-        // bulletin draws itself is what lands on the page.
-        const maps = swapMapCanvases(element)
-        restoreMaps = maps.restore
-        mapFallbacks = maps.maps - maps.captured
+        // After the wait, so the map's own loading state has settled; before the
+        // capture, because an SVG rasterised as a standalone image does not load
+        // its external tile references. A failed basemap is hidden whole and
+        // reported rather than leaving a patchwork behind.
+        const tiles = await inlineMapTiles(element, { load: mapTileLoader })
+        restoreTiles = tiles.restore
+        mapTilesHidden = tiles.hidden
 
         // After the images, so that nothing the reader never sees is left
         // waiting to load; before the capture, so that the layout it renders and
@@ -528,6 +626,9 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
             ignoreElements: (node) =>
                 typeof node?.hasAttribute === 'function' &&
                 node.hasAttribute('data-pdf-exclude'),
+            // Runs before html2canvas parses the clone, so the map's clip
+            // reference is internal again by the time the SVG is serialized.
+            onclone: restoreClipPaths,
         })
 
         const pxPerMm = source.width / contentWidthMm
@@ -585,9 +686,9 @@ export const exportBulletinPdf = async (element, { fileName, title } = {}) => {
         throw err
     } finally {
         restoreExcluded()
-        restoreMaps()
+        restoreTiles()
         restore()
     }
 
-    return { droppedImages: dropped, mapFallbacks }
+    return { droppedImages: dropped, mapTilesHidden }
 }

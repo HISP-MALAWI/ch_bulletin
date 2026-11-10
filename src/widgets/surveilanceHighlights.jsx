@@ -366,8 +366,14 @@ const HealthCasesWidget = ({
         [period]
     );
     const { malariaMapping, rows } = React.useMemo(
-        () => buildSelectedUnitMalariaData({ dataValues, mapping, periods, selectedOrgUnit }),
-        [dataValues, mapping, periods, selectedOrgUnit]
+        () => buildSelectedUnitMalariaData({
+            dataValues,
+            mapping,
+            periods,
+            selectedOrgUnit,
+            currentPeriod: period,
+        }),
+        [dataValues, mapping, periods, selectedOrgUnit, period]
     );
     const forecast = React.useMemo(() => summariseForecast({ rows }), [rows]);
 
@@ -411,11 +417,6 @@ const HealthCasesWidget = ({
         return map;
     }, [forecast]);
 
-    // Partial data: say so, rather than leaving a quiet gap in the line.
-    const missingCaseMonths = forecast.forecastStartsAt
-        ? rows.filter((row) => row.period < forecast.forecastStartsAt && !Number.isFinite(row.cases)).length
-        : 0;
-
     const legendItems = ['cases'];
     if (malariaMapping?.predictionMedian) legendItems.push('median');
     legendItems.push('range50', 'range80');
@@ -428,6 +429,9 @@ const HealthCasesWidget = ({
     // how the reference bulletin picks out an exceeded month.
     const medianLabel = ({ x, y, value, index }) => {
         if (!Number.isFinite(value)) return null;
+        // The trend's first point is the last confirmed case, an anchor rather
+        // than a forecast; the cases label already names that value.
+        if (!Number.isFinite(rows[index]?.predictionMedian)) return null;
         const threshold = rows[index]?.threshold;
         const above = Number.isFinite(threshold) && value > threshold;
         return (
@@ -646,7 +650,7 @@ const HealthCasesWidget = ({
                                 )}
                                 {malariaMapping?.predictionMedian && (
                                     <Line
-                                        dataKey="predictionMedian"
+                                        dataKey="medianTrend"
                                         name={seriesLabel('median')}
                                         type="monotone"
                                         stroke={palette.lake}
@@ -665,11 +669,6 @@ const HealthCasesWidget = ({
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
-                    {missingCaseMonths > 0 && (
-                        <p role="note" style={{ margin: '8px 0 0', fontSize: 12, color: palette.mute }}>
-                            {i18n.t('Confirmed cases are missing for {{total}} of the months before the forecast; the line is drawn across the gap.', { total: missingCaseMonths })}
-                        </p>
-                    )}
                 </div>
             ) : (
                 renderPlaceholder()
