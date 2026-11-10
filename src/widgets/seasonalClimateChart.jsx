@@ -15,10 +15,14 @@ import {
     buildSeasonalClimateRows,
     fetchSeasonalClimateDataValues,
     getSeasonalForecastPeriods,
+    hasSeasonalClimateData,
 } from '../utils/seasonalClimateData';
+import { palette, series, fontFamily } from '../theme/tokens';
+import { BulletinSectionHeader } from './bulletinSection';
 
-const RAINFALL_COLOR = '#86bec3';
-const TEMPERATURE_COLOR = '#e0443e';
+const RAINFALL_COLOR = series.rainfall;
+const TEMPERATURE_COLOR = series.temperature;
+const axisTick = { fill: palette.mute, fontSize: 12, fontFamily: fontFamily.mono };
 const numberFormat = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
 
 const formatMonth = (period) => {
@@ -39,6 +43,8 @@ const SeasonalClimateChart = ({
     onDataValuesChange,
     initialDataValues,
     orgUnits = [],
+    title = 'Seasonal rainfall and temperature',
+    description,
 }) => {
     const engine = useDataEngine();
     const [dataValues, setDataValues] = React.useState(initialDataValues || []);
@@ -47,11 +53,21 @@ const SeasonalClimateChart = ({
     const periods = React.useMemo(() => getSeasonalForecastPeriods(period), [period]);
     const hasConfiguredElements = rainfallDataElement && temperatureDataElement;
 
+    // Values only mean something for the unit, period and elements they were
+    // fetched for. A scope mismatch means a fetch is still needed, so the chart
+    // shows its loading state instead of briefly looking data-less when the
+    // selection changes.
+    const scope = `${selectedOrgUnit || ''}|${period || ''}|${rainfallDataElement || ''}|${temperatureDataElement || ''}`;
+    const [loadedScope, setLoadedScope] = React.useState(
+        initialDataValues !== undefined ? scope : null
+    );
+
     React.useEffect(() => {
         if (initialDataValues !== undefined) {
             setDataValues(initialDataValues);
             setLoadError(null);
             setLoading(false);
+            setLoadedScope(scope);
             return undefined;
         }
 
@@ -60,12 +76,14 @@ const SeasonalClimateChart = ({
             setLoadError(null);
             onDataValuesChange?.([]);
             setLoading(false);
+            setLoadedScope(scope);
             return undefined;
         }
 
         let cancelled = false;
         setLoading(true);
         setLoadError(null);
+        setLoadedScope(null);
         fetchSeasonalClimateDataValues({
             dataElements: [rainfallDataElement, temperatureDataElement],
             periods,
@@ -84,7 +102,10 @@ const SeasonalClimateChart = ({
                 setLoadError(error);
             }
         }).finally(() => {
-            if (!cancelled) setLoading(false);
+            if (!cancelled) {
+                setLoading(false);
+                setLoadedScope(scope);
+            }
         });
 
         return () => {
@@ -97,6 +118,7 @@ const SeasonalClimateChart = ({
         onDataValuesChange,
         rainfallDataElement,
         periods,
+        scope,
         selectedOrgUnit,
         temperatureDataElement,
     ]);
@@ -108,20 +130,37 @@ const SeasonalClimateChart = ({
         temperatureDataElement,
         selectedOrgUnit,
     }), [dataValues, periods, rainfallDataElement, temperatureDataElement, selectedOrgUnit]);
-    const hasChartData = rows.some((row) => row.rainfall !== null || row.temperature !== null);
+    const hasChartData = hasSeasonalClimateData(rows);
     const orgUnitName = orgUnits.find((unit) => unit.id === selectedOrgUnit)?.displayName;
+    const isCurrentScope = loadedScope === scope;
+    const showingLoading = loading || (
+        !isCurrentScope &&
+        periods.length > 0 &&
+        hasConfiguredElements &&
+        Boolean(selectedOrgUnit)
+    );
 
     if (!periods.length) return null;
 
+    // The chart is the section. Hide it only once the current scope has
+    // finished loading with no readings. Loading, a failed request and
+    // unconfigured elements stay visible: those are states worth reporting, not
+    // proof that there is no data.
+    if (
+        !showingLoading &&
+        !loadError &&
+        hasConfiguredElements &&
+        isCurrentScope &&
+        !hasChartData
+    ) return null;
+
     return (
         <section className={style.sectionCard}>
-            <div className={style.sectionHeader}>
-                <h2 className={style.casesChartTitle}>Seasonal rainfall and temperature</h2>
-            </div>
+            <BulletinSectionHeader title={title} description={description} />
             <p className={style.casesChartSubtitle}>
                 Monthly rainfall and mean temperature{orgUnitName ? ` for ${orgUnitName}` : ''}, {formatMonth(periods[0])} – {formatMonth(periods.at(-1))}
             </p>
-            {loading ? (
+            {showingLoading ? (
                 <div className={style.casesChartEmpty}>Loading seasonal climate data…</div>
             ) : loadError ? (
                 <div className={style.casesChartEmpty} role="alert">
@@ -135,26 +174,26 @@ const SeasonalClimateChart = ({
                 <div className={style.casesChart}>
                     <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={rows} margin={{ top: 12, right: 24, bottom: 8, left: 8 }}>
-                            <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                            <CartesianGrid vertical={false} stroke={palette.line} />
                             <XAxis
                                 dataKey="period"
                                 tickFormatter={formatMonth}
-                                tick={{ fill: '#334155', fontSize: 12, fontFamily: 'Courier New' }}
-                                axisLine={{ stroke: '#cbd5e1' }}
+                                tick={axisTick}
+                                axisLine={{ stroke: palette.line }}
                                 tickLine={false}
                             />
                             <YAxis
                                 yAxisId="rainfall"
-                                tick={{ fill: '#64748b', fontSize: 12, fontFamily: 'Courier New' }}
+                                tick={axisTick}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
-                                label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft', fill: '#64748b' }}
+                                label={{ value: 'Rainfall (mm)', angle: -90, position: 'insideLeft', fill: palette.mute }}
                             />
                             <YAxis
                                 yAxisId="temperature"
                                 orientation="right"
-                                tick={{ fill: TEMPERATURE_COLOR, fontSize: 12, fontFamily: 'Courier New' }}
+                                tick={{ ...axisTick, fill: TEMPERATURE_COLOR }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={48}
@@ -190,11 +229,7 @@ const SeasonalClimateChart = ({
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
-            ) : (
-                <div className={style.casesChartEmpty}>
-                    No rainfall or temperature data is available for this season and organization unit.
-                </div>
-            )}
+            ) : null}
         </section>
     );
 };

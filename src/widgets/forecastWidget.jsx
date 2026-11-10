@@ -1,15 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-    ComposedChart,
-    Line,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer,
-    CartesianGrid,
-} from 'recharts';
-import { CloudRain, Thermometer, Droplets, Wind, ChevronDown } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { CloudRain, Thermometer, Droplets, Wind } from 'lucide-react';
+import { BulletinSectionHeader } from './bulletinSection';
 
 const DAY_LABEL = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
 
@@ -96,24 +87,7 @@ function Stat({ icon, label, value, sub, pill, accent }) {
     );
 }
 
-function CustomTooltip({ active, payload, label }) {
-    if (!active || !payload || !payload.length) return null;
-    const tMax = payload.find((p) => p.dataKey === 'tMax')?.value;
-    const tMin = payload.find((p) => p.dataKey === 'tMin')?.value;
-    const precip = payload.find((p) => p.dataKey === 'precip')?.value;
-    return (
-        <div className="fw-tooltip">
-            <div className="fw-tooltip__date">{label}</div>
-            <div className="fw-tooltip__row"><span className="fw-tooltip__dot fw-tooltip__dot--max" />Max {tMax}°C</div>
-            <div className="fw-tooltip__row"><span className="fw-tooltip__dot fw-tooltip__dot--min" />Min {tMin}°C</div>
-            <div className="fw-tooltip__row"><span className="fw-tooltip__dot fw-tooltip__dot--rain" />Rainfall {precip} mm</div>
-        </div>
-    );
-}
-
-const ForecastWidget = ({ style, description, step, title, forecast, organisationUnit }) => {
-    const [detailsOpen, setDetailsOpen] = useState(false);
-
+const ForecastWidget = ({ style, description, title, forecast, organisationUnit }) => {
     useEffect(() => {
         // console.log(forecast);
     }, [forecast]);
@@ -139,23 +113,39 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
             <style>{`
                 .fw-stats {
                     display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    gap: 10px;
+                    /* Four across, one row. This section is a half-width column
+                       of the document — about 540px at a 1440px window — so a
+                       card is only around 130px wide there, and the icon and
+                       the text cannot sit side by side inside that: the trend
+                       pill was pushed past the card's edge, and past the edge
+                       of the section. The card stacks instead, which needs no
+                       more width than its widest word.
+                       The count is fixed rather than left to an auto-fit, so
+                       that the number of columns cannot come out differently in
+                       a window of a different width.
+                       No width media query here on purpose. The PDF export
+                       clones this document into an iframe sized to the browser
+                       window, so a max-width rule collapses the captured layout
+                       at widths that have nothing to do with the card's real
+                       width. */
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
                     margin: 14px 0 16px;
-                }
-                @media (max-width: 620px) {
-                    .fw-stats { grid-template-columns: repeat(2, 1fr); }
                 }
                 .fw-stat {
                     display: flex;
-                    gap: 10px;
-                    padding: 12px;
+                    flex-direction: column;
+                    gap: 6px;
+                    padding: 10px;
                     border-radius: 10px;
                     background: #F8FAFC;
+                    /* The track can shrink below the card's contents; the
+                       wrapping below is what keeps them inside it. */
+                    min-width: 0;
                 }
                 .fw-stat__icon {
-                    width: 34px; height: 34px;
-                    border-radius: 9px;
+                    width: 28px; height: 28px;
+                    border-radius: 8px;
                     display: flex; align-items: center; justify-content: center;
                     flex-shrink: 0;
                 }
@@ -163,10 +153,18 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                 .fw-stat__icon--amber { background: #FCF1E3; color: #E08A2C; }
                 .fw-stat__icon--teal { background: #E4F5F3; color: #12897F; }
                 .fw-stat__icon--violet { background: #EEECFA; color: #6C63C9; }
-                .fw-stat__label { font-size: 11.5px; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-                .fw-stat__valueRow { display: flex; align-items: baseline; gap: 6px; margin-top: 2px; }
-                .fw-stat__value { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: #16233A; }
-                .fw-stat__sub { font-size: 11.5px; color: #64748B; margin-top: 1px; }
+                .fw-stat__body { min-width: 0; }
+                /* anywhere rather than break-word: it is the one that shrinks
+                   the card's minimum width, so a word too wide for the card
+                   wraps instead of hanging out of it. It only bites in a
+                   cramped window, where the section is narrower than the four
+                   cards need. */
+                .fw-stat__label { font-size: 10.5px; color: #64748B; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.25; overflow-wrap: anywhere; }
+                /* The pill drops below the value rather than over the card's
+                   edge when the two do not fit on one line together. */
+                .fw-stat__valueRow { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+                .fw-stat__value { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #16233A; }
+                .fw-stat__sub { font-size: 10.5px; color: #64748B; margin-top: 1px; line-height: 1.3; }
 
                 .fw-pill {
                     font-size: 10.5px;
@@ -186,15 +184,6 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                 }
                 .fw-chart-head__title { font-size: 13px; font-weight: 650; color: #16233A; }
                 .fw-chart-head__range { font-size: 12px; color: #64748B; margin-top: 1px; }
-                .fw-legend { display: flex; gap: 14px; font-size: 11.5px; color: #64748B; }
-                .fw-legend__item { display: flex; align-items: center; gap: 5px; }
-                .fw-legend__swatch { width: 9px; height: 9px; border-radius: 2px; }
-
-                .fw-chart-frame {
-                    background: #F8FAFC;
-                    border-radius: 10px;
-                    padding: 14px 6px 4px 0;
-                }
 
                 .fw-empty {
                     height: 200px;
@@ -207,38 +196,6 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                     color: #94a3b8;
                     font-size: 13px;
                 }
-
-                .fw-tooltip {
-                    background: #16233A;
-                    color: white;
-                    padding: 10px 12px;
-                    border-radius: 8px;
-                    font-size: 12px;
-                    min-width: 140px;
-                    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-                }
-                .fw-tooltip__date { font-weight: 700; margin-bottom: 6px; font-size: 12px; }
-                .fw-tooltip__row { display: flex; align-items: center; gap: 6px; padding: 2px 0; opacity: 0.9; }
-                .fw-tooltip__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-                .fw-tooltip__dot--max { background: #E08A2C; }
-                .fw-tooltip__dot--min { background: #2E7DD1; }
-                .fw-tooltip__dot--rain { background: #9FB6D4; }
-
-                .fw-details-toggle {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    margin-top: 12px;
-                    background: none;
-                    border: none;
-                    padding: 0;
-                    font-size: 12.5px;
-                    font-weight: 600;
-                    color: #2E7DD1;
-                    cursor: pointer;
-                }
-                .fw-details-toggle svg { transition: transform 160ms ease; }
-                .fw-details-toggle svg.fw-open { transform: rotate(180deg); }
 
                 .fw-details-table {
                     width: 100%;
@@ -261,17 +218,13 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                 }
             `}</style>
 
-            <div className={style.sectionHeader}>
-                <div className={style.stepBadge}>{step}</div>
-                <span className={style.sectionTitle}>{title}</span>
-            </div>
+            <BulletinSectionHeader title={title} description={description} />
 
-            {description && <p className={style.sectionSub}>{description}</p>}
             {ouLabel && <p className={style.sectionSub}>{ouLabel}</p>}
 
             {!hasData ? (
                 <div className="fw-empty">
-                    <p>Chart Visualization Placeholder</p>
+                    <p>No forecast data is available</p>
                 </div>
             ) : (
                 <>
@@ -310,67 +263,44 @@ const ForecastWidget = ({ style, description, step, title, forecast, organisatio
                         />
                     </div>
 
+                    {/* The plot this head used to caption is gone, so the head
+                        now captions the table below it and no longer carries a
+                        legend — the swatches named series that are not drawn. */}
                     <div className="fw-chart-head">
                         <div>
                             <div className="fw-chart-head__title">{daily.length}-Day Forecast Overview</div>
                             <div className="fw-chart-head__range">{daily[0].label} — {daily[daily.length - 1].label}</div>
                         </div>
-                        <div className="fw-legend">
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#E08A2C' }} /> Max Temp</div>
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#2E7DD1' }} /> Min Temp</div>
-                            <div className="fw-legend__item"><span className="fw-legend__swatch" style={{ background: '#B9CBE3' }} /> Rainfall</div>
-                        </div>
                     </div>
 
-                    <div className="fw-chart-frame">
-                        <ResponsiveContainer width="100%" height={200}>
-                            <ComposedChart data={daily} margin={{ top: 6, right: 16, bottom: 0, left: -18 }}>
-                                <CartesianGrid vertical={false} stroke="#E4E9F1" />
-                                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-                                <YAxis yAxisId="temp" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={34} />
-                                <YAxis yAxisId="rain" orientation="right" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} width={30} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Bar yAxisId="rain" dataKey="precip" fill="#B9CBE3" radius={[3, 3, 0, 0]} barSize={14} isAnimationActive={false} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#E08A2C" strokeWidth={2} dot={{ r: 3, fill: '#E08A2C', strokeWidth: 0 }} isAnimationActive={false} />
-                                <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#2E7DD1" strokeWidth={2} dot={{ r: 3, fill: '#2E7DD1', strokeWidth: 0 }} isAnimationActive={false} />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* The toggle is a control, so it has no place on the page. The
-                        table below it is content and does print, whenever it is
-                        expanded — the export mirrors what the preview shows. */}
-                    <button data-pdf-exclude className="fw-details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
-                        View Forecast Details
-                        <ChevronDown size={14} className={detailsOpen ? 'fw-open' : ''} />
-                    </button>
-
-                    {detailsOpen && (
-                        <table className="fw-details-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Min °C</th>
-                                    <th>Max °C</th>
-                                    <th>Humidity %</th>
-                                    <th>Wind m/s</th>
-                                    <th>Rain mm</th>
+                    {/* Always shown. It used to wait behind a toggle because it
+                        was the chart's detail; with the chart removed it is the
+                        section's content, and a control has no place on the page
+                        the export captures. */}
+                    <table className="fw-details-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Min °C</th>
+                                <th>Max °C</th>
+                                <th>Humidity %</th>
+                                <th>Wind m/s</th>
+                                <th>Rain mm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {daily.map((d) => (
+                                <tr key={d.date}>
+                                    <td>{d.label}</td>
+                                    <td>{d.tMin}</td>
+                                    <td>{d.tMax}</td>
+                                    <td>{d.rh}</td>
+                                    <td>{d.wind}</td>
+                                    <td>{d.precip}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {daily.map((d) => (
-                                    <tr key={d.date}>
-                                        <td>{d.label}</td>
-                                        <td>{d.tMin}</td>
-                                        <td>{d.tMax}</td>
-                                        <td>{d.rh}</td>
-                                        <td>{d.wind}</td>
-                                        <td>{d.precip}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
+                            ))}
+                        </tbody>
+                    </table>
                 </>
             )}
         </div>

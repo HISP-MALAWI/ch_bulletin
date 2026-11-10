@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useDataQuery } from '@dhis2/app-runtime'
 import i18n from '@dhis2/d2-i18n'
 import classes from './App.module.css'
+import './theme/fonts.css'
+import { applyBulletinTokens } from './theme/tokens'
 import HomePage from './Pages/home'
 import BulletinForm from './Pages/newBulletin'
 import BulletinPreview from './Pages/bulletinPreview'
@@ -97,10 +99,18 @@ const MyApp = () => {
     )
 }
 
-const App = () => (
-    <AccessProvider>
-        <MyApp />
-    </AccessProvider>
-)
+const App = () => {
+    // Publishes the bulletin palette as custom properties, so the stylesheet and
+    // the chart components read the same values.
+    React.useEffect(() => {
+        applyBulletinTokens()
+    }, [])
+
+    return (
+        <AccessProvider>
+            <MyApp />
+        </AccessProvider>
+    )
+}
 
 export default App

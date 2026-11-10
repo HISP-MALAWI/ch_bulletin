@@ -59,7 +59,17 @@ export const buildSeasonalClimateRows = ({
     dataValues.forEach((row) => {
         const [dataElement, period, orgUnit, rawValue] = row;
         const chartRow = rowsByPeriod.get(period);
-        if (!chartRow || orgUnit !== selectedOrgUnit || rawValue === '') return;
+        if (!chartRow || orgUnit !== selectedOrgUnit) return;
+
+        // `Number(null)` and `Number('   ')` are both 0, which would turn a
+        // missing reading into a real zero — the opposite of what the chart and
+        // the section's hide rule need. A genuine `0` or `'0'` is kept.
+        if (
+            rawValue === '' ||
+            rawValue === null ||
+            rawValue === undefined ||
+            (typeof rawValue === 'string' && rawValue.trim() === '')
+        ) return;
 
         const value = Number(rawValue);
         if (!Number.isFinite(value)) return;
@@ -70,3 +80,15 @@ export const buildSeasonalClimateRows = ({
 
     return Array.from(rowsByPeriod.values());
 };
+
+/**
+ * Whether the seasonal rows carry any reading at all.
+ *
+ * A row is seeded for every period, so `rows.length` is never the answer. A
+ * zero is a real reading — a DHO can legitimately have 0 mm of rainfall — and
+ * only a missing value leaves the field `null`.
+ */
+export const hasSeasonalClimateData = (rows = []) =>
+    rows.some((row) =>
+        Number.isFinite(row.rainfall) || Number.isFinite(row.temperature)
+    );

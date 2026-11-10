@@ -72,7 +72,30 @@ export const buildHistoricalClimateCaseRows = ({
     return Array.from(rowsByPeriod.values());
 };
 
-export const getRainfallCasePeakInsight = (rows = []) => {
+/**
+ * Whether stored climate values were fetched for the months the chart draws.
+ *
+ * The values are a cache of an earlier fetch: a bulletin saved while the chart
+ * drew twelve months holds twelve, and drawing a thirteenth from it would show
+ * the oldest month as "no data" rather than as the month it is. A stored set
+ * that does not reach the first month drawn is therefore not a cache of this
+ * window and has to be fetched again.
+ */
+export const hasClimateValuesForPeriods = (climateDataValues = [], periods = []) => {
+    const covered = new Set(climateDataValues.map((row) => row[1]));
+    return periods.every((period) => covered.has(period));
+};
+
+/**
+ * The month the rainfall peaks, the month the confirmed cases peak, and how far
+ * apart they are. `leadMonths` is positive when the rain comes first, which is
+ * the relationship the bulletin is making a claim about; zero and negative are
+ * both possible and mean the claim does not hold for this period.
+ *
+ * Both peaks are needed for any of it to mean anything, so a period missing
+ * either one gives `null` rather than a number nobody should read.
+ */
+export const getRainfallCasePeaks = (rows = []) => {
     const rainfallPeak = rows
         .filter((row) => Number.isFinite(row.rainfall))
         .reduce((peak, row) => !peak || row.rainfall > peak.rainfall ? row : peak, null);
@@ -84,7 +107,22 @@ export const getRainfallCasePeakInsight = (rows = []) => {
 
     const rainfallIndex = rows.findIndex((row) => row.period === rainfallPeak.period);
     const casesIndex = rows.findIndex((row) => row.period === casesPeak.period);
-    const leadMonths = casesIndex - rainfallIndex;
+
+    return {
+        rainfallPeriod: rainfallPeak.period,
+        casePeriod: casesPeak.period,
+        rainfallIndex,
+        casesIndex,
+        leadMonths: casesIndex - rainfallIndex,
+    };
+};
+
+export const getRainfallCasePeakInsight = (rows = []) => {
+    const peaks = getRainfallCasePeaks(rows);
+
+    if (!peaks) return null;
+
+    const { leadMonths } = peaks;
 
     if (leadMonths > 0) {
         return `The rainfall peak precedes the confirmed-case peak by ${leadMonths} month${leadMonths === 1 ? '' : 's'}, supporting anticipatory preparedness.`;

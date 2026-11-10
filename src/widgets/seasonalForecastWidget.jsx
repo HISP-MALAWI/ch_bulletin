@@ -1,11 +1,11 @@
 import React from 'react';
 import { AlertBar, Field, SingleSelectField, SingleSelectOption } from '@dhis2/ui';
 import { dataElementsQuery } from '../Pages/services/getDataelemente';
-import dataQuery from '../Pages/services/engines/dataQuery';
+import useSessionCachedQuery from '../Pages/services/engines/sessionCachedQuery';
 import { SettingsSection } from './settingsSectionWidget';
 
 export const SeasonalForecastWidget = ({ styles, settings, setSettings }) => {
-    const { data, error, loading } = dataQuery(dataElementsQuery);
+    const { data, error, loading } = useSessionCachedQuery(dataElementsQuery, 'data-elements');
     const dataElements = data?.dataElements?.dataElements || [];
     const getSelectedDataElement = value =>
         dataElements.some(dataElement => dataElement.id === value)

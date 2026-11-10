@@ -1,7 +1,7 @@
 import React from 'react';
 import { OrganisationUnitTree } from '@dhis2/ui';
 
-const OrgUnitTreeWidget = ({ loading, error, data, setSelectedOrgUnit }) => {
+const OrgUnitTreeWidget = ({ loading, error, orgUnits = [], setSelectedOrgUnit }) => {
     const [selectedOrgPath, setSelectedOrgUnitPath] = React.useState(null);
     if (loading) {
         return <p>Loading organizational units...</p>;
@@ -10,8 +10,6 @@ const OrgUnitTreeWidget = ({ loading, error, data, setSelectedOrgUnit }) => {
     if (error) {
         return <p>Error loading organizational units: {error.message}</p>;
     }
-
-    const orgUnits = data?.results?.organisationUnits || [];
 
     // Find level 1 org unit
     const level1Unit = orgUnits.find(unit => unit.level === 1);

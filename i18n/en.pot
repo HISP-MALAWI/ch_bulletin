@@ -5,8 +5,8 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
-"POT-Creation-Date: 2026-10-05T13:38:06.652Z\n"
-"PO-Revision-Date: 2026-10-05T13:38:06.652Z\n"
+"POT-Creation-Date: 2026-11-02T08:22:46.581Z\n"
+"PO-Revision-Date: 2026-11-02T08:22:46.583Z\n"
 
 msgid "Home"
 msgstr "Home"
@@ -87,6 +87,13 @@ msgstr ""
 "PDF downloaded, but {{total}} image(s) could not be included. Check the "
 "image URLs in Settings."
 
+msgid ""
+"PDF downloaded, but the OpenStreetMap basemap could not be included. The "
+"district boundaries are shown without it."
+msgstr ""
+"PDF downloaded, but the OpenStreetMap basemap could not be included. The "
+"district boundaries are shown without it."
+
 msgid "Failed to generate the PDF"
 msgstr "Failed to generate the PDF"
 
@@ -96,11 +103,20 @@ msgstr "Back to Home"
 msgid "No bulletin data available"
 msgstr "No bulletin data available"
 
-msgid "Draft"
-msgstr "Draft"
+msgid "Executive Summary"
+msgstr "Executive Summary"
 
-msgid "Published"
-msgstr "Published"
+msgid "Malaria Forecast"
+msgstr "Malaria Forecast"
+
+msgid "Recorded cases, the predicted range and the alert threshold."
+msgstr "Recorded cases, the predicted range and the alert threshold."
+
+msgid "Weather Forecast"
+msgstr "Weather Forecast"
+
+msgid "Upcoming weather conditions."
+msgstr "Upcoming weather conditions."
 
 msgid "Download PDF"
 msgstr "Download PDF"
@@ -117,20 +133,11 @@ msgstr "Organisation Unit"
 msgid "Period"
 msgstr "Period"
 
+msgid "{{total}} months"
+msgstr "{{total}} months"
+
 msgid "Generated on {{date}}"
 msgstr "Generated on {{date}}"
-
-msgid "Highlights"
-msgstr "Highlights"
-
-msgid "Malaria Forecast"
-msgstr "Malaria Forecast"
-
-msgid "Weather Forecast"
-msgstr "Weather Forecast"
-
-msgid "Upcoming weather conditions."
-msgstr "Upcoming weather conditions."
 
 msgid "N/A"
 msgstr "N/A"
@@ -159,17 +166,18 @@ msgstr "No bulletins available."
 msgid "You do not have permission to draft bulletins"
 msgstr "You do not have permission to draft bulletins"
 
-msgid "Please add highlights before saving"
-msgstr "Please add highlights before saving"
-
-msgid "Bulletin updated successfully!"
-msgstr "Bulletin updated successfully!"
-
-msgid "Bulletin saved to draft successfully!"
-msgstr "Bulletin saved to draft successfully!"
+msgid "Please add an executive summary before saving"
+msgstr "Please add an executive summary before saving"
 
 msgid "Error saving bulletin. Please try again."
 msgstr "Error saving bulletin. Please try again."
+
+msgid ""
+"The document does not show {{total}} of its sections. Change this in "
+"Settings."
+msgstr ""
+"The document does not show {{total}} of its sections. Change this in "
+"Settings."
 
 msgid "Save Changes"
 msgstr "Save Changes"
@@ -201,3 +209,221 @@ msgid ""
 msgstr ""
 "An image in this bulletin blocked the export. Check the disease icon URLs "
 "in Settings."
+
+msgid "Districts on alert"
+msgstr "Districts on alert"
+
+msgid "Ranked by forecast cases above threshold."
+msgstr "Ranked by forecast cases above threshold."
+
+msgid "Districts on watch"
+msgstr "Districts on watch"
+
+msgid ""
+"No district is on alert. Peak is the month closest to the threshold; ranked "
+"by how close the forecast median runs to it."
+msgstr ""
+"No district is on alert. Peak is the month closest to the threshold; ranked "
+"by how close the forecast median runs to it."
+
+msgid "Top districts by forecast cases"
+msgstr "Top districts by forecast cases"
+
+msgid ""
+"No district is on alert or watch. Ranked by the highest forecast median "
+"across the forecast months."
+msgstr ""
+"No district is on alert or watch. Ranked by the highest forecast median "
+"across the forecast months."
+
+msgid "District forecast table"
+msgstr "District forecast table"
+
+msgid ""
+"No district is on alert or watch, and no district has a forecast median for "
+"this bulletin period."
+msgstr ""
+"No district is on alert or watch, and no district has a forecast median for "
+"this bulletin period."
+
+msgid "No district-level forecast values are available for this bulletin period."
+msgstr "No district-level forecast values are available for this bulletin period."
+
+msgid ""
+"Configure malaria threshold, prediction bounds, median prediction, or alarm "
+"indicators to display the district forecast table."
+msgstr ""
+"Configure malaria threshold, prediction bounds, median prediction, or alarm "
+"indicators to display the district forecast table."
+
+msgid "High"
+msgstr "High"
+
+msgid "Moderate"
+msgstr "Moderate"
+
+msgid "Low"
+msgstr "Low"
+
+msgid ""
+"No district-level readings are available for this period, so the regional "
+"risk levels are not shown."
+msgstr ""
+"No district-level readings are available for this period, so the regional "
+"risk levels are not shown."
+
+msgid ""
+"Regional risk levels need the malaria alarm and threshold indicators mapped "
+"in Settings."
+msgstr ""
+"Regional risk levels need the malaria alarm and threshold indicators mapped "
+"in Settings."
+
+msgid "This district"
+msgstr "This district"
+
+msgid "Districts in the same zone"
+msgstr "Districts in the same zone"
+
+msgid "All districts in Malawi"
+msgstr "All districts in Malawi"
+
+msgid "Districts in this zone"
+msgstr "Districts in this zone"
+
+msgid "Districts"
+msgstr "Districts"
+
+msgid "Other"
+msgstr "Other"
+
+msgid "Highlight districts"
+msgstr "Highlight districts"
+
+msgid "Choose districts"
+msgstr "Choose districts"
+
+msgid "No districts are available for this organisation unit."
+msgstr "No districts are available for this organisation unit."
+
+msgid "{{total}} district(s) highlighted"
+msgstr "{{total}} district(s) highlighted"
+
+msgid "Changing the organisation unit resets this to that district."
+msgstr "Changing the organisation unit resets this to that district."
+
+msgid "Malaria overview"
+msgstr "Malaria overview"
+
+msgid "Forecast summary cards"
+msgstr "Forecast summary cards"
+
+msgid "Current Malaria Situation"
+msgstr "Current Malaria Situation"
+
+msgid "Historical climate and cases"
+msgstr "Historical climate and cases"
+
+msgid "Seasonal climate"
+msgstr "Seasonal climate"
+
+msgid "District forecast risk"
+msgstr "District forecast risk"
+
+msgid "District actions"
+msgstr "District actions"
+
+msgid "Document Sections"
+msgstr "Document Sections"
+
+msgid ""
+"The sections the document carries, in the order it reads. The masthead and "
+"the footer are fixed."
+msgstr ""
+"The sections the document carries, in the order it reads. The masthead and "
+"the footer are fixed."
+
+msgid "{{total}} hidden"
+msgstr "{{total}} hidden"
+
+msgid "Move {{section}} up"
+msgstr "Move {{section}} up"
+
+msgid "Move {{section}} down"
+msgstr "Move {{section}} down"
+
+msgid "Alert"
+msgstr "Alert"
+
+msgid "Watch"
+msgstr "Watch"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Confirmed cases"
+msgstr "Confirmed cases"
+
+msgid "Median forecast"
+msgstr "Median forecast"
+
+msgid "50% interval"
+msgstr "50% interval"
+
+msgid "80% interval"
+msgstr "80% interval"
+
+msgid "Alert threshold"
+msgstr "Alert threshold"
+
+msgid "Forecast"
+msgstr "Forecast"
+
+msgid "Chart series"
+msgstr "Chart series"
+
+msgid "No data for this month"
+msgstr "No data for this month"
+
+msgid ""
+"The median forecast is above the alert threshold in {{months}} of {{total}} "
+"months. The highest is {{month}} at {{value}} against a threshold of "
+"{{threshold}}."
+msgstr ""
+"The median forecast is above the alert threshold in {{months}} of {{total}} "
+"months. The highest is {{month}} at {{value}} against a threshold of "
+"{{threshold}}."
+
+msgid ""
+"The median forecast stays below the alert threshold in every month. It "
+"comes closest in {{month}}, at {{value}} against a threshold of "
+"{{threshold}}."
+msgstr ""
+"The median forecast stays below the alert threshold in every month. It "
+"comes closest in {{month}}, at {{value}} against a threshold of "
+"{{threshold}}."
+
+msgid "Current {{disease}} cases and prediction"
+msgstr "Current {{disease}} cases and prediction"
+
+msgid "Monthly confirmed cases and forecast range"
+msgstr "Monthly confirmed cases and forecast range"
+
+msgid "Loading chart data…"
+msgstr "Loading chart data…"
+
+msgid "The chart could not be loaded. Try again, or check your connection."
+msgstr "The chart could not be loaded. Try again, or check your connection."
+
+msgid ""
+"No malaria case data is available for these months and the selected "
+"organization unit."
+msgstr ""
+"No malaria case data is available for these months and the selected "
+"organization unit."
+
+msgid "Add a malaria mapping to display case trends."
+msgstr "Add a malaria mapping to display case trends."
+
+msgid "median {{median}}, threshold {{threshold}}"
+msgstr "median {{median}}, threshold {{threshold}}"
