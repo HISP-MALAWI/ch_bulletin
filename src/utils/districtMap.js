@@ -1,4 +1,8 @@
 import { districtMapQuery } from '../Pages/services/getDistrictMap';
+import {
+    clearSessionResourceCache,
+    getSessionCachedResource,
+} from './sessionResourceCache';
 
 /**
  * The saved DHIS2 maps the session has already read, keyed by uid.
@@ -11,10 +15,12 @@ import { districtMapQuery } from '../Pages/services/getDistrictMap';
  * between choosing it and opening the bulletin, a network blip — is not
  * remembered as absent, so the next bulletin, or the next render, asks again.
  */
-const cached = new Map();
+const cacheKeys = new Set();
+const cacheKeyFor = (uid) => `metadata:district-map:${uid}`;
 
 export const clearDistrictMapCache = () => {
-    cached.clear();
+    cacheKeys.forEach((key) => clearSessionResourceCache(key));
+    cacheKeys.clear();
 };
 
 const OSM_ATTRIBUTION = '© OpenStreetMap contributors';
@@ -45,27 +51,26 @@ export const basemapAttribution = (basemap) =>
 export const getDistrictMap = async (uid, engine) => {
     if (!uid) return null;
 
-    if (cached.has(uid)) return cached.get(uid);
-
     if (!engine || typeof engine.query !== 'function') return null;
 
+    const cacheKey = cacheKeyFor(uid);
+    cacheKeys.add(cacheKey);
+
     try {
-        const response = await engine.query(districtMapQuery(uid));
-        const map = response?.map;
+        const resolved = await getSessionCachedResource(cacheKey, async () => {
+            const response = await engine.query(districtMapQuery(uid));
+            const map = response?.map;
 
-        // A response with no map in it is a failure wearing the shape of a
-        // success, and is not worth remembering.
-        if (!map?.id) return null;
+            // Undefined responses are not cached, so a failed read can retry.
+            if (!map?.id) return undefined;
 
-        const resolved = {
-            id: map.id,
-            name: map.displayName || map.name || map.id,
-            attribution: basemapAttribution(map.basemap),
-        };
-
-        cached.set(uid, resolved);
-
-        return resolved;
+            return {
+                id: map.id,
+                name: map.displayName || map.name || map.id,
+                attribution: basemapAttribution(map.basemap),
+            };
+        });
+        return resolved || null;
     } catch (error) {
         console.error('Failed to read the bulletin DHIS2 map:', error);
         return null;

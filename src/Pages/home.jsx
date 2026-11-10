@@ -3,7 +3,9 @@ import i18n from '@dhis2/d2-i18n'
 import AddIcon from "@mui/icons-material/Add"
 import { CircularLoader, Layer, Center, IconError24 } from '@dhis2/ui'
 import dataQuery from './services/engines/dataQuery'
+import useSessionCachedQuery from './services/engines/sessionCachedQuery'
 import { homeDataQuery } from './services/getHomeData'
+import { organisationUnitsQuery, readOrganisationUnits } from './services/getOrganisationUnits'
 import {
     bulletinStatus,
     isPublished,
@@ -15,6 +17,10 @@ import { useAccess } from '../context/AccessContext'
 
 const HomePage = ({ style }) => {
     const { loading, error, data, refetch } = dataQuery(homeDataQuery)
+    const { data: organisationUnitsData } = useSessionCachedQuery(
+        organisationUnitsQuery,
+        'organisation-units'
+    )
     const { canDraft } = useAccess()
 
     const location = useLocation()
@@ -49,12 +55,15 @@ const HomePage = ({ style }) => {
             setBulletins(isArchive
                 ? selectPublishedBulletins(records)
                 : selectDraftBulletins(records))
-            setOrganisationUnit(data?.organisationUnits)
         }
         // Navigating between the two routes reuses this instance rather than
         // remounting it, so the effect has to re-run on the route as well — and
         // on the handed-over record, which arrives with the navigation.
     }, [data, isArchive, location.state])
+
+    React.useEffect(() => {
+        setOrganisationUnit(readOrganisationUnits(organisationUnitsData))
+    }, [organisationUnitsData])
 
     // A save in the editor lands here, and what was just saved is what the
     // officer came back to look at, so the list is fetched again on arrival

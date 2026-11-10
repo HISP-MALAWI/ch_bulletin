@@ -1,4 +1,8 @@
 import { districtBoundariesQuery } from '../Pages/services/getDistrictBoundaries';
+import {
+    clearSessionResourceCache,
+    getSessionCachedResource,
+} from './sessionResourceCache';
 
 /**
  * The national level-3 boundaries for the session, once they have been fetched.
@@ -13,21 +17,19 @@ import { districtBoundariesQuery } from '../Pages/services/getDistrictBoundaries
  * tried again next time, rather than being remembered for the rest of the
  * session.
  */
-let cached = null;
+const CACHE_KEY = 'metadata:district-boundaries';
 
-export const clearDistrictBoundaryCache = () => {
-    cached = null;
-};
+export const clearDistrictBoundaryCache = () =>
+    clearSessionResourceCache(CACHE_KEY);
 
 /**
  * The boundaries the caller's organisation units already carry, or null when
  * they are not all there — in which case they have to be fetched.
  *
- * The editor's organisation-unit query asks for `geometry`, so its level-3
- * units arrive carrying it and its map makes no request at all. The preview
- * loads its units without geometry, so it is the preview that pays for the
- * request. Mixed input counts as absent: half from the caller and half from the
- * server would be two sources of truth in one drawing.
+ * The hierarchy query intentionally omits geometry. Callers that already have
+ * a complete boundary set can use it directly; otherwise the map fetches the
+ * session-cached national list. Mixed input counts as absent: half from the
+ * caller and half from the server would be two sources of truth in one drawing.
  */
 export const readNationalBoundaries = (orgUnits = []) => {
     const level3 = orgUnits.filter((unit) => Number(unit?.level) === 3 && unit?.id);
@@ -48,28 +50,29 @@ export const readNationalBoundaries = (orgUnits = []) => {
  * cached; an empty list is a real answer and is.
  */
 export const getNationalDistrictBoundaries = async (engine) => {
-    if (cached) return { boundaries: cached, error: null };
-
     if (!engine || typeof engine.query !== 'function') {
         return { boundaries: [], error: null };
     }
 
     try {
-        const response = await engine.query(districtBoundariesQuery);
-        const boundaries = response?.boundaries?.organisationUnits;
+        const boundaries = await getSessionCachedResource(CACHE_KEY, async () => {
+            const response = await engine.query(districtBoundariesQuery);
+            const units = response?.boundaries?.organisationUnits;
 
-        if (!Array.isArray(boundaries)) {
-            return {
-                boundaries: [],
-                error: new Error('DHIS2 returned no district boundary list.'),
-            };
-        }
+            if (!Array.isArray(units)) {
+                throw new Error('DHIS2 returned no district boundary list.');
+            }
 
-        cached = boundaries
-            .filter((unit) => unit?.geometry)
-            .map(({ id, geometry, displayName }) => ({ id, geometry, displayName }));
+            return units
+                .filter((unit) => unit?.geometry)
+                .map(({ id, geometry, displayName }) => ({
+                    id,
+                    geometry,
+                    displayName,
+                }));
+        });
 
-        return { boundaries: cached, error: null };
+        return { boundaries, error: null };
     } catch (error) {
         console.error('Failed to fetch district boundaries:', error);
         return { boundaries: [], error };

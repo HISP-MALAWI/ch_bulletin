@@ -3,14 +3,14 @@ import {
     Button,
 } from '@dhis2/ui';
 import { SettingsSection } from './settingsSectionWidget';
-import dataQuery from '../Pages/services/engines/dataQuery';
+import useSessionCachedQuery from '../Pages/services/engines/sessionCachedQuery';
 import { dataElementsQuery } from '../Pages/services/getDataelemente';
 import { DiseaseMappingModal } from './demappingWidget';
 import DataElementTable from './dataTableWidget';
 
 export const DiseaseMappingWidget = ({ styles, diseaseElements, setDiseaseElements, }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-        const {data,error,loading} = dataQuery(dataElementsQuery);
+        const {data,error,loading} = useSessionCachedQuery(dataElementsQuery, 'data-elements');
         const [diseaseElementsData, setDiseaseElementsData] = useState([]);
 
         const [mappingEditRow, setMappingEditRow] = useState(null);
