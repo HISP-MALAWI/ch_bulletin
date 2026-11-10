@@ -15,6 +15,7 @@ import {
     buildSeasonalClimateRows,
     fetchSeasonalClimateDataValues,
     getSeasonalForecastPeriods,
+    hasSeasonalClimateData,
 } from '../utils/seasonalClimateData';
 import { palette, series, fontFamily } from '../theme/tokens';
 import { BulletinSectionHeader } from './bulletinSection';
@@ -52,11 +53,21 @@ const SeasonalClimateChart = ({
     const periods = React.useMemo(() => getSeasonalForecastPeriods(period), [period]);
     const hasConfiguredElements = rainfallDataElement && temperatureDataElement;
 
+    // Values only mean something for the unit, period and elements they were
+    // fetched for. A scope mismatch means a fetch is still needed, so the chart
+    // shows its loading state instead of briefly looking data-less when the
+    // selection changes.
+    const scope = `${selectedOrgUnit || ''}|${period || ''}|${rainfallDataElement || ''}|${temperatureDataElement || ''}`;
+    const [loadedScope, setLoadedScope] = React.useState(
+        initialDataValues !== undefined ? scope : null
+    );
+
     React.useEffect(() => {
         if (initialDataValues !== undefined) {
             setDataValues(initialDataValues);
             setLoadError(null);
             setLoading(false);
+            setLoadedScope(scope);
             return undefined;
         }
 
@@ -65,12 +76,14 @@ const SeasonalClimateChart = ({
             setLoadError(null);
             onDataValuesChange?.([]);
             setLoading(false);
+            setLoadedScope(scope);
             return undefined;
         }
 
         let cancelled = false;
         setLoading(true);
         setLoadError(null);
+        setLoadedScope(null);
         fetchSeasonalClimateDataValues({
             dataElements: [rainfallDataElement, temperatureDataElement],
             periods,
@@ -89,7 +102,10 @@ const SeasonalClimateChart = ({
                 setLoadError(error);
             }
         }).finally(() => {
-            if (!cancelled) setLoading(false);
+            if (!cancelled) {
+                setLoading(false);
+                setLoadedScope(scope);
+            }
         });
 
         return () => {
@@ -102,6 +118,7 @@ const SeasonalClimateChart = ({
         onDataValuesChange,
         rainfallDataElement,
         periods,
+        scope,
         selectedOrgUnit,
         temperatureDataElement,
     ]);
@@ -113,10 +130,29 @@ const SeasonalClimateChart = ({
         temperatureDataElement,
         selectedOrgUnit,
     }), [dataValues, periods, rainfallDataElement, temperatureDataElement, selectedOrgUnit]);
-    const hasChartData = rows.some((row) => row.rainfall !== null || row.temperature !== null);
+    const hasChartData = hasSeasonalClimateData(rows);
     const orgUnitName = orgUnits.find((unit) => unit.id === selectedOrgUnit)?.displayName;
+    const isCurrentScope = loadedScope === scope;
+    const showingLoading = loading || (
+        !isCurrentScope &&
+        periods.length > 0 &&
+        hasConfiguredElements &&
+        Boolean(selectedOrgUnit)
+    );
 
     if (!periods.length) return null;
+
+    // The chart is the section. Hide it only once the current scope has
+    // finished loading with no readings. Loading, a failed request and
+    // unconfigured elements stay visible: those are states worth reporting, not
+    // proof that there is no data.
+    if (
+        !showingLoading &&
+        !loadError &&
+        hasConfiguredElements &&
+        isCurrentScope &&
+        !hasChartData
+    ) return null;
 
     return (
         <section className={style.sectionCard}>
@@ -124,7 +160,7 @@ const SeasonalClimateChart = ({
             <p className={style.casesChartSubtitle}>
                 Monthly rainfall and mean temperature{orgUnitName ? ` for ${orgUnitName}` : ''}, {formatMonth(periods[0])} – {formatMonth(periods.at(-1))}
             </p>
-            {loading ? (
+            {showingLoading ? (
                 <div className={style.casesChartEmpty}>Loading seasonal climate data…</div>
             ) : loadError ? (
                 <div className={style.casesChartEmpty} role="alert">
@@ -193,11 +229,7 @@ const SeasonalClimateChart = ({
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
-            ) : (
-                <div className={style.casesChartEmpty}>
-                    No rainfall or temperature data is available for this season and organization unit.
-                </div>
-            )}
+            ) : null}
         </section>
     );
 };

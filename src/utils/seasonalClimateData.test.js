@@ -2,6 +2,7 @@ import {
     buildSeasonalClimateRows,
     fetchSeasonalClimateDataValues,
     getSeasonalForecastPeriods,
+    hasSeasonalClimateData,
 } from './seasonalClimateData';
 
 describe('getSeasonalForecastPeriods', () => {
@@ -54,6 +55,56 @@ describe('buildSeasonalClimateRows', () => {
             temperature: null,
         });
         expect(rows.at(-1).period).toBe('202704');
+    });
+
+    it('keeps a genuine zero but drops null and whitespace readings', () => {
+        const base = {
+            periods: ['202610', '202611'],
+            rainfallDataElement: 'rain',
+            temperatureDataElement: 'temp',
+            selectedOrgUnit: 'district',
+        };
+
+        const zero = buildSeasonalClimateRows({
+            ...base,
+            dataValues: [
+                ['rain', '202610', 'district', '0'],
+                ['temp', '202610', 'district', null],
+            ],
+        });
+        expect(zero[0]).toEqual({ period: '202610', rainfall: 0, temperature: null });
+
+        const blank = buildSeasonalClimateRows({
+            ...base,
+            dataValues: [
+                ['rain', '202610', 'district', '   '],
+                ['temp', '202611', 'district', ''],
+            ],
+        });
+        expect(blank[0]).toEqual({ period: '202610', rainfall: null, temperature: null });
+        expect(blank[1]).toEqual({ period: '202611', rainfall: null, temperature: null });
+    });
+});
+
+describe('hasSeasonalClimateData', () => {
+    it('is false when every month is missing both readings', () => {
+        expect(hasSeasonalClimateData([])).toBe(false);
+        expect(hasSeasonalClimateData([
+            { period: '202610', rainfall: null, temperature: null },
+            { period: '202611', rainfall: null, temperature: null },
+        ])).toBe(false);
+    });
+
+    it('counts a zero as a real reading', () => {
+        expect(hasSeasonalClimateData([
+            { period: '202610', rainfall: 0, temperature: null },
+        ])).toBe(true);
+    });
+
+    it('is true when either series has a value', () => {
+        expect(hasSeasonalClimateData([
+            { period: '202610', rainfall: null, temperature: 24.3 },
+        ])).toBe(true);
     });
 });
 

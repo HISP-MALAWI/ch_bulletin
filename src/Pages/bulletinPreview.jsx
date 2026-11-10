@@ -233,7 +233,7 @@ const BulletinPreview = ({ style }) => {
                 getOrgUnitName(bulletin.organisationUnit),
             ])}.pdf`
 
-            const { droppedImages, mapFallbacks } = await exportBulletinPdf(contentRef.current, {
+            const { droppedImages, mapTilesHidden } = await exportBulletinPdf(contentRef.current, {
                 fileName,
                 title: `${bulletinTitle} - ${formatPeriod(bulletin.period)}`,
             })
@@ -250,11 +250,9 @@ const BulletinPreview = ({ style }) => {
                 )
             }
 
-            if (mapFallbacks > 0) {
+            if (mapTilesHidden) {
                 warnings.push(
-                    i18n.t('{{total}} DHIS2 map(s) could not be captured from this address, so the bulletin drew the district map itself. Export from the instance to capture the DHIS2 map.', {
-                        total: mapFallbacks,
-                    })
+                    i18n.t('PDF downloaded, but the OpenStreetMap basemap could not be included. The district boundaries are shown without it.')
                 )
             }
 
@@ -470,7 +468,7 @@ const BulletinPreview = ({ style }) => {
                     period={bulletin.period}
                     orgUnits={orgUnits}
                     selectedOrgUnitId={bulletin.organisationUnit}
-                    districtMap={bulletin.districtRiskMap}
+                    highlight={bulletin.mapHighlight}
                 />
             ),
         }),

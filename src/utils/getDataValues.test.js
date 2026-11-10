@@ -1,4 +1,4 @@
-import getDataValues, { getMonthlyPeriods } from './getDataValues';
+import getDataValues, { getMonthlyPeriods, mergeDataValues } from './getDataValues';
 
 describe('getMonthlyPeriods', () => {
     it('includes 12 preceding months, the selected month, and 3 following months', () => {
@@ -12,6 +12,46 @@ describe('getMonthlyPeriods', () => {
 
     it('returns no periods for an invalid monthly period', () => {
         expect(getMonthlyPeriods('202613')).toEqual([]);
+    });
+});
+
+describe('mergeDataValues', () => {
+    it('keeps one row per data element, period and unit', () => {
+        expect(mergeDataValues(
+            [['dx', '202610', 'ou', '1'], ['dx', '202611', 'ou', '2']],
+            [['dx', '202610', 'ou', '1'], ['dx', '202612', 'ou', '3']]
+        )).toEqual([
+            ['dx', '202610', 'ou', '1'],
+            ['dx', '202611', 'ou', '2'],
+            ['dx', '202612', 'ou', '3'],
+        ]);
+    });
+
+    it('prefers a real value over a blank from the other fetch', () => {
+        expect(mergeDataValues(
+            [['dx', '202610', 'ou', '']],
+            [['dx', '202610', 'ou', '7']]
+        )).toEqual([['dx', '202610', 'ou', '7']]);
+
+        expect(mergeDataValues(
+            [['dx', '202610', 'ou', '7']],
+            [['dx', '202610', 'ou', '']]
+        )).toEqual([['dx', '202610', 'ou', '7']]);
+    });
+
+    it('lets a later non-empty value win', () => {
+        expect(mergeDataValues(
+            [['dx', '202610', 'ou', '1']],
+            [['dx', '202610', 'ou', '2']]
+        )).toEqual([['dx', '202610', 'ou', '2']]);
+    });
+
+    it('ignores malformed lists and rows', () => {
+        expect(mergeDataValues(
+            undefined,
+            [null, 'x'],
+            [['dx', '202610', 'ou', '5']]
+        )).toEqual([['dx', '202610', 'ou', '5']]);
     });
 });
 
